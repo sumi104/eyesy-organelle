@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EYESY Live</title>
+    <link rel="icon" type="image/png" href="/static/assets/fav.png">
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        color: #888;
+        font-family: system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+      }
+      #stage {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #video {
+        max-width: 100%;
+        max-height: 100%;
+        image-rendering: auto;
+        display: none;
+      }
+      #message {
+        text-align: center;
+        line-height: 1.7;
+      }
+      #message code {
+        color: #ddd;
+        background: #1a1a1a;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+      /* hidden until the pointer moves, so nothing sits over the projection */
+      #bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, .65);
+        font-size: 13px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        opacity: 0;
+        transition: opacity .25s;
+      }
+      #bar.show { opacity: 1; }
+      #bar button {
+        background: #222;
+        color: #ddd;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font: inherit;
+        cursor: pointer;
+      }
+      #bar button:hover { background: #333; }
+      body.fit #video { max-width: none; max-height: none; width: 100%; height: 100%; object-fit: cover; }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <img id="video" alt="EYESY live output">
+      <div id="message">Waiting for the video engine&hellip;</div>
+    </div>
+
+    <div id="bar">
+      <strong style="color:#ddd">EYESY Live</strong>
+      <span id="status">connecting</span>
+      <button id="fullscreen">Fullscreen</button>
+      <button id="fitmode">Fill screen</button>
+      <a href="/" style="color:#7ab; margin-left:auto">Editor</a>
+    </div>
+
+    <script>
+      const video = document.getElementById('video');
+      const message = document.getElementById('message');
+      const status = document.getElementById('status');
+      const bar = document.getElementById('bar');
+
+      function start() {
+        // the query string keeps the browser from reusing a dead connection
+        video.src = '/stream.mjpg?t=' + Date.now();
+      }
+
+      video.addEventListener('load', () => {
+        video.style.display = 'block';
+        message.style.display = 'none';
+        status.textContent = 'streaming';
+      });
+
+      video.addEventListener('error', () => {
+        video.style.display = 'none';
+        message.style.display = 'block';
+        status.textContent = 'reconnecting';
+        setTimeout(start, 2000);
+      });
+
+      // check the engine is actually publishing, the img tag cannot tell us
+      async function poll() {
+        try {
+          const r = await fetch('/stream_status', { cache: 'no-store' });
+          const s = await r.json();
+          if (!s.running) {
+            message.innerHTML =
+              'Live stream is off.<br>Turn it on in <code>Video Settings</code> ' +
+              'on the instrument, or set <code>stream_enabled</code> in ' +
+              '<code>/sdcard/System/config.json</code>.';
+            message.style.display = 'block';
+            video.style.display = 'none';
+            status.textContent = 'off';
+          } else if (video.style.display !== 'block') {
+            start();
+          }
+        } catch (e) {
+          status.textContent = 'no connection';
+        }
+      }
+
+      document.getElementById('fullscreen').onclick = () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+      };
+
+      document.getElementById('fitmode').onclick = (e) => {
+        document.body.classList.toggle('fit');
+        e.target.textContent =
+          document.body.classList.contains('fit') ? 'Fit inside' : 'Fill screen';
+      };
+
+      let hideTimer;
+      document.addEventListener('mousemove', () => {
+        bar.classList.add('show');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => bar.classList.remove('show'), 2500);
+      });
+
+      start();
+      poll();
+      setInterval(poll, 5000);
+    </script>
+  </body>
+</html>

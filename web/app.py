@@ -1,5 +1,7 @@
 import os
-from flask import Flask, request, make_response, jsonify, send_from_directory, send_file
+import sys
+import time
+from flask import Flask, request, make_response, jsonify, send_from_directory, send_file, Response
 from flask_sock import Sock
 import subprocess
 import urllib.parse
@@ -7,6 +9,11 @@ import werkzeug
 import mimetypes
 import liblo
 import file_operations
+
+# the video engine and the encoder pass frames through /dev/shm
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "engines", "python"))
+import framebus
 
 # osc to eyesy app
 try:
@@ -57,6 +64,90 @@ def start_video_engine():
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
+
+# --- live video stream ---------------------------------------------------
+# The engine writes raw frames to /dev/shm, stream_encoder.py turns them into
+# JPEG, and this hands them out as motion jpeg. Enable it with stream_enabled
+# in the config, or from Video Settings on the instrument.
+
+JPEG_CAPACITY = 512 * 1024
+STREAM_BOUNDARY = "eyesyframe"
+
+
+def open_jpeg_bus():
+    try:
+        return framebus.FrameBus(framebus.JPEG_PATH, JPEG_CAPACITY)
+    except (OSError, ValueError):
+        return None
+
+
+@app.route('/live')
+def live():
+    return send_from_directory(app.static_folder, 'live.html')
+
+
+@app.route('/stream_status')
+def stream_status():
+    bus = open_jpeg_bus()
+    if bus is None:
+        return jsonify(running=False)
+    frame = bus.read()
+    bus.close()
+    if frame is None:
+        return jsonify(running=False)
+    return jsonify(running=True, width=frame[1], height=frame[2])
+
+
+@app.route('/stream.mjpg')
+def stream_mjpg():
+
+    def frames():
+        bus = None
+        last_seq = 0
+        # when the engine restarts the stream it makes a new file, so an
+        # mmap that stops advancing means it is time to reopen
+        last_change = time.time()
+        try:
+            while True:
+                if bus is None:
+                    bus = open_jpeg_bus()
+                    if bus is None:
+                        # engine not streaming, check back rather than 404
+                        time.sleep(1)
+                        if time.time() - last_change > 60:
+                            return
+                        continue
+                    last_seq = 0
+                    last_change = time.time()
+
+                frame = bus.read()
+
+                if frame is None or frame[3] == last_seq:
+                    if time.time() - last_change > 3:
+                        bus.close()
+                        bus = None
+                        continue
+                    time.sleep(0.01)
+                    continue
+
+                payload, _, _, last_seq = frame
+                last_change = time.time()
+                yield (b"--" + STREAM_BOUNDARY.encode() + b"\r\n"
+                       b"Content-Type: image/jpeg\r\n"
+                       b"Content-Length: " + str(len(payload)).encode()
+                       + b"\r\n\r\n" + payload + b"\r\n")
+        except GeneratorExit:
+            pass
+        finally:
+            if bus is not None:
+                bus.close()
+
+    return Response(
+        frames(),
+        mimetype=f"multipart/x-mixed-replace; boundary={STREAM_BOUNDARY}",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate",
+                 "Pragma": "no-cache",
+                 "Connection": "close"})
 
 @app.route('/reload_mode', methods=['GET', 'POST'])
 def reload_mode():
@@ -173,7 +264,8 @@ def log_stream(ws):
     background_thread(ws)  # Start sending logs to the WebSocket client
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=False, port=8080)
+    # threaded so a long lived /stream.mjpg client does not block the editor
+    app.run(host='0.0.0.0', debug=False, port=8080, threaded=True)
 
 
 
