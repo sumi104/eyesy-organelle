@@ -7,6 +7,12 @@ from widget_menu import WidgetMenu, MenuItem
 
 STREAM_RATES = [10, 15, 20, 30]
 
+FOOTER_PLAIN = (chr(0x2680) + "     = Cancel     " + chr(0x2682)
+                + "   = Up/Down     " + chr(0x2683) + "  = Enter")
+FOOTER_ADJUST = (chr(0x2680) + "     = Cancel     " + chr(0x2681)
+                 + "   = Adjust     " + chr(0x2682) + "   = Up/Down     "
+                 + chr(0x2683) + "  = Save & Exit")
+
 
 CMDLINE_PATH = "/boot/firmware/cmdline.txt"
 TV_NORM_PREFIX = "vc4.tv_norm="
@@ -64,10 +70,14 @@ def set_tv_norm(mode):
 class ScreenVideoSettings(Screen):
     def __init__(self, eyesy):
         super().__init__(eyesy)
-        self.state = "idle" 
+        self.state = "idle"
         self.title = "Video Settings"
-        self.footer =  chr(0x2680) + "     = Cancel     " + chr(0x2682) + "   = Up/Down     " + chr(0x2683) + "  = Enter"
+        self.footer = FOOTER_PLAIN
         self.new_video_res = 0
+
+        # key press timers for repeats while adjusting a value
+        self.key4_td = 0
+        self.key5_td = 0
 
         self.menu = WidgetMenu(eyesy, [
             MenuItem('HDMI Resolution  ▶', self.select_res),
@@ -77,11 +87,14 @@ class ScreenVideoSettings(Screen):
         ])
         self.menu.off_y = 43
 
+        # adjusted with the mode keys and confirmed with save, same as the
+        # MIDI settings screen. Nothing is applied until save, so holding a
+        # key down does not restart the encoder on every repeat.
         self.menu_stream = WidgetMenu(eyesy, [
-            MenuItem('Stream', self.toggle_stream),
-            MenuItem('Size', self.cycle_stream_width),
-            MenuItem('Frame Rate', self.cycle_stream_fps),
-            MenuItem('Smoothing', self.toggle_stream_smooth),
+            self.create_stream_item("stream_enabled", 0, 1),
+            self.create_stream_item("stream_width", 0, len(streamer.WIDTHS) - 1),
+            self.create_stream_item("stream_fps", 0, len(STREAM_RATES) - 1),
+            self.create_stream_item("stream_smooth", 0, 1),
             MenuItem('◀  Exit', self.goto_home)
         ])
         self.menu_stream.off_y = 75
@@ -118,6 +131,7 @@ class ScreenVideoSettings(Screen):
         self.menu_confirm_res.set_selected_index(1)
         self.current_compvid = get_tv_norm()
         self.state = "idle"
+        self.footer = FOOTER_PLAIN
 
     def after(self):
         pass
@@ -133,6 +147,21 @@ class ScreenVideoSettings(Screen):
             self.menu_confirm_res.handle_events()
         elif self.state == "stream":
             self.menu_stream.handle_events()
+            item = self.menu_stream.items[self.menu_stream.selected_index]
+            if item.adjustable:
+                if self.eyesy.key4_press:
+                    self.menu_dec_value(item)
+                    self.key4_td = 0
+                if self.eyesy.key4_status:
+                    self.key4_td += 1
+                    if self.key4_td > 10: self.menu_dec_value(item)
+
+                if self.eyesy.key5_press:
+                    self.menu_inc_value(item)
+                    self.key5_td = 0
+                if self.eyesy.key5_status:
+                    self.key5_td += 1
+                    if self.key5_td > 10: self.menu_inc_value(item)
 
     def render(self, surface):
 
@@ -187,48 +216,69 @@ class ScreenVideoSettings(Screen):
 
     def select_stream(self):
         self.state = "stream"
-        self.update_stream_labels()
+        self.footer = FOOTER_ADJUST
+        self.load_stream_values()
 
-    def update_stream_labels(self):
+    def create_stream_item(self, name, minv, maxv):
+        item = MenuItem("", self.save_stream)
+        item.adjustable = True
+        item.name = name
+        item.min_value = minv
+        item.max_value = maxv
+        item.value = minv
+        return item
+
+    def stream_item(self, name):
+        for item in self.menu_stream.items:
+            if item.name == name:
+                return item
+        return None
+
+    def text_for_stream_item(self, item):
+        if item.name == "stream_enabled":
+            item.text = f"Stream: {'On' if item.value else 'Off'}"
+        elif item.name == "stream_width":
+            item.text = f"Size: {streamer.WIDTHS[item.value]} wide"
+        elif item.name == "stream_fps":
+            item.text = f"Frame Rate: {STREAM_RATES[item.value]} fps"
+        elif item.name == "stream_smooth":
+            item.text = f"Smoothing: {'On' if item.value else 'Off'}"
+
+    def _index_of(self, choices, value, fallback=0):
+        try:
+            return choices.index(value)
+        except ValueError:
+            return fallback
+
+    def load_stream_values(self):
         c = self.eyesy.config
-        self.menu_stream.items[0].text = \
-            f"Stream: {'On' if c['stream_enabled'] else 'Off'}"
-        self.menu_stream.items[1].text = f"Size: {c['stream_width']} wide"
-        self.menu_stream.items[2].text = f"Frame Rate: {c['stream_fps']} fps"
-        self.menu_stream.items[3].text = \
-            f"Smoothing: {'On' if c['stream_smooth'] else 'Off'}"
+        self.stream_item("stream_enabled").value = 1 if c["stream_enabled"] else 0
+        self.stream_item("stream_width").value = \
+            self._index_of(streamer.WIDTHS, c["stream_width"])
+        self.stream_item("stream_fps").value = \
+            self._index_of(STREAM_RATES, c["stream_fps"])
+        self.stream_item("stream_smooth").value = 1 if c["stream_smooth"] else 0
+        for item in self.menu_stream.items:
+            if item.adjustable:
+                self.text_for_stream_item(item)
 
-    def apply_stream(self):
+    def save_stream(self):
+        c = self.eyesy.config
+        c["stream_enabled"] = bool(self.stream_item("stream_enabled").value)
+        c["stream_width"] = streamer.WIDTHS[self.stream_item("stream_width").value]
+        c["stream_fps"] = STREAM_RATES[self.stream_item("stream_fps").value]
+        c["stream_smooth"] = bool(self.stream_item("stream_smooth").value)
         self.eyesy.save_config_file()
-        self.update_stream_labels()
         streamer.apply(self.eyesy)
+        self.goto_home()
 
-    def toggle_stream(self):
-        self.eyesy.config["stream_enabled"] = \
-            not self.eyesy.config["stream_enabled"]
-        self.apply_stream()
+    def menu_dec_value(self, item):
+        item.value = max(item.value - item.value_delta, item.min_value)
+        self.text_for_stream_item(item)
 
-    def cycle_stream_width(self):
-        widths = streamer.WIDTHS
-        try:
-            i = widths.index(self.eyesy.config["stream_width"])
-        except ValueError:
-            i = -1
-        self.eyesy.config["stream_width"] = widths[(i + 1) % len(widths)]
-        self.apply_stream()
-
-    def toggle_stream_smooth(self):
-        self.eyesy.config["stream_smooth"] = \
-            not self.eyesy.config["stream_smooth"]
-        self.apply_stream()
-
-    def cycle_stream_fps(self):
-        try:
-            i = STREAM_RATES.index(self.eyesy.config["stream_fps"])
-        except ValueError:
-            i = -1
-        self.eyesy.config["stream_fps"] = STREAM_RATES[(i + 1) % len(STREAM_RATES)]
-        self.apply_stream()
+    def menu_inc_value(self, item):
+        item.value = min(item.value + item.value_delta, item.max_value)
+        self.text_for_stream_item(item)
 
     def select_compvid(self):
         self.state = "select_compvid"
