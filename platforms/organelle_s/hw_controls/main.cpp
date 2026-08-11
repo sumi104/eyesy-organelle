@@ -301,8 +301,9 @@ void footswitchInput(void) {
 // the encoder pages the oled locally so it stays responsive, the engine gets
 // a copy in case a menu wants it
 void encoderInput(void) {
-    if (controls.encTurn == 1) oledPages.prevPage();
-    else oledPages.nextPage();
+    // clockwise pages forward
+    if (controls.encTurn == 1) oledPages.nextPage();
+    else oledPages.prevPage();
 
     OSCMessage msgOut("/encoder/turn");
     msgOut.add((int32_t) controls.encTurn);
