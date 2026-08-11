@@ -1,0 +1,13 @@
+[Unit]
+Description=EYESY Setup Service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/eyesysetup.sh
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=sysinit.target
+

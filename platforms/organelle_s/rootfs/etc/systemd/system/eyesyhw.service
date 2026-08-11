@@ -1,0 +1,22 @@
+[Unit]
+Description=EYESY Hardware Interface (Organelle S)
+After=eyesysetup.service
+After=local-fs.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/music/EYESY_OS/platforms/organelle_s/hw_controls
+# Run as the 'music' user and group if desired
+User=music
+Group=music
+
+# Directly run python with unbuffered output
+ExecStart=/home/music/EYESY_OS/platforms/organelle_s/hw_controls/controls
+
+# Restart on failure if needed
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=sysinit.target
+
