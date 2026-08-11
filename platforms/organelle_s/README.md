@@ -71,6 +71,13 @@ two lines.
 Letters in the top bar: `M` audio muted, `K` clock muted, `N` notes muted,
 `F` frozen, `P` persist, `S` shift held, `R` recording, `Q` sequence playing.
 
+On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
+volume, and `L` `R` `G` are the input meters and the gain. The thin bar
+blinking under them is the trigger, the same thing the yellow square shows in
+the video OSD — what makes it fire is the `Trig` setting on the MIDI page.
+A trigger only lasts one frame, so it is latched between display refreshes
+rather than being missed.
+
 The LIVE page is the quickest way to get the video onto a laptop mid set:
 page to it, press the encoder, and the address shown is what to open in a
 browser. See `web/STREAMING.md`.
