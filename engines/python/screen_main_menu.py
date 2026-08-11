@@ -1,5 +1,6 @@
 # main_menu.py
 
+import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -9,7 +10,7 @@ class ScreenMainMenu(Screen):
         #self.title = "Settings         " + chr(0x2680) + "           " + chr(0x2681) + "         " + chr(0x2682) + "          " + chr(0x2683)
         self.title = "Settings"
         self.footer =  chr(0x2680) + "     = Cancel     " + chr(0x2682) + "   = Up/Down     " + chr(0x2683) + "  = Enter"
-        self.menu = WidgetMenu(eyesy, [
+        items = [
             MenuItem('Video Settings  ▶', self.goto_video_settings),
             MenuItem('Audio MIDI Settings  ▶', self.goto_midi_settings),
             MenuItem('Color Palette  ▶', self.goto_palette),
@@ -18,8 +19,12 @@ class ScreenMainMenu(Screen):
             MenuItem('Hardware Test  ▶', self.goto_test),
             MenuItem('Logs  ▶', self.goto_applogs),
             MenuItem('◀  Exit', self.exit_menu)
-        ])
-        self.menu.visible_items = 8
+        ]
+        # the upper octave only exists on the organelle keyboard
+        if organelle.is_organelle():
+            items.insert(5, MenuItem('Mode Keys  ▶', self.goto_key_modes))
+        self.menu = WidgetMenu(eyesy, items)
+        self.menu.visible_items = 9
         self.menu.off_y = 43
 
     def handle_events(self):
@@ -49,6 +54,9 @@ class ScreenMainMenu(Screen):
 
     def goto_wifi(self):
         self.eyesy.switch_menu_screen("wifi")
+
+    def goto_key_modes(self):
+        self.eyesy.switch_menu_screen("key_modes")
 
     def exit_menu(self):
         self.eyesy.exit_menu()

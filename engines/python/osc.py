@@ -2,9 +2,14 @@ import sys
 import liblo
 import os
 
-eyesy = None 
+import oled
+import organelle
+import streamer
+
+eyesy = None
 osc_server = None
 osc_target = None
+organelle_keys = False
 
 # OSC callbacks
 def fallback(path, args):
@@ -57,12 +62,39 @@ def knobs_callback(path, args):
 def keys_callback(path, args) :
     global eyesy
     k, v = args
-    eyesy.dispatch_key_event(k,v)
+    if organelle_keys :
+        organelle.dispatch_key(eyesy, k, v)
+    else :
+        eyesy.dispatch_key_event(k,v)
+
+def encoder_turn_callback(path, args) :
+    global eyesy
+    # the hardware process already paged the oled, this is here for menus
+    eyesy.encoder_turn = 1 if args[0] == 1 else -1
+
+def encoder_button_callback(path, args) :
+    global eyesy
+    eyesy.encoder_button = args[0] > 0
+    if args[0] > 0 : eyesy.encoder_press = True
+
+# the encoder was pressed on an oled page that owns an on/off setting,
+# the display picks the new state up from the next state message
+def oled_toggle_callback(path, args) :
+    global eyesy
+    action = args[0]
+    if action == "stream" :
+        on = streamer.toggle(eyesy)
+        oled.notify("Live On" if on else "Live Off")
+    elif action == "clock" :
+        eyesy.toggle_midi_clock_mute()
+    else :
+        print(f"unknown oled toggle {action}")
 
 def init (eyesy_object) :
-    global osc_server, osc_target, eyesy
+    global osc_server, osc_target, eyesy, organelle_keys
     eyesy = eyesy_object
-    
+    organelle_keys = organelle.is_organelle()
+
     # OSC init server and client
     try:
         osc_target = liblo.Address(4001)
@@ -75,6 +107,9 @@ def init (eyesy_object) :
         print(str(err))
     osc_server.add_method("/knobs", 'iiiiii', knobs_callback)
     osc_server.add_method("/key", 'ii', keys_callback)
+    osc_server.add_method("/encoder/turn", 'i', encoder_turn_callback)
+    osc_server.add_method("/encoder/button", 'i', encoder_button_callback)
+    osc_server.add_method("/oled/toggle", 's', oled_toggle_callback)
     osc_server.add_method("/reload", 'i', reload_callback)
     osc_server.add_method("/screengrab", 'i', screengrab_callback)
     osc_server.add_method("/set", 's', set_callback)
@@ -86,9 +121,12 @@ def recv() :
     while (osc_server.recv(1)):
         pass
 
-def send(addr, args) :
+def send(addr, *args) :
     global osc_target
-    liblo.send(osc_target, addr, args)
+    try :
+        liblo.send(osc_target, addr, *args)
+    except Exception as e :
+        print(f"osc send to {addr} failed: {e}")
 
 def close():
     global osc_server

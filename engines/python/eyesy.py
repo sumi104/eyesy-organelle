@@ -14,6 +14,7 @@ import file_operations
 import csv
 import color_palettes
 import config
+import oled
 
 class Eyesy:
 
@@ -66,7 +67,13 @@ class Eyesy:
             "bg_palette_cc": -1,
             "mode_cc": -1,
             "notes_change_mode": False,
-            "pc_map": {}
+            "pc_map": {},
+            # organelle s: modes recalled by the twelve upper octave keys
+            "key_modes": [""] * 12,
+            # live video stream to a browser on the network
+            "stream_enabled": False,
+            "stream_width": 480,
+            "stream_fps": 12
         }
         
         self.config = {}
@@ -154,6 +161,21 @@ class Eyesy:
         self.font = None
         self.running_from_usb = False
         self.usb_midi_device = None
+
+        # performance mutes, these live on the organelle black keys
+        self.audio_muted = False
+        self.midi_clock_muted = False
+        self.midi_notes_muted = False
+        self.freeze = False
+
+        # organelle encoder, the hardware process pages the oled itself and
+        # sends these along in case a menu wants them
+        self.encoder_turn = 0     # -1, 0 or 1, cleared every frame
+        self.encoder_press = False
+        self.encoder_button = False
+
+        # modes recalled by the twelve upper octave keys, filled from config
+        self.key_modes = [""] * 12
 
         # menu stuff
         self.current_screen = None
@@ -319,6 +341,20 @@ class Eyesy:
         self._validate_config_int("bg_palette_cc", -1, 127)
         self._validate_config_int("mode_cc", -1, 127)
         self._validate_config_int("notes_change_mode", 0, 1)
+        self._validate_config_bool("stream_enabled")
+        self._validate_config_int("stream_width", 320, 640)
+        self._validate_config_int("stream_fps", 1, 30)
+        self._validate_config_key_modes()
+
+    # twelve mode names, empty string means the key is unassigned
+    def _validate_config_key_modes(self):
+        slots = self.config.get("key_modes")
+        if not isinstance(slots, list):
+            slots = []
+        slots = [s if isinstance(s, str) else "" for s in slots][:12]
+        slots += [""] * (12 - len(slots))
+        self.config["key_modes"] = slots
+        self.key_modes = list(slots)
 
     def save_config_file(self) :
         config_file = self.SYSTEM_PATH + "config.json"
@@ -366,6 +402,33 @@ class Eyesy:
             self.auto_clear = True
         else :
             self.auto_clear = False
+
+    # silences the analysis input so the modes stop reacting, the audio
+    # output of the instrument is untouched
+    def toggle_audio_mute(self):
+        self.audio_muted = not self.audio_muted
+        oled.notify("Audio Muted" if self.audio_muted else "Audio On")
+        print(f"audio mute {self.audio_muted}")
+
+    # holds the last drawn frame, for cutting the visuals dead mid set
+    def toggle_freeze(self):
+        self.freeze = not self.freeze
+        oled.notify("Freeze" if self.freeze else "Freeze Off")
+        print(f"freeze {self.freeze}")
+
+    def toggle_midi_clock_mute(self):
+        self.midi_clock_muted = not self.midi_clock_muted
+        oled.notify("Clock Muted" if self.midi_clock_muted else "Clock On")
+        print(f"midi clock mute {self.midi_clock_muted}")
+
+    def toggle_midi_notes_mute(self):
+        self.midi_notes_muted = not self.midi_notes_muted
+        if self.midi_notes_muted:
+            # note offs are dropped while muted, so let go of anything held
+            for i in range(0, 128):
+                self.midi_notes[i] = 0
+        oled.notify("Notes Muted" if self.midi_notes_muted else "Notes On")
+        print(f"midi note mute {self.midi_notes_muted}")
 
     def set_mode_by_index (self, index) :
         self.mode_index = index
@@ -1253,4 +1316,6 @@ class Eyesy:
         self.key9_press = False
         self.key10_press = False
         self.new_led = False
+        self.encoder_turn = 0
+        self.encoder_press = False
 

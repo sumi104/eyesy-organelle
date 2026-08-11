@@ -14,6 +14,8 @@ import eyesy
 import osc
 import sound
 import osd
+import oled
+import streamer
 import usbdrive
 from screen_main_menu import ScreenMainMenu
 from screen_test import ScreenTest
@@ -24,9 +26,11 @@ from screen_applogs import ScreenApplogs
 from screen_midi_settings import ScreenMIDISettings
 from screen_midi_pc_mapping import ScreenMIDIPCMapping
 from screen_flash_drive import ScreenFlashDrive
+from screen_key_modes import ScreenKeyModes
 
 def exitexit(code):
     print("EXIT exiting\n")
+    streamer.close()
     pygame.display.quit()
     pygame.quit()
     print("stopping audio process")
@@ -82,7 +86,10 @@ try :
     print("init midi")
     midi.init()
     eyesy.usb_midi_device = midi.input_port_usb
-    print(eyesy.usb_midi_device) 
+    if midi.input_port_usb is not None:
+        eyesy.usb_midi_present = True
+        eyesy.usb_midi_name = getattr(midi.input_port_usb, "name", "")
+    print(eyesy.usb_midi_device)
 
     # setup alsa sound shared resources
     print("init audio")
@@ -194,8 +201,15 @@ try :
     eyesy.menu_screens["midi_settings"] = ScreenMIDISettings(eyesy)
     eyesy.menu_screens["midi_pc_mapping"] = ScreenMIDIPCMapping(eyesy)
     eyesy.menu_screens["flashdrive"] = ScreenFlashDrive(eyesy)
+    eyesy.menu_screens["key_modes"] = ScreenKeyModes(eyesy)
     eyesy.switch_menu_screen("home")
-    
+
+    # organelle s oled, no-op on eyesy hardware
+    oled.init(eyesy)
+
+    # live video stream, no-op unless enabled in the config
+    streamer.init(eyesy)
+
     # used to measure fps
     start = time.time()
 
@@ -254,7 +268,15 @@ while 1:
             osc.send("/led", eyesy.led)
 
         # get sound and trigger, unless trigger button is being pressed, then do the simulated sound
-        if not eyesy.key10_status:
+        if eyesy.audio_muted:
+            # silences the analysis input so the modes hold still, the
+            # instrument's own audio output is not touched
+            for i in range(len(eyesy.audio_in)):
+                eyesy.audio_in[i] = 0
+                eyesy.audio_in_r[i] = 0
+            eyesy.audio_peak = 0
+            eyesy.audio_peak_r = 0
+        elif not eyesy.key10_status:
             with lock:
                 eyesy.audio_in[:] = shared_buffer[:]
                 eyesy.audio_in_r[:] = shared_buffer_r[:]
@@ -294,9 +316,9 @@ while 1:
         eyesy.update_scene_save_key()
 
         # clear it with bg color if auto clear enabled
-        if eyesy.auto_clear :
-            #hwscreen.fill(eyesy.bg_color) 
-            mode_screen.fill(eyesy.bg_color) 
+        if eyesy.auto_clear and not eyesy.freeze :
+            #hwscreen.fill(eyesy.bg_color)
+            mode_screen.fill(eyesy.bg_color)
         
         # run setup (usually if the mode was reloaded)
         if eyesy.run_setup :
@@ -307,17 +329,18 @@ while 1:
                 eyesy.error = traceback.format_exc()
                 print("error with setup: " + eyesy.error)
       
-        # draw it
+        # draw it, unless frozen, then the last frame just stays up
         if not eyesy.menu_mode :
-            try :
-                #mode.draw(hwscreen, eyesy)
-                mode.draw(mode_screen, eyesy)
-            except Exception as e:   
-                eyesy.error = traceback.format_exc()
-                print("error with draw: " + eyesy.error)
-                # no use spitting these errors out at 30 fps
-                pygame.time.wait(200)
-                
+            if not eyesy.freeze :
+                try :
+                    #mode.draw(hwscreen, eyesy)
+                    mode.draw(mode_screen, eyesy)
+                except Exception as e:
+                    eyesy.error = traceback.format_exc()
+                    print("error with draw: " + eyesy.error)
+                    # no use spitting these errors out at 30 fps
+                    pygame.time.wait(200)
+
             hwscreen.blit(mode_screen, (0,0))
             
         # osd
@@ -353,7 +376,14 @@ while 1:
         hwscreen.blit(text, text_rect)'''
      
         pygame.display.flip()
-        
+
+        # push the current state out to the organelle oled
+        oled.update(eyesy)
+
+        # hand a frame to the live stream encoder, the mode surface rather
+        # than the display so the OSD and menus stay off the projector
+        streamer.publish(mode_screen)
+
         # clear all the events
         eyesy.clear_flags()
          

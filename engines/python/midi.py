@@ -8,6 +8,8 @@ midi_clock_count = 0
 
 def _handle_note(eyesy, message):
     #print(f"Note message: {message}")
+    if eyesy.midi_notes_muted:
+        return
     if (message.channel + 1) == eyesy.config["midi_channel"]:
         num = message.note 
         val = message.velocity
@@ -56,6 +58,8 @@ def _handle_program_change(eyesy, message):
 
 def _handle_clock(eyesy, message):
     global midi_clock_count
+    if eyesy.midi_clock_muted:
+        return
     ts = eyesy.config["trigger_source"]
     # 3,4,5,6 of trigger source are midi clock selections
     if ts > 2:

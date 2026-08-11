@@ -1,7 +1,11 @@
 import subprocess
 import re
+import helpers
+import streamer
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
+
+STREAM_RATES = [6, 12, 20]
 
 
 CMDLINE_PATH = "/boot/firmware/cmdline.txt"
@@ -68,9 +72,18 @@ class ScreenVideoSettings(Screen):
         self.menu = WidgetMenu(eyesy, [
             MenuItem('HDMI Resolution  ▶', self.select_res),
             MenuItem('Composite Video Settings  ▶', self.select_compvid),
+            MenuItem('Live Video Stream  ▶', self.select_stream),
             MenuItem('◀  Exit', self.goto_home)
         ])
         self.menu.off_y = 43
+
+        self.menu_stream = WidgetMenu(eyesy, [
+            MenuItem('Stream', self.toggle_stream),
+            MenuItem('Size', self.cycle_stream_width),
+            MenuItem('Frame Rate', self.cycle_stream_fps),
+            MenuItem('◀  Exit', self.goto_home)
+        ])
+        self.menu_stream.off_y = 75
         
         self.menu_select_res = WidgetMenu(
             eyesy,
@@ -98,6 +111,7 @@ class ScreenVideoSettings(Screen):
         self.current_compvid = ""
 
     def before(self):
+        self.eyesy.ip = helpers.get_ip()
         self.menu_select_res.set_selected_index(self.eyesy.config["video_resolution"])
         self.menu_select_compvid.set_selected_index(len(self.menu_select_compvid.items) - 1)
         self.menu_confirm_res.set_selected_index(1)
@@ -116,6 +130,8 @@ class ScreenVideoSettings(Screen):
             self.menu_select_compvid.handle_events()
         elif self.state == "confirm_res":
             self.menu_confirm_res.handle_events()
+        elif self.state == "stream":
+            self.menu_stream.handle_events()
 
     def render(self, surface):
 
@@ -140,6 +156,11 @@ class ScreenVideoSettings(Screen):
             rendered_text = font.render(message, True, color)
             surface.blit(rendered_text, msg_xy)
             self.menu_confirm_res.render(surface)
+        elif self.state == "stream" :
+            message = f"Watch at  http://{self.eyesy.ip or 'eyesy.local'}/live"
+            rendered_text = font.render(message, True, color)
+            surface.blit(rendered_text, msg_xy)
+            self.menu_stream.render(surface)
 
     def select_res_callback(self, res):
         def callback():
@@ -162,6 +183,44 @@ class ScreenVideoSettings(Screen):
 
     def select_res(self):
         self.state = "select_res"
+
+    def select_stream(self):
+        self.state = "stream"
+        self.update_stream_labels()
+
+    def update_stream_labels(self):
+        c = self.eyesy.config
+        self.menu_stream.items[0].text = \
+            f"Stream: {'On' if c['stream_enabled'] else 'Off'}"
+        self.menu_stream.items[1].text = f"Size: {c['stream_width']} wide"
+        self.menu_stream.items[2].text = f"Frame Rate: {c['stream_fps']} fps"
+
+    def apply_stream(self):
+        self.eyesy.save_config_file()
+        self.update_stream_labels()
+        streamer.apply(self.eyesy)
+
+    def toggle_stream(self):
+        self.eyesy.config["stream_enabled"] = \
+            not self.eyesy.config["stream_enabled"]
+        self.apply_stream()
+
+    def cycle_stream_width(self):
+        widths = streamer.WIDTHS
+        try:
+            i = widths.index(self.eyesy.config["stream_width"])
+        except ValueError:
+            i = -1
+        self.eyesy.config["stream_width"] = widths[(i + 1) % len(widths)]
+        self.apply_stream()
+
+    def cycle_stream_fps(self):
+        try:
+            i = STREAM_RATES.index(self.eyesy.config["stream_fps"])
+        except ValueError:
+            i = -1
+        self.eyesy.config["stream_fps"] = STREAM_RATES[(i + 1) % len(STREAM_RATES)]
+        self.apply_stream()
 
     def select_compvid(self):
         self.state = "select_compvid"
