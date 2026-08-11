@@ -63,14 +63,27 @@ class FrameBus:
         struct.pack_into("<I", self.map, offset, value)
 
     def publish(self, payload, width, height):
-        """Write into the slot the reader is not looking at, then flip."""
-        if len(payload) > self.capacity:
-            raise ValueError(f"frame of {len(payload)} exceeds {self.capacity}")
+        """Write into the slot the reader is not looking at, then flip.
+
+        Takes anything supporting the buffer protocol, so a caller with pixels
+        already in memory can hand them straight over instead of serialising
+        them into a bytes object first.
+        """
+        try:
+            payload = memoryview(payload)
+            length = payload.nbytes
+        except TypeError:
+            # pygame's BufferProxy on older builds, .raw costs one more copy
+            payload = payload.raw
+            length = len(payload)
+
+        if length > self.capacity:
+            raise ValueError(f"frame of {length} exceeds {self.capacity}")
 
         slot = 1 - self._get_u32(4)
         start = HEADER + (slot * self.capacity)
-        self.map[start:start + len(payload)] = payload
-        self._put_u32(20 + (slot * 4), len(payload))
+        self.map[start:start + length] = payload
+        self._put_u32(20 + (slot * 4), length)
         self._put_u32(12, width)
         self._put_u32(16, height)
         self._put_u32(4, slot)

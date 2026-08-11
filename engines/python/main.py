@@ -207,8 +207,10 @@ try :
     # organelle s oled, no-op on eyesy hardware
     oled.init(eyesy)
 
-    # live video stream, no-op unless enabled in the config
-    streamer.init(eyesy)
+    # live video stream, no-op unless enabled in the config. the mode surface
+    # is what gets published, and its pixel format decides whether the encoder
+    # can take it untouched
+    streamer.init(eyesy, mode_screen)
 
     # used to measure fps
     start = time.time()

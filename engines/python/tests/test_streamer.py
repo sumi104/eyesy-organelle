@@ -89,9 +89,10 @@ class StreamerTest(unittest.TestCase):
                 _, height = streamer.frame_size(e)
                 self.assertEqual(height % 2, 0, f"{width} of {xres}x{yres}")
 
-    def test_a_bad_width_falls_back(self):
+    def test_a_bad_width_falls_back_to_the_default(self):
         e = FakeEyesy(stream_width=9999)
-        self.assertEqual(streamer.frame_size(e)[0], 480)
+        self.assertEqual(streamer.frame_size(e)[0], 640)
+        self.assertIn(streamer.frame_size(e)[0], streamer.WIDTHS)
 
     def test_describe_fits_an_oled_line(self):
         for xres, yres in [(1280, 720), (1920, 1080), (720, 480)]:

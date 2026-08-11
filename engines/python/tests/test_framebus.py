@@ -73,6 +73,27 @@ class FrameBusTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.writer.publish(b"0" * (self.capacity + 1), 4, 4)
 
+    def test_takes_pixels_straight_from_a_buffer(self):
+        # the engine hands over surface memory rather than serialising it
+        for payload in (memoryview(b"abcd" * 8),
+                        bytearray(b"wxyz" * 8),
+                        memoryview(bytearray(b"1234" * 8))[4:20]):
+            self.writer.publish(payload, 4, 4)
+            got, _, _, _ = self.reader().read()
+            self.assertEqual(got, bytes(payload))
+
+    def test_falls_back_to_raw_for_an_old_buffer_proxy(self):
+        class OldProxy:
+            raw = b"legacy bytes"
+
+        self.writer.publish(OldProxy(), 2, 2)
+        got, _, _, _ = self.reader().read()
+        self.assertEqual(got, b"legacy bytes")
+
+    def test_an_oversized_buffer_is_refused_too(self):
+        with self.assertRaises(ValueError):
+            self.writer.publish(memoryview(bytes(self.capacity + 1)), 4, 4)
+
     def test_reader_rejects_a_foreign_file(self):
         path = self.path + "-junk"
         with open(path, "wb") as f:

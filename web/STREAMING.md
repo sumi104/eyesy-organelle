@@ -7,20 +7,32 @@ to a projector can show the EYESY output without an HDMI run across the room.
 
 ## How it fits together
 
-    video engine  ──raw RGB──▶  /dev/shm/eyesy_frame_raw
-      (main.py, 30fps)              │
-                                    ▼
-                            stream_encoder.py  ──JPEG──▶  /dev/shm/eyesy_frame_jpeg
-                            (its own process)                  │
-                                                               ▼
-                                                    web/app.py  /stream.mjpg
-                                                    (multipart/x-mixed-replace)
+    video engine  ──surface memory──▶  /dev/shm/eyesy_frame_raw
+      (main.py, 30fps)                     │
+                                           ▼
+                            stream_encoder.py   scales, then JPEG
+                            (its own process)       │
+                                                    ▼
+                                         /dev/shm/eyesy_frame_jpeg
+                                                    │
+                                                    ▼
+                                         web/app.py  /stream.mjpg
+                                         (multipart/x-mixed-replace)
 
-The render loop only pays for a nearest neighbour downscale and a memcpy, and
-only on the frames it actually sends. JPEG encoding happens in a separate
-process so it lands on another core instead of in the 30fps loop. The two
-buffers are plain mmapped files in `/dev/shm` with two slots and an active
-index, so a reader always has a stable frame to copy — see `framebus.py`.
+Everything the render loop does here it does thirty times a second on top of
+drawing, against a frame budget of 33ms, so it does as little as possible: one
+copy of the mode surface's own memory into shared memory, no scaling and no
+pixel format conversion. The encoder process rebuilds the surface on another
+core from identical masks, scales it and encodes it.
+
+That matters. Scaling in the render loop costs 15-25ms a frame at 960 wide
+with smoothing, which is most of the budget and shows up as stutter on the
+video output itself. If the surface cannot be passed through untouched the
+engine falls back to scaling before it publishes and says so in the log.
+
+The two buffers are plain mmapped files in `/dev/shm` with two slots and an
+active index, so a reader always has a stable frame to copy — see
+`framebus.py`.
 
 The stream carries the mode surface, not the display, so the OSD and the
 settings menus stay off the projector.
@@ -56,15 +68,14 @@ and scaling picks pixels unevenly, which is the harsh stair stepping you see
 when the browser then blows the image back up to fill a projector. 640 is the
 sweet spot: twice the detail of 480 and cleaner than 960.
 
-**Smoothing** averages pixels instead of dropping them, which helps at the
-sizes that do not divide evenly. It runs in the render loop though, so watch
-the frame rate on the OLED status page after switching it on — if it falls
-below 30 the visuals themselves are being slowed to feed the stream, and a
-dividing width with smoothing off is the better trade.
+**Smoothing** averages pixels instead of dropping them, which is what makes
+960 and 480 usable. It runs in the encoder process, so it costs the video
+output nothing — leave it on unless the encoder cannot keep up.
 
-**Frame rate** is free on the encoder side up to whatever it can keep up with;
-what it costs is one downscale and one memcpy per published frame in the
-render loop. 15 is comfortable, 30 is worth trying at 320 or 640.
+**Frame rate** costs one copy of the mode surface per published frame in the
+render loop, a few milliseconds at 1280x720, so 30 is reasonable. Watch the
+frame rate on the OLED status page: if it sits below 30 the visuals are being
+slowed to feed the stream.
 
 ## What to expect
 
@@ -83,8 +94,12 @@ more latency.
 
 With the engine running and streaming on:
 
-    # the encoder should be up
+    # the encoder should be up, and its arguments say which path is in use.
+    # --src-bits present means the render loop is only copying
     pgrep -af stream_encoder.py
+
+    # the engine says the same thing on startup
+    journalctl -u eyesypy --no-pager | grep "live stream"
 
     # both buffers should exist
     ls -l /dev/shm/eyesy_frame_*
