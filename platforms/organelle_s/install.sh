@@ -10,8 +10,18 @@
 set -e
 cd "$(dirname "$0")"
 
-echo "== making / writable"
-sudo mount -o remount,rw /
+# the root filesystem is normally read only. leave it alone if something
+# already made it writable, so this does not fight your own remount script
+root_opts=$(awk '$2 == "/" { opts = $4 } END { print opts }' /proc/mounts)
+case ",$root_opts," in
+    *,ro,*)
+        echo "== making / writable"
+        sudo mount -o remount,rw /
+        ;;
+    *)
+        echo "== / is already writable"
+        ;;
+esac
 
 echo "== building controls"
 make -C hw_controls clean
