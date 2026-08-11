@@ -21,7 +21,7 @@ default : $(objects) hw_interfaces/CM3GPIO.o
 .PHONY : clean
 
 clean :
-	rm main $(objects)
+	rm -f controls oled_preview $(objects) hw_interfaces/CM3GPIO.o
 
 # Generate with g++ -MM *.c* OSC/*.*
 main.o: main.cpp OSC/OSCMessage.h OSC/OSCData.h OSC/OSCTiming.h \
