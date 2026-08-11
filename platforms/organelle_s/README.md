@@ -93,19 +93,39 @@ EYESY binary sitting where the Organelle binary belongs, and a stale one runs
 with the wrong ADC order and key map without complaining. If `eyesyhw.service`
 fails with "no such file", the build step below has not been run.
 
-On the device, as the `music` user:
+On the device, as the `music` user — not with sudo, or the build output ends
+up owned by root and the next `git pull` trips over it:
 
-    sudo mount -o remount,rw /
-    cd ~/EYESY_OS/platforms/organelle_s/hw_controls
-    make clean && make
-    cd ..
-    sudo ./deploy.sh
-    sudo systemctl restart eyesyhw eyesypy
+    ~/EYESY_OS/platforms/organelle_s/install.sh
+
+That remounts `/` writable, builds `controls`, runs `deploy.sh` and restarts
+the services. `/` is left writable, so reboot before pulling the plug.
 
 `deploy.sh` installs the systemd units from `rootfs/`, which point at this
 platform directory and set `EYESY_PLATFORM=organelle_s` for the video engine.
 That environment variable is what selects the Organelle key mapping — without
 it the engine behaves exactly like stock EYESY.
+
+### Getting the code onto the device
+
+The changes are not confined to this directory: `engines/python` and `web`
+change too, and the C++ here sends raw key indices that only the new engine
+understands. Copying just `platforms/organelle_s` across leaves the keyboard
+worse than stock, so move the whole tree.
+
+The device's `origin` is the upstream repo, which does not have this branch.
+Add your own fork as a second remote once:
+
+    sudo mount -o remount,rw /
+    cd ~/EYESY_OS
+    git remote add s <your fork url>
+    git fetch s
+    git checkout -b organelle-s s/organelle-s
+
+After that each round trip is two lines:
+
+    cd ~/EYESY_OS && git pull s organelle-s
+    platforms/organelle_s/install.sh
 
 ## Checking the mapping
 
