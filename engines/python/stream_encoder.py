@@ -55,11 +55,16 @@ def main():
     print(f"stream encoder up: {args.width}x{args.height} "
           f"{args.fps}fps", flush=True)
 
+    # the engine already publishes at the requested rate, so encode every
+    # frame it offers rather than rate limiting a second time here, which
+    # only ever drops frames and makes the result stutter
+    idle = interval / 8
+
     last_seq = 0
     while True:
         frame = raw.read()
         if frame is None or frame[3] == last_seq:
-            time.sleep(interval / 4)
+            time.sleep(idle)
             continue
 
         payload, width, height, last_seq = frame
@@ -74,8 +79,6 @@ def main():
         except Exception as e:
             print(f"encode failed: {e}", flush=True)
             time.sleep(1)
-
-        time.sleep(interval)
 
 
 if __name__ == "__main__":

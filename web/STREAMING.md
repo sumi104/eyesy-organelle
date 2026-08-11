@@ -40,25 +40,44 @@ Or in `/sdcard/System/config.json`:
 
 ```json
 "stream_enabled": true,
-"stream_width": 480,
-"stream_fps": 12
+"stream_width": 640,
+"stream_fps": 15,
+"stream_smooth": false
 ```
 
-Height follows the aspect ratio of the video output. Widths are 320, 480 or
-640; rates are 6, 12 or 20 fps.
+Height follows the aspect ratio of the video output. Widths are 320, 480, 640
+or 960; rates are 10, 15, 20 or 30 fps.
+
+## Getting a better picture
+
+**Pick a width that divides the video output.** Against the default 1280x720
+output, 640 is an exact halving and 320 an exact quarter. 480 and 960 are not,
+and scaling picks pixels unevenly, which is the harsh stair stepping you see
+when the browser then blows the image back up to fill a projector. 640 is the
+sweet spot: twice the detail of 480 and cleaner than 960.
+
+**Smoothing** averages pixels instead of dropping them, which helps at the
+sizes that do not divide evenly. It runs in the render loop though, so watch
+the frame rate on the OLED status page after switching it on — if it falls
+below 30 the visuals themselves are being slowed to feed the stream, and a
+dividing width with smoothing off is the better trade.
+
+**Frame rate** is free on the encoder side up to whatever it can keep up with;
+what it costs is one downscale and one memcpy per published frame in the
+render loop. 15 is comfortable, 30 is worth trying at 320 or 640.
 
 ## What to expect
 
-Motion JPEG on a CM3 is bound by the encoder, not the network. 480x270 at
-12fps costs roughly one tenth of a core to publish and about 1-3 Mbit/s on the
-wire, with well under a second of latency over decent wifi. 640 wide at 20fps
-is about as far as it goes before frames start being dropped.
+Motion JPEG on a CM3 is bound by the JPEG encoder, not the network. 640x360 at
+15fps runs around 2-5 Mbit/s with well under a second of latency on decent
+wifi. 960 wide is where the encoder starts to be the limit.
 
-Motion JPEG was chosen because it needs nothing installed on the viewing
-machine and no plugin, just an `<img>` tag. If the picture quality is not
-enough, the next step up is H.264 through the Pi's hardware encoder
-(`v4l2h264enc`) served as HLS or WebRTC — much better quality per bit, at the
-cost of a GStreamer pipeline and more latency.
+pygame gives no control over JPEG quality, so size and rate are the only dials
+here. Motion JPEG was chosen because it needs nothing installed at the viewing
+end, just an `<img>` tag. If this is still not enough, the next step up is
+H.264 through the Pi's hardware encoder (`v4l2h264enc`) served as HLS or
+WebRTC — far better quality per bit, at the cost of a GStreamer pipeline and
+more latency.
 
 ## Checking it
 

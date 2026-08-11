@@ -5,7 +5,7 @@ import streamer
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
-STREAM_RATES = [6, 12, 20]
+STREAM_RATES = [10, 15, 20, 30]
 
 
 CMDLINE_PATH = "/boot/firmware/cmdline.txt"
@@ -81,6 +81,7 @@ class ScreenVideoSettings(Screen):
             MenuItem('Stream', self.toggle_stream),
             MenuItem('Size', self.cycle_stream_width),
             MenuItem('Frame Rate', self.cycle_stream_fps),
+            MenuItem('Smoothing', self.toggle_stream_smooth),
             MenuItem('◀  Exit', self.goto_home)
         ])
         self.menu_stream.off_y = 75
@@ -194,6 +195,8 @@ class ScreenVideoSettings(Screen):
             f"Stream: {'On' if c['stream_enabled'] else 'Off'}"
         self.menu_stream.items[1].text = f"Size: {c['stream_width']} wide"
         self.menu_stream.items[2].text = f"Frame Rate: {c['stream_fps']} fps"
+        self.menu_stream.items[3].text = \
+            f"Smoothing: {'On' if c['stream_smooth'] else 'Off'}"
 
     def apply_stream(self):
         self.eyesy.save_config_file()
@@ -212,6 +215,11 @@ class ScreenVideoSettings(Screen):
         except ValueError:
             i = -1
         self.eyesy.config["stream_width"] = widths[(i + 1) % len(widths)]
+        self.apply_stream()
+
+    def toggle_stream_smooth(self):
+        self.eyesy.config["stream_smooth"] = \
+            not self.eyesy.config["stream_smooth"]
         self.apply_stream()
 
     def cycle_stream_fps(self):

@@ -13,13 +13,16 @@ import os
 import signal
 import subprocess
 import sys
+import time
 
 import pygame
 
 import framebus
 
-# widths offered in the menu, the height follows the output aspect ratio
-WIDTHS = [320, 480, 640]
+# Widths offered in the menu, the height follows the output aspect ratio.
+# A width that divides the video output exactly costs the least quality:
+# against the default 1280x720 that is 640 or 320.
+WIDTHS = [320, 480, 640, 960]
 
 enabled = False
 
@@ -27,8 +30,9 @@ _bus = None
 _encoder = None
 _size = (0, 0)
 _scaled = None
-_skip = 1
-_frame = 0
+_interval = 0.0
+_next_frame = 0.0
+_smooth = False
 
 # pygame renamed this in 2.1.3, the device may be running either
 _tobytes = getattr(pygame.image, "tobytes", None) or pygame.image.tostring
@@ -45,7 +49,8 @@ def _die_with_parent():
 
 def init(eyesy):
     """Called once the display is up. Safe to call when streaming is off."""
-    global enabled, _bus, _encoder, _size, _scaled, _skip
+    global enabled, _bus, _encoder, _size, _scaled
+    global _interval, _next_frame, _smooth
 
     enabled = bool(eyesy.config.get("stream_enabled", False))
     if not enabled:
@@ -56,9 +61,17 @@ def init(eyesy):
     _size = (width, height)
     _scaled = pygame.Surface(_size)
 
-    fps = max(1, min(30, int(eyesy.config.get("stream_fps", 12))))
-    # the render loop runs at 30, so send every nth frame
-    _skip = max(1, round(30 / fps))
+    # Gate on elapsed time rather than counting frames. Skipping every nth of
+    # 30 can only ever produce 30, 15, 10, 7.5 and so on, so asking for 12 or
+    # 20 used to land on 15 either way.
+    fps = max(1, min(30, int(eyesy.config.get("stream_fps", 15))))
+    _interval = 1.0 / fps
+    _next_frame = 0.0
+
+    # Smooth scaling looks better going down to a size that is not an exact
+    # divisor of the output, but it is much slower and it runs in the render
+    # loop. Watch the frame rate on the OLED status page after turning it on.
+    _smooth = bool(eyesy.config.get("stream_smooth", False))
 
     try:
         _bus = framebus.FrameBus(framebus.RAW_PATH, width * height * 3,
@@ -107,25 +120,30 @@ def frame_size(eyesy):
 
 
 def describe(eyesy):
-    """Short line for the OLED, like '480x270 12fps'."""
+    """Short line for the OLED, like '640x360 20fps'."""
     width, height = frame_size(eyesy)
-    return f"{width}x{height} {eyesy.config.get('stream_fps', 12)}fps"
+    return f"{width}x{height} {eyesy.config.get('stream_fps', 15)}fps"
 
 
 def publish(surface):
     """Called every frame from the main loop."""
-    global _frame
+    global _next_frame
 
     if not enabled or _bus is None:
         return
 
-    _frame += 1
-    if (_frame % _skip) != 0:
+    now = time.monotonic()
+    if now < _next_frame:
         return
+    # anchor to now rather than to the deadline, so a slow frame does not
+    # leave a backlog to catch up on
+    _next_frame = now + _interval
 
     try:
-        # nearest neighbour, smoothscale is far too slow for the render loop
-        pygame.transform.scale(surface, _size, _scaled)
+        if _smooth:
+            pygame.transform.smoothscale(surface, _size, _scaled)
+        else:
+            pygame.transform.scale(surface, _size, _scaled)
         _bus.publish(_tobytes(_scaled, "RGB"), _size[0], _size[1])
     except Exception as e:
         print(f"stream publish failed: {e}")

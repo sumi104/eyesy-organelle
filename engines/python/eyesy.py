@@ -72,8 +72,9 @@ class Eyesy:
             "key_modes": [""] * 12,
             # live video stream to a browser on the network
             "stream_enabled": False,
-            "stream_width": 480,
-            "stream_fps": 12
+            "stream_width": 640,
+            "stream_fps": 15,
+            "stream_smooth": False
         }
         
         self.config = {}
@@ -342,7 +343,8 @@ class Eyesy:
         self._validate_config_int("mode_cc", -1, 127)
         self._validate_config_int("notes_change_mode", 0, 1)
         self._validate_config_bool("stream_enabled")
-        self._validate_config_int("stream_width", 320, 640)
+        self._validate_config_bool("stream_smooth")
+        self._validate_config_int("stream_width", 320, 960)
         self._validate_config_int("stream_fps", 1, 30)
         self._validate_config_key_modes()
 
