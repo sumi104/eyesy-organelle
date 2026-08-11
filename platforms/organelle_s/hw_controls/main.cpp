@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     controls.init();
 
     // something on screen while the video engine starts up
-    oledPages.notify("EYESY");
+    oledPages.notify("EYESY", "");
     oledPages.render(oledScreen);
     controls.updateOLED(oledScreen);
 
@@ -219,10 +219,13 @@ void oledKeymap(OSCMessage &msg) {
 }
 
 void oledNotify(OSCMessage &msg) {
-    char val[64];
+    char line1[64];
+    char line2[64];
+    line2[0] = 0;
     if (!msg.isString(0)) return;
-    msg.getString(0, val, sizeof(val));
-    oledPages.notify(val);
+    msg.getString(0, line1, sizeof(line1));
+    if (msg.isString(1)) msg.getString(1, line2, sizeof(line2));
+    oledPages.notify(line1, line2);
 }
 
 void oledPage(OSCMessage &msg) {

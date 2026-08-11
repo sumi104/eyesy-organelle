@@ -77,10 +77,14 @@ int main(int argc, char *argv[]) {
         dump(screen, prefix, p);
     }
 
-    // and the transient notification overlay
-    pages.notify("Audio Muted");
+    // and the transient notification overlay, one line and two
+    pages.notify("Audio Muted", "");
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES);
+
+    pages.notify("C# set", "Bounce Bounce Bounce");
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 2);
 
     // the live page again with the stream stopped
     pages.tickNotify(10000);

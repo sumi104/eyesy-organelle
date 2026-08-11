@@ -59,15 +59,15 @@ def slot_for_key(k):
 def _recall_mode(eyesy, slot):
     name = eyesy.key_modes[slot]
     if not name:
-        oled.notify(f"{SLOT_NAMES[slot]} empty")
+        oled.notify(SLOT_NAMES[slot], "not assigned")
         return
     try:
         eyesy.set_mode_by_name(name)
     except ValueError:
         print(f"key slot {slot} points at missing mode {name}")
-        oled.notify(f"{name}?")
+        oled.notify(SLOT_NAMES[slot], f"missing: {name}")
         return
-    oled.notify(name)
+    oled.notify(SLOT_NAMES[slot], name)
 
 
 def _assign_mode(eyesy, slot):
@@ -75,7 +75,7 @@ def _assign_mode(eyesy, slot):
     eyesy.config["key_modes"] = list(eyesy.key_modes)
     eyesy.save_config_file()
     oled.send_keymap(slot, eyesy.mode)
-    oled.notify(f"{SLOT_NAMES[slot]}={eyesy.mode}")
+    oled.notify(f"{SLOT_NAMES[slot]} set", eyesy.mode)
     print(f"assigned mode {eyesy.mode} to key slot {slot}")
 
 

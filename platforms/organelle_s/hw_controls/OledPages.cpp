@@ -34,7 +34,8 @@ OledPages::OledPages() {
     st.midiChannel = 1;
     page = OLED_PAGE_PERFORM;
     dirty = true;
-    notifyText[0] = 0;
+    notifyLine1[0] = 0;
+    notifyLine2[0] = 0;
     notifyTimeLeft = 0;
 }
 
@@ -85,8 +86,9 @@ void OledPages::setKeymap(int slot, const char *name) {
     dirty = true;
 }
 
-void OledPages::notify(const char *msg) {
-    copyText(notifyText, msg);
+void OledPages::notify(const char *line1, const char *line2) {
+    copyText(notifyLine1, line1);
+    copyText(notifyLine2, line2 ? line2 : "");
     notifyTimeLeft = NOTIFY_MS;
     dirty = true;
 }
@@ -96,7 +98,8 @@ void OledPages::tickNotify(float elapsedMs) {
     notifyTimeLeft -= elapsedMs;
     if (notifyTimeLeft <= 0) {
         notifyTimeLeft = 0;
-        notifyText[0] = 0;
+        notifyLine1[0] = 0;
+        notifyLine2[0] = 0;
         dirty = true;
     }
 }
@@ -276,8 +279,18 @@ void OledPages::renderHelp(OledScreen &s) {
 
 void OledPages::renderNotify(OledScreen &s) {
     s.clear();
-    s.draw_box(0, 18, 128, 28, 1);
-    s.println(notifyText, 4, 24, 16, 1);
+
+    if (!notifyLine2[0]) {
+        s.draw_box(0, 18, 128, 28, 1);
+        s.println(notifyLine1, 4, 24, 16, 1);
+        return;
+    }
+
+    // the heading gets the big font, the detail goes underneath in the small
+    // one where a long mode name still fits across the screen
+    s.draw_box(0, 12, 128, 40, 1);
+    s.println(notifyLine1, 5, 16, 16, 1);
+    s.println(notifyLine2, 5, 37, 8, 1);
 }
 
 void OledPages::render(OledScreen &s) {

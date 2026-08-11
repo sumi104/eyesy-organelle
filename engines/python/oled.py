@@ -76,11 +76,15 @@ def send_stream_info(eyesy):
     send_text("url", f"{ip}/live" if ip and ip != "-" else "no network")
 
 
-def notify(message):
-    """Transient full screen message, about a second."""
+def notify(heading, detail=""):
+    """Transient full screen message, about a second.
+
+    The heading is drawn in the big font, so it has to stay short. Anything
+    that can be long, a mode name for instance, belongs in the detail line.
+    """
     if not enabled:
         return
-    osc.send("/oled/notify", str(message)[:20])
+    osc.send("/oled/notify", str(heading)[:12], str(detail)[:21])
 
 
 def send_text(key, value):
