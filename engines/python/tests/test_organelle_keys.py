@@ -297,18 +297,58 @@ class OrganelleKeyTest(unittest.TestCase):
         self.assertAlmostEqual(self.e.knob_mod_rate[0],
                                self.e.KNOB_MOD_RATE_MAX, places=4)
 
-    def test_shift_turns_the_same_knob_into_depth(self):
-        self.tap(self.upper("D#"))              # knob 2
+    def test_holding_the_black_key_turns_its_knob_into_depth(self):
+        self.tap(self.upper("D#"))              # knob 2 modulating
         self.turn(1, 0.2)
         self.turn(1, 0.9)
         rate = self.e.knob_mod_rate[1]
 
-        self.press(organelle.KEY_CS)
-        self.turn(1, 0.9)                       # re-picked up under shift
+        self.press(self.upper("D#"))            # held, not tapped
+        self.turn(1, 0.9)                       # re-picked up as depth
         self.turn(1, 0.4)
         self.assertAlmostEqual(self.e.knob_mod_depth[1], 0.4)
         self.assertEqual(self.e.knob_mod_rate[1], rate,
-                         "shift must not also move the rate")
+                         "holding the key must not also move the rate")
+
+        # releasing after using it as a modifier must not switch it off
+        self.release(self.upper("D#"))
+        self.assertTrue(self.e.knob_mod[1])
+
+    def test_a_tap_toggles_but_a_hold_and_turn_does_not(self):
+        key = self.upper("F#")                  # knob 3
+        self.tap(key)
+        self.assertTrue(self.e.knob_mod[2])
+
+        self.press(key)
+        self.turn(2, 0.2)
+        self.turn(2, 0.8)                       # used as a modifier
+        self.release(key)
+        self.assertTrue(self.e.knob_mod[2], "still modulating")
+        self.assertAlmostEqual(self.e.knob_mod_depth[2], 0.8)
+
+        self.tap(key)                           # a plain tap still works
+        self.assertFalse(self.e.knob_mod[2])
+
+    def test_the_toggle_happens_on_release(self):
+        key = self.upper("A#")
+        self.press(key)
+        self.assertFalse(self.e.knob_mod[4], "nothing until the key is let go")
+        self.release(key)
+        self.assertTrue(self.e.knob_mod[4])
+
+    def test_shift_is_no_longer_involved(self):
+        self.tap(self.upper("C#"))              # knob 1 modulating
+        self.turn(0, 0.2)
+        self.turn(0, 0.9)
+        rate = self.e.knob_mod_rate[0]
+        depth = self.e.knob_mod_depth[0]
+
+        self.press(organelle.KEY_CS)
+        self.turn(0, 0.4)
+        self.assertEqual(self.e.knob_mod_depth[0], depth,
+                         "shift is the gain, not the depth")
+        self.assertNotEqual(self.e.knob_mod_rate[0], rate,
+                            "the knob still sets the rate under shift")
 
     def test_a_modulating_knob_does_not_move_its_own_value(self):
         self.e.knob_hardware[3] = 0.2
@@ -341,13 +381,13 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e.check_gain_knob()
         self.assertAlmostEqual(self.e.config["audio_gain"], 0.9)
 
-    def test_shift_knob1_leaves_the_gain_alone_while_modulating(self):
-        self.e.config["audio_gain"] = 0.25
+    def test_shift_knob1_still_sets_the_gain_while_modulating(self):
+        # the depth modifier is the black key now, so shift is left alone
         self.tap(self.upper("C#"))              # knob 1 modulating
         self.press(organelle.KEY_CS)
         self.e.knob_hardware[0] = 0.9
         self.e.check_gain_knob()
-        self.assertEqual(self.e.config["audio_gain"], 0.25)
+        self.assertAlmostEqual(self.e.config["audio_gain"], 0.9)
 
     def test_each_knob_keeps_its_own_rate_and_depth(self):
         self.tap(self.upper("C#"))

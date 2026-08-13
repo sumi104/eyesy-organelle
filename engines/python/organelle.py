@@ -102,12 +102,21 @@ def dispatch_key(eyesy, k, v):
                 _recall_mode(eyesy, slot)
         return
 
-    # the black keys up there wobble the knob above them
+    # The black keys up there wobble the knob above them. The key doubles as
+    # that knob's depth modifier, so it acts on release and only when it was
+    # tapped rather than held while the knob was turned.
     knob = knob_for_key(k)
     if knob is not None:
         if pressed:
-            on = eyesy.toggle_knob_mod(knob)
-            oled.notify(f"Knob {knob + 1}", "modulating" if on else "steady")
+            eyesy.knob_mod_key_held[knob] = True
+            eyesy.knob_mod_key_used[knob] = False
+        else:
+            eyesy.knob_mod_key_held[knob] = False
+            if not eyesy.knob_mod_key_used[knob]:
+                on = eyesy.toggle_knob_mod(knob)
+                oled.notify(f"Knob {knob + 1}",
+                            "modulating" if on else "steady")
+            eyesy.knob_mod_key_used[knob] = False
         return
 
     # controls that have no equivalent on the EYESY panel

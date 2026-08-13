@@ -160,6 +160,12 @@ class Eyesy:
         self.knob_mod_capture = [0.0] * 5
         self.knob_mod_unlocked = [False] * 5
 
+        # the upper octave black key that owns each knob's modulation is also
+        # its depth modifier, so it only toggles if it was tapped rather than
+        # held while its knob was turned
+        self.knob_mod_key_held = [False] * 5
+        self.knob_mod_key_used = [False] * 5
+
         # midi stuff 
         self.midi_notes = [0] * 128
         self.midi_notes_last = [0] * 128
@@ -593,10 +599,11 @@ class Eyesy:
     KNOB_MOD_RATE_MIN = .02
     KNOB_MOD_RATE_MAX = .50
 
-    # a modulating knob shapes the wobble instead of setting a value.
-    # plain turn sets the rate, with shift held it sets the depth.
+    # a modulating knob shapes the wobble instead of setting a value. a plain
+    # turn sets the rate, turning it while its own black key is held sets the
+    # depth.
     def update_knob_mod_control(self, i) :
-        editing = "depth" if self.key2_status else "rate"
+        editing = "depth" if self.knob_mod_key_held[i] else "rate"
 
         # changing what the knob is aimed at, or having just switched
         # modulation on, means picking it up from wherever it physically is
@@ -618,6 +625,8 @@ class Eyesy:
         v = self.knob_hardware[i]
         if editing == "depth" :
             self.knob_mod_depth[i] = v
+            # the key was used as a modifier, so releasing it must not toggle
+            self.knob_mod_key_used[i] = True
             oled.notify_value(f"Depth {i + 1}", v)
         else :
             span = self.KNOB_MOD_RATE_MAX / self.KNOB_MOD_RATE_MIN
@@ -1278,9 +1287,6 @@ class Eyesy:
                     if (self.key10_td > 10) : self.trig = True
     
     def check_gain_knob(self):
-        # while knob 1 is modulating, shift on it sets the modulation depth
-        # instead. gain is a setup control, shaping the wobble is not
-        if self.knob_mod[0]: return
         if self.key2_status:
             if abs(self.gain_knob_capture - self.knob_hardware[0]) > .05: self.gain_knob_unlocked = True
             if self.gain_knob_unlocked:

@@ -38,7 +38,7 @@ Hold **C#** for the shifted layer.
 | G# | MIDI clock mute | MIDI note mute |
 | A# | left free on purpose, for later | — |
 | Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
-| Upper octave black keys | Wobble knob 1 to 5, press again to stop | — |
+| Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Trigger | — |
 
 Shift + knob 1 still sets the input gain, as on EYESY.
@@ -59,8 +59,14 @@ position rather than sweeping the whole range. Scenes store the set position,
 not wherever the wobble happened to be.
 
 **While a knob is modulating it stops setting a value and shapes the wobble
-instead**: turn it for the rate, turn it with shift held for the depth. The
-OLED shows a bar for whichever one is moving. Each knob keeps its own pair.
+instead**: turn it for the rate, or hold its own black key and turn it for the
+depth. So the key that owns a knob's modulation is also what adjusts it — no
+other modifier is involved, and shift on knob 1 is still the audio gain. The
+OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
+
+Because the key doubles as a modifier it acts on release, and only when it was
+tapped: holding it while turning its knob adjusts the depth and leaves the
+modulation running.
 
 Rate runs from about one turn every ten seconds to nearly four a second, on an
 exponential curve so the slow end is not all crammed into the first millimetre
@@ -72,9 +78,6 @@ from where it was, so a knob left at one end does not slam the value across
 the moment it starts controlling something new. Switching modulation off
 leaves the value where it was rather than snapping it to wherever the knob
 ended up.
-
-Shift on knob 1 is the audio gain on EYESY, and still is here — until knob 1
-is modulating, when it becomes that knob's depth.
 
 `config.json` holds the starting point for all five:
 
