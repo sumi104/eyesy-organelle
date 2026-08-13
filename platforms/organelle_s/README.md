@@ -50,8 +50,7 @@ was mode slots is carried over, keeping what the white keys held.
 ## Knob modulation
 
 Each black key of the upper octave wobbles the knob above it — C# is knob 1
-through to A# for knob 5. Press once to start, again to stop, and the knob
-returns to where it is physically set.
+through to A# for knob 5. Tap it to start, tap again to stop.
 
 The offset drifts towards a new random target and picks another when it gets
 there, so it eases in and out rather than stepping. It rides on top of the
