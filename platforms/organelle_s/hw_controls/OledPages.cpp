@@ -106,6 +106,15 @@ void OledPages::tickNotify(float elapsedMs) {
 
 /* drawing helpers */
 
+// The 5x8 font has no bold cut, so thicken it by drawing the same text again
+// one pixel across. Only worth it on a word or two: the glyphs are five wide
+// with a single pixel between them, so a smeared run of text closes its own
+// gaps and turns to mush.
+void OledPages::printlnBold(OledScreen &s, const char *text, int x, int y) {
+    s.println(text, x, y, 8, 1);
+    s.println(text, x + 1, y, 8, 1);
+}
+
 // vertical fader, like the knob sliders in the video OSD
 void OledPages::drawKnobBar(OledScreen &s, int x, int y, int h, int val) {
     const int w = 11;
@@ -255,14 +264,24 @@ void OledPages::renderKeys(OledScreen &s) {
 
     s.draw_line(0, 21, 127, 21, 1);
 
-    // seven white keys, four in the left column and three in the right
+    // seven white keys, four in the left column and three in the right, with
+    // the key itself picked out so the eye can find it against the names
     for (int i = 0; i < OLED_KEY_SLOTS; i++) {
         int col = i / 4;
         int row = i % 4;
+        int x = (col * 64) + 2;
+        int y = 24 + (row * 9);
+
+        printlnBold(s, KEY_NAMES[i], x, y);
+        // one extra pixel so the emboldened key does not touch the colon
+        int keyWidth = (strlen(KEY_NAMES[i]) * 6) + 1;
+
+        // the bold key pushes the name right, so it gets one character less
+        // than the column would otherwise hold or it runs into the next one
         const char *name = st.keymap[i][0] ? st.keymap[i] : "-";
-        snprintf(buf, sizeof(buf), "%s:%s", KEY_NAMES[i], name);
-        buf[10] = 0;   // 10 characters per column
-        s.println(buf, col * 64 + 2, 24 + (row * 9), 8, 1);
+        snprintf(buf, sizeof(buf), ":%s", name);
+        buf[9] = 0;
+        s.println(buf, x + keyWidth, y, 8, 1);
     }
 }
 
@@ -281,12 +300,19 @@ void OledPages::renderStream(OledScreen &s) {
     s.println(on ? "Push knob to stop" : "Push knob to start", 2, 56, 8, 1);
 }
 
+// Brackets round the keys, otherwise this reads as one run of words. Six rows
+// on a 9 pixel pitch rather than the five line grid, because the brackets cost
+// two characters a key and it no longer fits.
 void OledPages::renderHelp(OledScreen &s) {
-    s.setLine(1, "AUX Osd  C# Shift");
-    s.setLine(2, "D# Persist +sh Seq");
-    s.setLine(3, "C D Mode  E F Scene");
-    s.setLine(4, "G Save A Grab B Trig");
-    s.setLine(5, "F# Mute  G# Clock");
+    static const char *LINES[6] = {
+        "(AUX) Osd  (C#) Shift",
+        "(D#) Persist +sh Seq",
+        "(C)(D) Mode  (A) Grab",
+        "(E)(F) Scene (G) Save",
+        "(B) Trig",
+        "(F#) Mute (G#) Clock"
+    };
+    for (int i = 0; i < 6; i++) s.println(LINES[i], 2, 10 + (i * 9), 8, 1);
 }
 
 void OledPages::renderNotify(OledScreen &s) {
