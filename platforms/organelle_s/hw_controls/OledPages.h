@@ -121,6 +121,7 @@ class OledPages
         void renderHelp(OledScreen &s);
         void renderNotify(OledScreen &s);
 
+        int  drawKey(OledScreen &s, int x, int y, const char *key);
         void drawKnobBar(OledScreen &s, int x, int y, int h, int val);
         void drawMeter(OledScreen &s, int x, int y, int w, int h, int val);
         void drawWifi(OledScreen &s, int x, int y, int level);

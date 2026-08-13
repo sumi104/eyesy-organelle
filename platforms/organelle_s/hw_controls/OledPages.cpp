@@ -106,6 +106,18 @@ void OledPages::tickNotify(float elapsedMs) {
 
 /* drawing helpers */
 
+// A key name reversed out of a filled block, which is what tells a key apart
+// from the words around it. Returns how far to move along for the next thing.
+// Eight tall against a nine pixel row pitch so a column of them reads as
+// separate keys rather than one continuous bar; the names are all capitals
+// and do not reach into the row that gives up.
+int OledPages::drawKey(OledScreen &s, int x, int y, const char *key) {
+    int w = (strlen(key) * 6) + 1;
+    s.fill_area(x - 1, y - 1, w, 8, 1);
+    s.println(key, x, y, 8, 0);
+    return w + 1;
+}
+
 // vertical fader, like the knob sliders in the video OSD
 void OledPages::drawKnobBar(OledScreen &s, int x, int y, int h, int val) {
     const int w = 11;
@@ -263,18 +275,12 @@ void OledPages::renderKeys(OledScreen &s) {
         int row = i % 4;
         int x = (col * 64) + 2;
         int y = 24 + (row * 9);
-        int keyLen = strlen(KEY_NAMES[i]);
-
-        // eight tall against a nine pixel row pitch, so the blocks in a
-        // column read as separate keys rather than one continuous bar. the
-        // key names are all capitals, which do not reach the row it gives up
-        s.fill_area(x - 1, y - 1, (keyLen * 6) + 1, 8, 1);
-        s.println(KEY_NAMES[i], x, y, 8, 0);
+        int after = x + drawKey(s, x, y, KEY_NAMES[i]);
 
         const char *name = st.keymap[i][0] ? st.keymap[i] : "-";
         snprintf(buf, sizeof(buf), "%s", name);
         buf[8] = 0;   // what is left of the column after the key and the space
-        s.println(buf, x + (keyLen * 6) + 6, y, 8, 1);
+        s.println(buf, after + 4, y, 8, 1);
     }
 }
 
@@ -293,19 +299,47 @@ void OledPages::renderStream(OledScreen &s) {
     s.println(on ? "Push knob to stop" : "Push knob to start", 2, 56, 8, 1);
 }
 
-// Brackets round the keys, otherwise this reads as one run of words. Six rows
-// on a 9 pixel pitch rather than the five line grid, because the brackets cost
-// two characters a key and it no longer fits.
+// Keys reversed out the same way as on MODE KEYS, so the whole instrument
+// reads one way. Two keys next to each other are the pair that steps a thing
+// down and up, two with a + between them are held together.
+struct HelpEntry {
+    const char *key;
+    const char *second;   // null for a single key
+    bool held;            // draw a + between them rather than butting them up
+    const char *label;
+};
+
 void OledPages::renderHelp(OledScreen &s) {
-    static const char *LINES[6] = {
-        "(AUX) Osd  (C#) Shift",
-        "(D#) Persist +sh Seq",
-        "(C)(D) Mode  (A) Grab",
-        "(E)(F) Scene (G) Save",
-        "(B) Trig",
-        "(F#) Mute (G#) Clock"
+    static const HelpEntry ENTRIES[] = {
+        { "AUX", 0,    false, "Osd"     },
+        { "C#",  0,    false, "Shift"   },
+        { "D#",  0,    false, "Persist" },
+        { "C#",  "D#", true,  "Seq"     },
+        { "C",   "D",  false, "Mode"    },
+        { "E",   "F",  false, "Scene"   },
+        { "G",   0,    false, "Save"    },
+        { "A",   0,    false, "Grab"    },
+        { "B",   0,    false, "Trig"    },
+        { "F#",  0,    false, "Mute"    },
+        { "G#",  0,    false, "Clock"   },
     };
-    for (int i = 0; i < 6; i++) s.println(LINES[i], 2, 10 + (i * 9), 8, 1);
+    const int count = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
+
+    for (int i = 0; i < count; i++) {
+        const HelpEntry &e = ENTRIES[i];
+        int cx = ((i / 6) * 64) + 2;
+        int y = 10 + ((i % 6) * 9);
+
+        cx += drawKey(s, cx, y, e.key);
+        if (e.second) {
+            if (e.held) {
+                s.println("+", cx, y, 8, 1);
+                cx += 6;
+            }
+            cx += drawKey(s, cx, y, e.second);
+        }
+        s.println(e.label, cx + 3, y, 8, 1);
+    }
 }
 
 void OledPages::renderNotify(OledScreen &s) {
