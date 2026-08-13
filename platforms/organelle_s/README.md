@@ -78,6 +78,9 @@ the moment it starts controlling something new. Switching modulation off
 leaves the value where it was rather than snapping it to wherever the knob
 ended up.
 
+Scenes carry all of it: which knobs were wobbling and the rate and depth each
+one had. A scene saved before this existed simply has nothing wobbling.
+
 `config.json` holds the starting point for all five:
 
 | | default | |

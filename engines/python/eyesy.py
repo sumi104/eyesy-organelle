@@ -788,17 +788,7 @@ class Eyesy:
         scene_file = os.path.join(folder_path, "scene.json")
         imagepath = os.path.join(folder_path, "scene.jpg")
 
-        new_scene = {
-            "mode": self.mode,
-            "knob1": self.knob_base[0],
-            "knob2": self.knob_base[1],
-            "knob3": self.knob_base[2],
-            "knob4": self.knob_base[3],
-            "knob5": self.knob_base[4],
-            "auto_clear": self.auto_clear,
-            "bg_palette": self.bg_palette,
-            "fg_palette": self.fg_palette,
-        }
+        new_scene = self._scene_fields()
         self.scenes.append(new_scene)
         
         try:
@@ -823,6 +813,68 @@ class Eyesy:
         # set to new scene
         self.recall_scene(len(self.scenes) - 1)
 
+    # What a scene stores, in one place so saving a new one and updating an
+    # existing one cannot drift apart.
+    def _scene_fields(self):
+        return {
+            "mode": self.mode,
+            "knob1": self.knob_base[0],
+            "knob2": self.knob_base[1],
+            "knob3": self.knob_base[2],
+            "knob4": self.knob_base[3],
+            "knob5": self.knob_base[4],
+            "auto_clear": self.auto_clear,
+            "bg_palette": self.bg_palette,
+            "fg_palette": self.fg_palette,
+            "knob_mod": [
+                {"on": self.knob_mod[i],
+                 "rate": self.knob_mod_rate[i],
+                 "depth": self.knob_mod_depth[i]}
+                for i in range(0, 5)
+            ],
+        }
+
+    # Five entries of on, rate and depth. Anything missing or out of range
+    # falls back to off at the configured rate, so scenes written before knob
+    # modulation existed still load.
+    def _validate_scene_knob_mod(self, raw):
+        out = []
+        for i in range(0, 5):
+            entry = {}
+            if isinstance(raw, list) and i < len(raw) and isinstance(raw[i], dict):
+                entry = raw[i]
+
+            rate = entry.get("rate", self.config["knob_mod_rate"])
+            if isinstance(rate, bool) or not isinstance(rate, (int, float)) \
+                    or not (0 < rate <= 1):
+                rate = self.config["knob_mod_rate"]
+
+            depth = entry.get("depth", self.config["knob_mod_depth"])
+            if isinstance(depth, bool) or not isinstance(depth, (int, float)) \
+                    or not (0 <= depth <= 1):
+                depth = self.config["knob_mod_depth"]
+
+            out.append({"on": entry.get("on") is True,
+                        "rate": float(rate), "depth": float(depth)})
+        return out
+
+    # Put the modulation back the way a scene had it. The knobs have not moved
+    # while the scene was away, so everything has to be picked up again before
+    # it takes over, exactly as it is when modulation is switched on by hand.
+    def apply_scene_knob_mod(self, entries):
+        entries = self._validate_scene_knob_mod(entries)
+        for i in range(0, 5):
+            self.knob_mod[i] = entries[i]["on"]
+            self.knob_mod_rate[i] = entries[i]["rate"]
+            self.knob_mod_depth[i] = entries[i]["depth"]
+            self.knob_mod_value[i] = 0.0
+            self.knob_mod_target[i] = \
+                random.uniform(-1.0, 1.0) if self.knob_mod[i] else 0.0
+            self.knob_mod_editing[i] = None
+            self.knob_mod_unlocked[i] = False
+            self.knob_mod_key_held[i] = False
+            self.knob_mod_key_used[i] = False
+
     def update_scene(self):
         print("Updating current scene")
 
@@ -843,17 +895,7 @@ class Eyesy:
         imagepath = os.path.join(folder_path, "scene.jpg")
 
         # Create the updated scene dictionary without "name" and "thumbnail"
-        updated_scene = {
-            "mode": self.mode,
-            "knob1": self.knob_base[0],
-            "knob2": self.knob_base[1],
-            "knob3": self.knob_base[2],
-            "knob4": self.knob_base[3],
-            "knob5": self.knob_base[4],
-            "auto_clear": self.auto_clear,
-            "bg_palette": self.bg_palette,
-            "fg_palette": self.fg_palette,
-        }
+        updated_scene = self._scene_fields()
 
         # Update in-memory scene representation, adding computed fields back
         self.scenes[self.scene_index] = {**updated_scene, "name": folder_name, "thumbnail": imagepath}
@@ -925,6 +967,8 @@ class Eyesy:
             "auto_clear": data["auto_clear"],
             "bg_palette": int(data["bg_palette"]),
             "fg_palette": int(data["fg_palette"]),
+            # optional, scenes predating knob modulation simply have it off
+            "knob_mod": self._validate_scene_knob_mod(data.get("knob_mod")),
             "name": os.path.basename(folder_path),
             "thumbnail": os.path.join(folder_path, "scene.jpg")
         }
@@ -995,6 +1039,7 @@ class Eyesy:
             self.auto_clear = scene["auto_clear"]
             self.bg_palette = scene["bg_palette"]
             self.fg_palette = scene["fg_palette"]
+            self.apply_scene_knob_mod(scene.get("knob_mod"))
 
             # make sure scenes pallete in range
             if self.fg_palette < 0 : self.fg_palette = 0

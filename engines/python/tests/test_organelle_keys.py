@@ -400,6 +400,91 @@ class OrganelleKeyTest(unittest.TestCase):
         self.assertEqual(self.e.knob_mod_rate[1], self.e.knob_mod_rate[2],
                          "untouched knobs keep the configured rate")
 
+    # --- modulation in scenes ------------------------------------------
+
+    def test_a_scene_carries_the_modulation_state(self):
+        self.tap(self.upper("F#"))              # knob 3 on
+        self.turn(2, 0.2)
+        self.turn(2, 0.9)                       # its own rate
+        fields = self.e._scene_fields()
+
+        entries = fields["knob_mod"]
+        self.assertEqual([e["on"] for e in entries],
+                         [False, False, True, False, False])
+        self.assertEqual(entries[2]["rate"], self.e.knob_mod_rate[2])
+        self.assertEqual(entries[2]["depth"], self.e.knob_mod_depth[2])
+
+    def test_recalling_puts_the_modulation_back(self):
+        self.tap(self.upper("D#"))
+        self.turn(1, 0.2)
+        self.turn(1, 0.9)
+        saved = self.e._scene_fields()["knob_mod"]
+
+        self.tap(self.upper("D#"))              # off again
+        self.assertFalse(any(self.e.knob_mod))
+
+        self.e.apply_scene_knob_mod(saved)
+        self.assertEqual(self.e.knob_mod[1], True)
+        self.assertAlmostEqual(self.e.knob_mod_rate[1], saved[1]["rate"])
+        self.assertAlmostEqual(self.e.knob_mod_depth[1], saved[1]["depth"])
+
+    def test_recall_makes_the_knobs_pick_up_again(self):
+        # the knobs have not moved while the scene was away, so a knob left
+        # at one end must not slam the rate across on the next frame
+        self.tap(self.upper("C#"))
+        self.turn(0, 0.2)
+        self.turn(0, 0.9)
+        rate = self.e.knob_mod_rate[0]
+
+        self.e.apply_scene_knob_mod(self.e._scene_fields()["knob_mod"])
+        self.e.update_knobs_and_notes()
+        self.assertEqual(self.e.knob_mod_rate[0], rate)
+
+    def test_a_scene_from_before_this_existed_still_loads(self):
+        for missing in (None, [], {}, "nope"):
+            entries = self.e._validate_scene_knob_mod(missing)
+            self.assertEqual(len(entries), 5)
+            self.assertFalse(any(e["on"] for e in entries))
+            self.assertTrue(all(e["rate"] == self.e.config["knob_mod_rate"]
+                                for e in entries))
+
+    def test_junk_in_a_scene_falls_back_rather_than_crashing(self):
+        junk = [
+            {"on": "yes", "rate": 99, "depth": -1},   # out of range
+            {"on": True, "rate": None},               # wrong type
+            {},                                       # empty
+            {"on": True, "rate": True, "depth": 0.4}, # bool is not a rate
+            "not a dict",
+        ]
+        entries = self.e._validate_scene_knob_mod(junk)
+        self.assertEqual(len(entries), 5)
+        self.assertFalse(entries[0]["on"], "a string is not True")
+        self.assertEqual(entries[0]["rate"], self.e.config["knob_mod_rate"])
+        self.assertEqual(entries[0]["depth"], self.e.config["knob_mod_depth"])
+        self.assertTrue(entries[1]["on"])
+        self.assertEqual(entries[3]["rate"], self.e.config["knob_mod_rate"])
+        self.assertAlmostEqual(entries[3]["depth"], 0.4)
+        for e in entries:
+            self.assertTrue(0 < e["rate"] <= 1)
+            self.assertTrue(0 <= e["depth"] <= 1)
+
+    def test_a_scene_survives_the_trip_through_json(self):
+        # save_scene json.dumps this, and a value that will not serialise
+        # would only show up when saving on the instrument
+        import json
+        self.tap(self.upper("A#"))
+        restored = json.loads(json.dumps(self.e._scene_fields()))
+
+        for key in ("mode", "knob1", "knob2", "knob3", "knob4", "knob5",
+                    "auto_clear", "bg_palette", "fg_palette", "knob_mod"):
+            self.assertIn(key, restored)
+        self.assertEqual(len(restored["knob_mod"]), 5)
+        self.assertTrue(restored["knob_mod"][4]["on"])
+
+        # and comes back out of validation unchanged
+        entries = self.e._validate_scene_knob_mod(restored["knob_mod"])
+        self.assertEqual(entries, restored["knob_mod"])
+
     # --- config -------------------------------------------------------
 
     def test_an_old_twelve_slot_config_keeps_its_white_keys(self):
