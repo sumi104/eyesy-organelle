@@ -55,11 +55,28 @@ returns to where it is physically set.
 
 The offset drifts towards a new random target and picks another when it gets
 there, so it eases in and out rather than stepping. It rides on top of the
-position rather than sweeping the whole range, so the knob still does what it
-looks like it does. Scenes store the set position, not wherever the wobble
-happened to be.
+position rather than sweeping the whole range. Scenes store the set position,
+not wherever the wobble happened to be.
 
-Two settings in `config.json`, no menu for them yet:
+**While a knob is modulating it stops setting a value and shapes the wobble
+instead**: turn it for the rate, turn it with shift held for the depth. The
+OLED shows a bar for whichever one is moving. Each knob keeps its own pair.
+
+Rate runs from about one turn every ten seconds to nearly four a second, on an
+exponential curve so the slow end is not all crammed into the first millimetre
+of travel. To move the centre position, switch modulation off, set it, and
+switch back on.
+
+Both take over smoothly: nothing changes until the knob has moved a little
+from where it was, so a knob left at one end does not slam the value across
+the moment it starts controlling something new. Switching modulation off
+leaves the value where it was rather than snapping it to wherever the knob
+ended up.
+
+Shift on knob 1 is the audio gain on EYESY, and still is here — until knob 1
+is modulating, when it becomes that knob's depth.
+
+`config.json` holds the starting point for all five:
 
 | | default | |
 |---|---|---|

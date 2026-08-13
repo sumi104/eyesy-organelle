@@ -151,6 +151,15 @@ class Eyesy:
         self.knob_mod_value = [0.0] * 5
         self.knob_mod_target = [0.0] * 5
 
+        # while a knob is modulating it stops setting a value and shapes the
+        # wobble instead: turning it sets the rate, turning it with shift held
+        # sets the depth. per knob, seeded from the config
+        self.knob_mod_rate = [.15] * 5
+        self.knob_mod_depth = [.25] * 5
+        self.knob_mod_editing = [None] * 5   # "rate", "depth" or None
+        self.knob_mod_capture = [0.0] * 5
+        self.knob_mod_unlocked = [False] * 5
+
         # midi stuff 
         self.midi_notes = [0] * 128
         self.midi_notes_last = [0] * 128
@@ -364,6 +373,10 @@ class Eyesy:
         self._validate_config_bool("stream_smooth")
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
+        # the config holds the starting point, each knob keeps its own after
+        # that so they can be shaped independently while performing
+        self.knob_mod_rate = [self.config["knob_mod_rate"]] * 5
+        self.knob_mod_depth = [self.config["knob_mod_depth"]] * 5
         self._validate_config_int("stream_width", 320, 960)
         self._validate_config_int("stream_fps", 1, 30)
         self._validate_config_key_modes()
@@ -524,6 +537,11 @@ class Eyesy:
     # then do this for the modes 
     def update_knobs_and_notes(self) :
         for i in range(0, 5) :
+            # a modulating knob is shaping the wobble, not setting a value
+            if self.knob_mod[i] :
+                self.update_knob_mod_control(i)
+                continue
+
             if self.knob_override[i] :
                 if abs(self.knob_snapshot[i] - self.knob_hardware[i]) > .05 :
                     self.knob_override[i] = False
@@ -543,7 +561,7 @@ class Eyesy:
     # the offset drifts towards a new random target and picks another when it
     # gets there, so the movement is continuous rather than stepped
     def update_knob_mod(self, i) :
-        rate = self.config["knob_mod_rate"]
+        rate = self.knob_mod_rate[i]
         value = self.knob_mod_value[i]
         value += (self.knob_mod_target[i] - value) * rate
         if abs(self.knob_mod_target[i] - value) < 0.02 :
@@ -553,17 +571,58 @@ class Eyesy:
     def toggle_knob_mod(self, i) :
         if not (0 <= i < 5) : return False
         self.knob_mod[i] = not self.knob_mod[i]
+        self.knob_mod_value[i] = 0.0
         if self.knob_mod[i] :
-            self.knob_mod_value[i] = 0.0
             self.knob_mod_target[i] = random.uniform(-1.0, 1.0)
-        else :
-            # let go of the offset so the knob lands back where it is set
-            self.knob_mod_value[i] = 0.0
+
+        # Either way the knob changes job, so hold the value it was setting
+        # until the knob is next moved. Without this, switching modulation off
+        # snaps the value to wherever the knob ended up while it was setting
+        # the rate.
+        self.knob_override[i] = True
+        self.knob_snapshot[i] = self.knob_hardware[i]
+        self.knob_mod_editing[i] = None
+
         print(f"knob {i + 1} modulation {self.knob_mod[i]}")
         return self.knob_mod[i]
 
     def any_knob_mod(self) :
         return any(self.knob_mod)
+
+    # exponential, so the slow end has usable resolution
+    KNOB_MOD_RATE_MIN = .02
+    KNOB_MOD_RATE_MAX = .50
+
+    # a modulating knob shapes the wobble instead of setting a value.
+    # plain turn sets the rate, with shift held it sets the depth.
+    def update_knob_mod_control(self, i) :
+        editing = "depth" if self.key2_status else "rate"
+
+        # changing what the knob is aimed at, or having just switched
+        # modulation on, means picking it up from wherever it physically is
+        if self.knob_mod_editing[i] != editing :
+            self.knob_mod_editing[i] = editing
+            self.knob_mod_capture[i] = self.knob_hardware[i]
+            self.knob_mod_unlocked[i] = False
+            return
+
+        if not self.knob_mod_unlocked[i] :
+            if abs(self.knob_mod_capture[i] - self.knob_hardware[i]) > .05 :
+                self.knob_mod_unlocked[i] = True
+            else :
+                return
+
+        if self.knob_hardware[i] == self.knob_hardware_last[i] : return
+        self.knob_hardware_last[i] = self.knob_hardware[i]
+
+        v = self.knob_hardware[i]
+        if editing == "depth" :
+            self.knob_mod_depth[i] = v
+            oled.notify_value(f"Depth {i + 1}", v)
+        else :
+            span = self.KNOB_MOD_RATE_MAX / self.KNOB_MOD_RATE_MIN
+            self.knob_mod_rate[i] = self.KNOB_MOD_RATE_MIN * (span ** v)
+            oled.notify_value(f"Rate {i + 1}", v)
 
     def set_knobs(self) :
         # fill these for the modes, but only if shift isn't down
@@ -573,13 +632,13 @@ class Eyesy:
 
         # modulation rides on top of the set position, and keeps running with
         # shift held so it does not stall while the gain is being adjusted
-        depth = self.config["knob_mod_depth"]
         out = list(self.knob_base)
         for i in range(0, 5) :
             if self.knob_mod[i] :
                 self.update_knob_mod(i)
                 out[i] = max(0.0, min(1.0,
-                                      out[i] + (self.knob_mod_value[i] * depth)))
+                                      out[i] + (self.knob_mod_value[i]
+                                                * self.knob_mod_depth[i])))
 
         if not self.key2_status or self.any_knob_mod() :
             self.knob1 = out[0]
@@ -1219,6 +1278,9 @@ class Eyesy:
                     if (self.key10_td > 10) : self.trig = True
     
     def check_gain_knob(self):
+        # while knob 1 is modulating, shift on it sets the modulation depth
+        # instead. gain is a setup control, shaping the wobble is not
+        if self.knob_mod[0]: return
         if self.key2_status:
             if abs(self.gain_knob_capture - self.knob_hardware[0]) > .05: self.gain_knob_unlocked = True
             if self.gain_knob_unlocked:

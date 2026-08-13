@@ -264,6 +264,102 @@ class OrganelleKeyTest(unittest.TestCase):
             moved.add(round(self.e.knob4, 4))
         self.assertGreater(len(moved), 5)
 
+    # --- a modulating knob shapes the wobble ---------------------------
+
+    def turn(self, knob, position):
+        self.e.knob_hardware[knob] = position
+        self.e.update_knobs_and_notes()
+
+    def test_turning_a_modulating_knob_sets_the_rate(self):
+        self.e.knob_hardware[2] = 0.2
+        self.tap(self.upper("F#"))              # knob 3
+        before = self.e.knob_mod_rate[2]
+
+        self.turn(2, 0.2)                       # picks the knob up
+        self.turn(2, 0.21)                      # inside the dead band
+        self.assertEqual(self.e.knob_mod_rate[2], before,
+                         "a nudge must not grab the value")
+
+        self.turn(2, 0.9)
+        self.assertNotEqual(self.e.knob_mod_rate[2], before)
+        self.assertLessEqual(self.e.knob_mod_rate[2],
+                             self.e.KNOB_MOD_RATE_MAX)
+        self.assertGreaterEqual(self.e.knob_mod_rate[2],
+                                self.e.KNOB_MOD_RATE_MIN)
+
+    def test_the_rate_knob_covers_the_whole_range(self):
+        self.tap(self.upper("C#"))
+        self.turn(0, 0.2)
+        self.turn(0, 0.0)
+        self.assertAlmostEqual(self.e.knob_mod_rate[0],
+                               self.e.KNOB_MOD_RATE_MIN, places=4)
+        self.turn(0, 1.0)
+        self.assertAlmostEqual(self.e.knob_mod_rate[0],
+                               self.e.KNOB_MOD_RATE_MAX, places=4)
+
+    def test_shift_turns_the_same_knob_into_depth(self):
+        self.tap(self.upper("D#"))              # knob 2
+        self.turn(1, 0.2)
+        self.turn(1, 0.9)
+        rate = self.e.knob_mod_rate[1]
+
+        self.press(organelle.KEY_CS)
+        self.turn(1, 0.9)                       # re-picked up under shift
+        self.turn(1, 0.4)
+        self.assertAlmostEqual(self.e.knob_mod_depth[1], 0.4)
+        self.assertEqual(self.e.knob_mod_rate[1], rate,
+                         "shift must not also move the rate")
+
+    def test_a_modulating_knob_does_not_move_its_own_value(self):
+        self.e.knob_hardware[3] = 0.2
+        self.e.knob[3] = 0.5
+        self.e.set_knobs()
+        self.tap(self.upper("G#"))              # knob 4
+        self.turn(3, 0.9)
+        self.assertEqual(self.e.knob_base[3], 0.5)
+
+    def test_switching_modulation_off_leaves_the_value_alone(self):
+        self.e.knob_hardware[3] = 0.2
+        self.e.knob[3] = 0.5
+        self.e.set_knobs()
+        self.tap(self.upper("G#"))
+        self.turn(3, 0.9)                       # knob is now far from 0.5
+        self.tap(self.upper("G#"))              # off
+
+        self.e.update_knobs_and_notes()
+        self.e.set_knobs()
+        self.assertEqual(self.e.knob4, 0.5, "the value must not snap")
+
+        # and it comes back under control once the knob is actually moved
+        self.turn(3, 0.3)
+        self.e.set_knobs()
+        self.assertAlmostEqual(self.e.knob4, 0.3)
+
+    def test_shift_knob1_still_sets_the_gain_when_not_modulating(self):
+        self.press(organelle.KEY_CS)
+        self.e.knob_hardware[0] = 0.9
+        self.e.check_gain_knob()
+        self.assertAlmostEqual(self.e.config["audio_gain"], 0.9)
+
+    def test_shift_knob1_leaves_the_gain_alone_while_modulating(self):
+        self.e.config["audio_gain"] = 0.25
+        self.tap(self.upper("C#"))              # knob 1 modulating
+        self.press(organelle.KEY_CS)
+        self.e.knob_hardware[0] = 0.9
+        self.e.check_gain_knob()
+        self.assertEqual(self.e.config["audio_gain"], 0.25)
+
+    def test_each_knob_keeps_its_own_rate_and_depth(self):
+        self.tap(self.upper("C#"))
+        self.tap(self.upper("A#"))              # knobs 1 and 5
+        self.turn(0, 0.2)
+        self.turn(0, 0.9)
+        self.turn(4, 0.2)
+        self.turn(4, 0.1)
+        self.assertNotEqual(self.e.knob_mod_rate[0], self.e.knob_mod_rate[4])
+        self.assertEqual(self.e.knob_mod_rate[1], self.e.knob_mod_rate[2],
+                         "untouched knobs keep the configured rate")
+
     # --- config -------------------------------------------------------
 
     def test_an_old_twelve_slot_config_keeps_its_white_keys(self):

@@ -90,6 +90,15 @@ def notify(heading, detail=""):
     osc.send("/oled/notify", str(heading)[:12], str(detail)[:21])
 
 
+def notify_value(heading, fraction):
+    """Notification with a bar, for things adjusted by turning a knob."""
+    if not enabled:
+        return
+    fraction = max(0.0, min(1.0, fraction))
+    filled = int(round(fraction * 14))
+    notify(heading, f"{fraction:.2f} " + ("=" * filled) + ("-" * (14 - filled)))
+
+
 def send_text(key, value):
     """Only goes out when the value actually changed."""
     if not enabled:
