@@ -313,25 +313,25 @@ struct HelpEntry {
 // thing here, so the left column is given the room for them and the right one
 // takes the entries that are a single key and a short word.
 #define HELP_COL_LEFT  2
-#define HELP_COL_RIGHT 72
+#define HELP_COL_RIGHT 66
 #define HELP_ROWS      6
 
 void OledPages::renderHelp(OledScreen &s) {
     static const HelpEntry ENTRIES[] = {
-        // left column, up to 67 pixels
-        { "AUX", 0,     false, "Osd"     },
-        { "C#",  0,     false, "Shift"   },
-        { "D#",  0,     false, "Persist" },
-        { "C#",  "AUX", true,  "Menu"    },
-        { "C#",  "D#",  true,  "Seq"     },
-        { "C",   "D",   false, "Mode"    },
+        // left column, up to 61 pixels
+        { "AUX", 0,    false, "Osd"     },
+        { "C#",  0,    false, "Shift"   },
+        { "D#",  0,    false, "Persist" },
+        { "C#",  "K1", true,  "Gain"    },
+        { "C#",  "D#", true,  "Seq"     },
+        { "C",   "D",  false, "Mode"    },
         // right column, up to 49
-        { "E",   "F",   false, "Scene"   },
-        { "G",   0,     false, "Save"    },
-        { "A",   0,     false, "Grab"    },
-        { "B",   0,     false, "Trig"    },
-        { "F#",  0,     false, "Mute"    },
-        { "G#",  0,     false, "Clock"   },
+        { "E",   "F",  false, "Scene"   },
+        { "G",   0,    false, "Save"    },
+        { "A",   0,    false, "Grab"    },
+        { "B",   0,    false, "Trig"    },
+        { "F#",  0,    false, "Mute"    },
+        { "G#",  0,    false, "Clock"   },
     };
     const int count = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
 
