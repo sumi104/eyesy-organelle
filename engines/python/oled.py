@@ -14,8 +14,13 @@ import threading
 import time
 
 import helpers
-import osc
 import streamer
+
+# osc needs liblo, which the instrument has and a desktop may not. Nothing
+# here talks to it unless this is an Organelle, so it is imported in init()
+# rather than up here, which keeps eyesy.py importable without it. It also
+# breaks what would otherwise be an import cycle, osc importing this module.
+osc = None
 
 # bits of the flags field, kept in sync with OledPages.h
 FLAG_TRIG       = 1 << 0
@@ -55,10 +60,13 @@ _net = {"ssid": "off", "ip": "-", "level": 0}
 
 def init(eyesy):
     """Called once at startup, after osc.init()."""
-    global enabled
+    global enabled, osc
     enabled = os.environ.get("EYESY_PLATFORM", "") == "organelle_s"
     if not enabled:
         return
+
+    import osc as osc_module
+    osc = osc_module
 
     send_text("ver", eyesy.VERSION)
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
