@@ -9,7 +9,7 @@
 #define MAXCHARS 21
 
 static const char *KEY_NAMES[OLED_KEY_SLOTS] = {
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+    "C", "D", "E", "F", "G", "A", "B"
 };
 
 static void copyText(char *dst, const char *src) {
@@ -240,17 +240,29 @@ void OledPages::renderMidi(OledScreen &s) {
     if (st.flags & OLED_FLAG_MIDI_ACT) s.fill_area(120, 43, 6, 6, 1);
 }
 
+// The upper octave, split the way the keyboard is: the five black keys drive
+// knob modulation across the top, the seven white keys recall modes below.
 void OledPages::renderKeys(OledScreen &s) {
     char buf[24];
 
-    // 12 upper octave slots in two columns of six
+    // one lamp per knob, filled while that knob is being wobbled
+    s.println("MOD", 2, 11, 8, 1);
+    for (int i = 0; i < 5; i++) {
+        int cx = 32 + (i * 18);
+        if (st.flags & OLED_FLAG_KNOB_MOD(i)) s.draw_filled_circle(cx, 15, 4, 1);
+        else s.draw_circle(cx, 15, 4, 1);
+    }
+
+    s.draw_line(0, 21, 127, 21, 1);
+
+    // seven white keys, four in the left column and three in the right
     for (int i = 0; i < OLED_KEY_SLOTS; i++) {
-        int col = i / 6;
-        int row = i % 6;
+        int col = i / 4;
+        int row = i % 4;
         const char *name = st.keymap[i][0] ? st.keymap[i] : "-";
         snprintf(buf, sizeof(buf), "%s:%s", KEY_NAMES[i], name);
         buf[10] = 0;   // 10 characters per column
-        s.println(buf, col * 64 + 2, 10 + (row * 9), 8, 1);
+        s.println(buf, col * 64 + 2, 24 + (row * 9), 8, 1);
     }
 }
 

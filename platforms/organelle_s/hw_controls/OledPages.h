@@ -40,9 +40,13 @@ engine is busy drawing or restarting.
 #define OLED_FLAG_SEQ_REC     (1 << 12)
 #define OLED_FLAG_NOTE_MUTE   (1 << 13)
 #define OLED_FLAG_STREAM      (1 << 14)
+// bits 15 to 19, one per knob, set while its random modulation is running
+#define OLED_FLAG_KNOB_MOD(i) (1 << (15 + (i)))
 
 #define OLED_TEXT_LEN 40
-#define OLED_KEY_SLOTS 12
+
+// one per upper octave white key
+#define OLED_KEY_SLOTS 7
 
 struct OledState {
     int knobs[5];          // 0 - 1023

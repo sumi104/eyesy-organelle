@@ -37,13 +37,34 @@ Hold **C#** for the shifted layer.
 | F# | Audio input mute | Freeze the picture |
 | G# | MIDI clock mute | MIDI note mute |
 | A# | left free on purpose, for later | — |
-| Upper octave C to B | Recall the mode stored on that key | Store the playing mode there |
+| Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
+| Upper octave black keys | Wobble knob 1 to 5, press again to stop | — |
 | Foot switch | Trigger | — |
 
 Shift + knob 1 still sets the input gain, as on EYESY.
 
 Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
-saved as soon as a key is stored.
+saved as soon as a key is stored. A config written when the whole upper octave
+was mode slots is carried over, keeping what the white keys held.
+
+## Knob modulation
+
+Each black key of the upper octave wobbles the knob above it — C# is knob 1
+through to A# for knob 5. Press once to start, again to stop, and the knob
+returns to where it is physically set.
+
+The offset drifts towards a new random target and picks another when it gets
+there, so it eases in and out rather than stepping. It rides on top of the
+position rather than sweeping the whole range, so the knob still does what it
+looks like it does. Scenes store the set position, not wherever the wobble
+happened to be.
+
+Two settings in `config.json`, no menu for them yet:
+
+| | default | |
+|---|---|---|
+| `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
+| `knob_mod_rate` | 0.15 | how fast, about one turn a second |
 
 ## OLED
 
@@ -60,7 +81,7 @@ dot next to the page number marks the ones that respond.
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — wifi network, IP address, resolution, frame rate, version | — |
 | 3 | **MIDI** — channel, knob CCs, trigger source, clock state, input device | MIDI clock mute |
-| 4 | **MODE KEYS** — what each upper octave key recalls | — |
+| 4 | **MODE KEYS** — knob modulation lamps, and what each white key recalls | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CONTROLS** — the key map above, in short form | — |
 

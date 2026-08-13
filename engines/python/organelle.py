@@ -21,12 +21,17 @@ FOOTSWITCH = 25
 KEY_C, KEY_CS, KEY_D, KEY_DS, KEY_E, KEY_F = 1, 2, 3, 4, 5, 6
 KEY_FS, KEY_G, KEY_GS, KEY_A, KEY_AS, KEY_B = 7, 8, 9, 10, 11, 12
 
-# upper octave, twelve assignable mode slots
+# Upper octave. The white keys recall modes and the black keys switch random
+# modulation on and off for the knob above them, left to right.
 UPPER_OCTAVE_FIRST = 13
-NUM_MODE_SLOTS = 12
+NUM_MODE_SLOTS = 7
 
-# names of the upper octave keys, index matches the mode slot
-SLOT_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+# raw key index -> mode slot, the seven white keys of the upper octave
+MODE_SLOTS = {13: 0, 15: 1, 17: 2, 18: 3, 20: 4, 22: 5, 24: 6}
+SLOT_NAMES = ["C", "D", "E", "F", "G", "A", "B"]
+
+# raw key index -> knob 0-4, the five black keys of the upper octave
+KNOB_MOD_KEYS = {14: 0, 16: 1, 19: 2, 21: 3, 23: 4}
 
 # organelle key -> eyesy panel button, see dispatch_key_event() in eyesy.py
 EYESY_BUTTON = {
@@ -49,11 +54,13 @@ def is_organelle():
 
 
 def slot_for_key(k):
-    """Mode slot 0-11 for an upper octave key, or None."""
-    slot = k - UPPER_OCTAVE_FIRST
-    if 0 <= slot < NUM_MODE_SLOTS:
-        return slot
-    return None
+    """Mode slot 0-6 for an upper octave white key, or None."""
+    return MODE_SLOTS.get(k)
+
+
+def knob_for_key(k):
+    """Knob 0-4 for an upper octave black key, or None."""
+    return KNOB_MOD_KEYS.get(k)
 
 
 def _recall_mode(eyesy, slot):
@@ -84,7 +91,7 @@ def dispatch_key(eyesy, k, v):
     pressed = v > 0
     shift = eyesy.key2_status
 
-    # the twelve keys of the upper octave recall modes, holding shift while
+    # the white keys of the upper octave recall modes, holding shift while
     # pressing one stores the mode that is playing right now
     slot = slot_for_key(k)
     if slot is not None:
@@ -93,6 +100,14 @@ def dispatch_key(eyesy, k, v):
                 _assign_mode(eyesy, slot)
             else:
                 _recall_mode(eyesy, slot)
+        return
+
+    # the black keys up there wobble the knob above them
+    knob = knob_for_key(k)
+    if knob is not None:
+        if pressed:
+            on = eyesy.toggle_knob_mod(knob)
+            oled.notify(f"Knob {knob + 1}", "modulating" if on else "steady")
         return
 
     # controls that have no equivalent on the EYESY panel

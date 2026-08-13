@@ -68,8 +68,15 @@ class Eyesy:
             "mode_cc": -1,
             "notes_change_mode": False,
             "pc_map": {},
-            # organelle s: modes recalled by the twelve upper octave keys
-            "key_modes": [""] * 12,
+            # organelle s: modes recalled by the upper octave white keys, and
+            # the random knob wobble the black keys up there switch on
+            "key_modes": [""] * 7,
+            # depth is how far the offset can swing either side of the knob,
+            # rate is how quickly it gets to each new target. 0.15 comes out
+            # at about one turn a second, which reads as a wobble rather than
+            # a drift
+            "knob_mod_depth": .25,
+            "knob_mod_rate": .15,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -133,6 +140,17 @@ class Eyesy:
         self.knob_override = [False] * 5
         self.knob_last = [-1] * 5      # used to filter repetitive knob osc messages, but we always want to first one so set to -1
 
+        # what the knobs would read with no modulation on top, which is what
+        # a scene stores. same as knob1-5 until a knob is being wobbled
+        self.knob_base = [.2] * 5
+
+        # random modulation, one per knob, toggled from the organelle's upper
+        # octave black keys. the offset wanders around the knob's position
+        # rather than sweeping the whole range
+        self.knob_mod = [False] * 5
+        self.knob_mod_value = [0.0] * 5
+        self.knob_mod_target = [0.0] * 5
+
         # midi stuff 
         self.midi_notes = [0] * 128
         self.midi_notes_last = [0] * 128
@@ -175,8 +193,8 @@ class Eyesy:
         self.encoder_press = False
         self.encoder_button = False
 
-        # modes recalled by the twelve upper octave keys, filled from config
-        self.key_modes = [""] * 12
+        # modes recalled by the upper octave white keys, filled from config
+        self.key_modes = [""] * 7
 
         # menu stuff
         self.current_screen = None
@@ -344,17 +362,27 @@ class Eyesy:
         self._validate_config_int("notes_change_mode", 0, 1)
         self._validate_config_bool("stream_enabled")
         self._validate_config_bool("stream_smooth")
+        self._validate_config_float("knob_mod_depth", 0.0, 1.0)
+        self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         self._validate_config_int("stream_width", 320, 960)
         self._validate_config_int("stream_fps", 1, 30)
         self._validate_config_key_modes()
 
-    # twelve mode names, empty string means the key is unassigned
+    # one mode name per upper octave white key, empty means unassigned
     def _validate_config_key_modes(self):
         slots = self.config.get("key_modes")
         if not isinstance(slots, list):
             slots = []
-        slots = [s if isinstance(s, str) else "" for s in slots][:12]
-        slots += [""] * (12 - len(slots))
+        slots = [s if isinstance(s, str) else "" for s in slots]
+
+        # these used to be twelve chromatic slots, before the black keys up
+        # there were given over to knob modulation. carry the white ones over
+        if len(slots) == 12:
+            white = [0, 2, 4, 5, 7, 9, 11]
+            slots = [slots[i] for i in white]
+
+        slots = slots[:7]
+        slots += [""] * (7 - len(slots))
         self.config["key_modes"] = slots
         self.key_modes = list(slots)
 
@@ -511,14 +539,54 @@ class Eyesy:
             if self.midi_notes[i] > 0 and self.midi_notes_last[i] == 0:
                 self.midi_note_new = True
     
+    # one knob's random modulation, called once a frame while it is on.
+    # the offset drifts towards a new random target and picks another when it
+    # gets there, so the movement is continuous rather than stepped
+    def update_knob_mod(self, i) :
+        rate = self.config["knob_mod_rate"]
+        value = self.knob_mod_value[i]
+        value += (self.knob_mod_target[i] - value) * rate
+        if abs(self.knob_mod_target[i] - value) < 0.02 :
+            self.knob_mod_target[i] = random.uniform(-1.0, 1.0)
+        self.knob_mod_value[i] = value
+
+    def toggle_knob_mod(self, i) :
+        if not (0 <= i < 5) : return False
+        self.knob_mod[i] = not self.knob_mod[i]
+        if self.knob_mod[i] :
+            self.knob_mod_value[i] = 0.0
+            self.knob_mod_target[i] = random.uniform(-1.0, 1.0)
+        else :
+            # let go of the offset so the knob lands back where it is set
+            self.knob_mod_value[i] = 0.0
+        print(f"knob {i + 1} modulation {self.knob_mod[i]}")
+        return self.knob_mod[i]
+
+    def any_knob_mod(self) :
+        return any(self.knob_mod)
+
     def set_knobs(self) :
         # fill these for the modes, but only if shift isn't down
         if not self.key2_status:
-            self.knob1 = self.knob[0]
-            self.knob2 = self.knob[1]
-            self.knob3 = self.knob[2]
-            self.knob4 = self.knob[3]
-            self.knob5 = self.knob[4]
+            for i in range(0, 5) :
+                self.knob_base[i] = self.knob[i]
+
+        # modulation rides on top of the set position, and keeps running with
+        # shift held so it does not stall while the gain is being adjusted
+        depth = self.config["knob_mod_depth"]
+        out = list(self.knob_base)
+        for i in range(0, 5) :
+            if self.knob_mod[i] :
+                self.update_knob_mod(i)
+                out[i] = max(0.0, min(1.0,
+                                      out[i] + (self.knob_mod_value[i] * depth)))
+
+        if not self.key2_status or self.any_knob_mod() :
+            self.knob1 = out[0]
+            self.knob2 = out[1]
+            self.knob3 = out[2]
+            self.knob4 = out[3]
+            self.knob5 = out[4]
 
     # save a screenshot
     def screengrab(self):
@@ -654,11 +722,11 @@ class Eyesy:
 
         new_scene = {
             "mode": self.mode,
-            "knob1": self.knob1,
-            "knob2": self.knob2,
-            "knob3": self.knob3,
-            "knob4": self.knob4,
-            "knob5": self.knob5,
+            "knob1": self.knob_base[0],
+            "knob2": self.knob_base[1],
+            "knob3": self.knob_base[2],
+            "knob4": self.knob_base[3],
+            "knob5": self.knob_base[4],
             "auto_clear": self.auto_clear,
             "bg_palette": self.bg_palette,
             "fg_palette": self.fg_palette,
@@ -709,11 +777,11 @@ class Eyesy:
         # Create the updated scene dictionary without "name" and "thumbnail"
         updated_scene = {
             "mode": self.mode,
-            "knob1": self.knob1,
-            "knob2": self.knob2,
-            "knob3": self.knob3,
-            "knob4": self.knob4,
-            "knob5": self.knob5,
+            "knob1": self.knob_base[0],
+            "knob2": self.knob_base[1],
+            "knob3": self.knob_base[2],
+            "knob4": self.knob_base[3],
+            "knob5": self.knob_base[4],
             "auto_clear": self.auto_clear,
             "bg_palette": self.bg_palette,
             "fg_palette": self.fg_palette,

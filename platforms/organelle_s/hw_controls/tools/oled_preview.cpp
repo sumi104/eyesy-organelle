@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
     st.gain = 25;
     st.flags = OLED_FLAG_TRIG | OLED_FLAG_PERSIST | OLED_FLAG_AUDIO_MUTE
              | OLED_FLAG_WIFI | OLED_FLAG_SEQ_PLAY | OLED_FLAG_MIDI_ACT
-             | OLED_FLAG_STREAM;
+             | OLED_FLAG_STREAM
+             | OLED_FLAG_KNOB_MOD(0) | OLED_FLAG_KNOB_MOD(2)
+             | OLED_FLAG_KNOB_MOD(3);
     st.modeIndex = 11;
     st.modeCount = 57;
     st.sceneIndex = 1;
@@ -66,8 +68,7 @@ int main(int argc, char *argv[]) {
     pages.setText("sinfo", "480x270 12fps");
 
     const char *slots[OLED_KEY_SLOTS] = {
-        "Bounce", "Trails", "Grid", "", "Spiral", "Wave",
-        "", "Blocks", "Rings", "Noise", "", "Strobe"
+        "Bounce", "Trails", "Grid", "", "Spiral", "Wave", "Strobe"
     };
     for (int i = 0; i < OLED_KEY_SLOTS; i++) pages.setKeymap(i, slots[i]);
 

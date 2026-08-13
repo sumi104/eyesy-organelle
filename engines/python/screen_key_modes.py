@@ -10,10 +10,11 @@ def wha(): pass
 
 
 class ScreenKeyModes(Screen):
-    """Assigns a mode to each of the twelve upper octave keys.
+    """Assigns a mode to each upper octave white key.
 
     The same slots can be set while performing by holding shift and pressing
-    the key, this screen is for going through them all at once.
+    the key, this screen is for going through them all at once. The black keys
+    up there are knob modulation and have nothing to assign.
     """
 
     def __init__(self, eyesy):
@@ -22,10 +23,11 @@ class ScreenKeyModes(Screen):
         self.footer = (chr(0x2680) + "     = Cancel     " + chr(0x2681)
                        + "   = Adjust     " + chr(0x2682) + "   = Up/Down     "
                        + chr(0x2683) + "  = Save & Exit")
-        self.menu = WidgetMenu(eyesy, [MenuItem("", wha) for _ in range(12)])
+        slots = organelle.NUM_MODE_SLOTS
+        self.menu = WidgetMenu(eyesy, [MenuItem("", wha) for _ in range(slots)])
         for item in self.menu.items:
             item.adjustable = True
-        self.menu.visible_items = 12
+        self.menu.visible_items = slots
         self.menu.off_y = 43
         self.key4_td = 0
         self.key5_td = 0
