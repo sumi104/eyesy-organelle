@@ -106,15 +106,6 @@ void OledPages::tickNotify(float elapsedMs) {
 
 /* drawing helpers */
 
-// The 5x8 font has no bold cut, so thicken it by drawing the same text again
-// one pixel across. Only worth it on a word or two: the glyphs are five wide
-// with a single pixel between them, so a smeared run of text closes its own
-// gaps and turns to mush.
-void OledPages::printlnBold(OledScreen &s, const char *text, int x, int y) {
-    s.println(text, x, y, 8, 1);
-    s.println(text, x + 1, y, 8, 1);
-}
-
 // vertical fader, like the knob sliders in the video OSD
 void OledPages::drawKnobBar(OledScreen &s, int x, int y, int h, int val) {
     const int w = 11;
@@ -264,24 +255,26 @@ void OledPages::renderKeys(OledScreen &s) {
 
     s.draw_line(0, 21, 127, 21, 1);
 
-    // seven white keys, four in the left column and three in the right, with
-    // the key itself picked out so the eye can find it against the names
+    // Seven white keys, four in the left column and three in the right. The
+    // key is reversed out of a filled block so the eye can pick it out of the
+    // run of mode names, then a space, then the name.
     for (int i = 0; i < OLED_KEY_SLOTS; i++) {
         int col = i / 4;
         int row = i % 4;
         int x = (col * 64) + 2;
         int y = 24 + (row * 9);
+        int keyLen = strlen(KEY_NAMES[i]);
 
-        printlnBold(s, KEY_NAMES[i], x, y);
-        // one extra pixel so the emboldened key does not touch the colon
-        int keyWidth = (strlen(KEY_NAMES[i]) * 6) + 1;
+        // eight tall against a nine pixel row pitch, so the blocks in a
+        // column read as separate keys rather than one continuous bar. the
+        // key names are all capitals, which do not reach the row it gives up
+        s.fill_area(x - 1, y - 1, (keyLen * 6) + 1, 8, 1);
+        s.println(KEY_NAMES[i], x, y, 8, 0);
 
-        // the bold key pushes the name right, so it gets one character less
-        // than the column would otherwise hold or it runs into the next one
         const char *name = st.keymap[i][0] ? st.keymap[i] : "-";
-        snprintf(buf, sizeof(buf), ":%s", name);
-        buf[9] = 0;
-        s.println(buf, x + keyWidth, y, 8, 1);
+        snprintf(buf, sizeof(buf), "%s", name);
+        buf[8] = 0;   // what is left of the column after the key and the space
+        s.println(buf, x + (keyLen * 6) + 6, y, 8, 1);
     }
 }
 
