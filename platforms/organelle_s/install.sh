@@ -24,7 +24,14 @@ case ",$root_opts," in
 esac
 
 echo "== building controls"
-make -C hw_controls clean
+# The build is incremental, so running this after a python only change costs
+# nothing. The dependency files only appear once something has been compiled
+# by the current makefile though, and until they do make cannot tell what a
+# header change affects, so start from clean that one time.
+if [ ! -f hw_controls/main.d ]; then
+    echo "   no dependency files yet, building from clean"
+    make -C hw_controls clean
+fi
 make -C hw_controls
 
 echo "== installing services"

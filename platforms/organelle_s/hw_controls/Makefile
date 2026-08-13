@@ -1,6 +1,14 @@
 CXX = g++
 
-CXXFLAGS += -std=c++11
+# -MMD -MP makes the compiler write out what each object actually included,
+# next to the object as a .d file, which is pulled back in below. The hand
+# maintained list this replaces had drifted: the OSC rules named targets
+# without their directory, so they matched nothing that gets built, and
+# hw_interfaces/CM3GPIO.o had no rule at all. Editing any of those headers
+# left the old object files in place, and only the make clean in install.sh
+# was hiding it.
+CXXFLAGS += -std=c++11 -MMD -MP
+CFLAGS += -MMD -MP
 
 objects =  \
 	main.o \
@@ -15,32 +23,17 @@ objects =  \
 	OSC/OSCTiming.o \
 	OSC/SimpleWriter.o
 
-default : $(objects) hw_interfaces/CM3GPIO.o
-	g++ -o controls $(objects) hw_interfaces/CM3GPIO.o -l wiringPi 
+gpio = hw_interfaces/CM3GPIO.o
+
+deps = $(objects:.o=.d) $(gpio:.o=.d)
+
+default : $(objects) $(gpio)
+	g++ -o controls $(objects) $(gpio) -l wiringPi
 
 .PHONY : clean
 
 clean :
-	rm -f controls oled_preview $(objects) hw_interfaces/CM3GPIO.o
+	rm -f controls oled_preview $(objects) $(gpio) $(deps)
 
-# Generate with g++ -MM *.c* OSC/*.*
-main.o: main.cpp OSC/OSCMessage.h OSC/OSCData.h OSC/OSCTiming.h \
- OSC/SimpleWriter.h OSC/SimpleWriter.h UdpSocket.h Socket.h Timer.h \
- OledScreen.h OledPages.h
-OledScreen.o: OledScreen.cpp OledScreen.h fonts.h
-OledPages.o: OledPages.cpp OledPages.h OledScreen.h
-Socket.o: Socket.cpp Socket.h
-Timer.o: Timer.cpp Timer.h
-UdpSocket.o: UdpSocket.cpp UdpSocket.h Socket.h
-OSCData.o: OSC/OSCData.cpp OSC/OSCData.h OSC/OSCTiming.h
-OSCData.o: OSC/OSCData.h OSC/OSCTiming.h
-OSCMatch.o: OSC/OSCMatch.c OSC/OSCMatch.h
-OSCMatch.o: OSC/OSCMatch.h
-OSCMessage.o: OSC/OSCMessage.cpp OSC/OSCMessage.h OSC/OSCData.h \
- OSC/OSCTiming.h OSC/SimpleWriter.h OSC/OSCMatch.h
-OSCMessage.o: OSC/OSCMessage.h OSC/OSCData.h OSC/OSCTiming.h \
- OSC/SimpleWriter.h
-OSCTiming.o: OSC/OSCTiming.cpp OSC/OSCTiming.h
-OSCTiming.o: OSC/OSCTiming.h
-SimpleWriter.o: OSC/SimpleWriter.cpp OSC/SimpleWriter.h
-SimpleWriter.o: OSC/SimpleWriter.h
+# nothing to include on the first build, everything gets compiled anyway
+-include $(deps)
