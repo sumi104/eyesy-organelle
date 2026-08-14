@@ -18,6 +18,60 @@ The knob that plays the fifth mode parameter is the **volume knob**. The
 Organelle applies volume in software, so on EYESY it is free to use as a
 control.
 
+## How it is put together
+
+Two processes, both started by systemd, talking OSC over UDP loopback. The C++
+side reads pins and sends numbers; it does not know what any of them mean.
+Deciding that is the engine's job, which is why changing an assignment needs no
+rebuild. It is also why the display keeps working while the engine is loading a
+mode: the frame buffer and the page state live on the C++ side, and the engine
+only sends it what to say.
+
+```mermaid
+flowchart LR
+    subgraph panel ["Front panel"]
+        direction TB
+        knobs["Knobs 1-4<br/>and volume"]
+        keys["24 keys<br/>and AUX"]
+        enc["Encoder"]
+        oled["OLED 128 x 64"]
+    end
+
+    subgraph hw ["eyesyhw, C++"]
+        ctl["hw_controls/controls<br/><br/>reads pins every 2 ms<br/>redraws the OLED at 20 Hz"]
+    end
+
+    subgraph py ["eyesypy, Python"]
+        direction TB
+        osc["osc.py"]
+        org["organelle.py<br/>what a key means"]
+        eng["eyesy.py<br/>state and scenes"]
+        old["oled.py"]
+        drw["main.py<br/>30 fps"]
+    end
+
+    out["HDMI or composite<br/>1280 x 720"]
+
+    knobs -- "SPI1, MCP3008" --> ctl
+    keys -- "GPIO, 74HC165" --> ctl
+    enc -- "same shift register" --> ctl
+    ctl -- "SPI0, 1 KB frame" --> oled
+
+    ctl -- "UDP 4000<br/>/knobs /key /encoder/turn" --> osc
+    old -- "UDP 4001, 20 Hz<br/>/oled/state /oled/text" --> ctl
+
+    osc --> org --> eng --> drw --> out
+    eng --> old
+```
+
+Which half a change lands in decides what has to be run on the device:
+
+| Changed | Needed |
+|---|---|
+| `engines/python/`, `web/` | `sudo systemctl restart eyesypy` |
+| `platforms/organelle_s/hw_controls/` | `install.sh`, which rebuilds |
+| `platforms/organelle_s/rootfs/` | `install.sh`, which deploys |
+
 ## Control map
 
 Hold **C#** for the shifted layer.
