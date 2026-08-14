@@ -11,7 +11,7 @@ carrier boards are near identical — so only the control surface differs.
 | ADC order | `adcRead(4,2,0,1,3)` | `adcRead(0..5)` = knob 1-4, volume, expression |
 | Keys sent | lowest 10, reordered by a lookup table | all 25 raw, `0` = AUX, `1-24` = keyboard from low C |
 | Encoder | simplified edge detect | Organelle quadrature table, 2 detents per pulse |
-| OLED | not driven | 5 pages, encoder switches them |
+| OLED | not driven | 6 pages, encoder switches them |
 | Foot switch | polled, unused | sent as key `25`, saves a scene |
 
 The knob that plays the fifth mode parameter is the **volume knob**. The
@@ -26,6 +26,11 @@ Deciding that is the engine's job, which is why changing an assignment needs no
 rebuild. It is also why the display keeps working while the engine is loading a
 mode: the frame buffer and the page state live on the C++ side, and the engine
 only sends it what to say.
+
+A third joins them while an Ableton Link trigger source is selected: `linkd`,
+started and stopped by the engine, reporting the beat on the same loopback.
+It is separate because Link is GPL and this tree is BSD — see
+[linkd/README.md](linkd/README.md).
 
 ```mermaid
 flowchart LR
@@ -45,6 +50,8 @@ flowchart LR
         drw["main.py<br/>30 fps"]
     end
 
+    lnk["linkd<br/>only while a Link<br/>trigger source is picked"]
+
     oled["OLED on the front panel<br/>128 x 64"]
     out["HDMI or composite<br/>1280 x 720"]
 
@@ -54,6 +61,8 @@ flowchart LR
     ctl -- "SPI0, 1 KB frame" --> oled
 
     ctl <-- "UDP 4000 out, /knobs /key /encoder/turn<br/>UDP 4001 back, /oled/state /oled/text /led" --> osc
+
+    lnk -- "UDP 4000<br/>/link/trig /link/status" --> osc
 
     osc --> org --> eng --> drw --> out
     eng --> old
@@ -185,7 +194,7 @@ dot next to the page number marks the ones that respond.
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — wifi network, IP address, resolution, frame rate, version | — |
-| 3 | **MIDI** — channel, knob CCs, trigger source, clock state, input device | — |
+| 3 | **MIDI** — channel, knob CCs, trigger source, input device, and whichever clock is driving: MIDI, or the Link tempo and peer count | — |
 | 4 | **MODE KEYS** — knob modulation lamps, and what each white key recalls | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CONTROLS** — the key map above, in short form | — |
@@ -236,7 +245,9 @@ up owned by root and the next `git pull` trips over it:
     ~/EYESY_OS/platforms/organelle_s/install.sh
 
 That remounts `/` writable, builds `controls`, runs `deploy.sh` and restarts
-the services. `/` is left writable, so reboot before pulling the plug.
+the services. It builds `linkd` too when the Ableton Link headers are in
+`~/link`, and says it is skipping it when they are not. `/` is left writable,
+so reboot before pulling the plug.
 
 `deploy.sh` installs the systemd units from `rootfs/`, which point at this
 platform directory and set `EYESY_PLATFORM=organelle_s` for the video engine.
