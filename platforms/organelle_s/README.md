@@ -29,27 +29,23 @@ only sends it what to say.
 
 ```mermaid
 flowchart LR
-    subgraph panel ["Front panel"]
-        direction TB
+    subgraph panel ["Front panel, read"]
         knobs["Knobs 1-4<br/>and volume"]
         keys["24 keys<br/>and AUX"]
         enc["Encoder"]
-        oled["OLED 128 x 64"]
     end
 
-    subgraph hw ["eyesyhw, C++"]
-        ctl["hw_controls/controls<br/><br/>reads pins every 2 ms<br/>redraws the OLED at 20 Hz"]
-    end
+    ctl["eyesyhw, C++<br/>hw_controls/controls<br/><br/>reads pins every 2 ms<br/>owns the frame buffer<br/>and the page state"]
 
-    subgraph py ["eyesypy, Python"]
-        direction TB
+    subgraph py ["eyesypy, Python, engines/python"]
         osc["osc.py"]
         org["organelle.py<br/>what a key means"]
         eng["eyesy.py<br/>state and scenes"]
-        old["oled.py"]
+        old["oled.py<br/>sends /oled/state at 20 Hz"]
         drw["main.py<br/>30 fps"]
     end
 
+    oled["OLED on the front panel<br/>128 x 64"]
     out["HDMI or composite<br/>1280 x 720"]
 
     knobs -- "SPI1, MCP3008" --> ctl
@@ -57,8 +53,7 @@ flowchart LR
     enc -- "same shift register" --> ctl
     ctl -- "SPI0, 1 KB frame" --> oled
 
-    ctl -- "UDP 4000<br/>/knobs /key /encoder/turn" --> osc
-    old -- "UDP 4001, 20 Hz<br/>/oled/state /oled/text" --> ctl
+    ctl <-- "UDP 4000 out, /knobs /key /encoder/turn<br/>UDP 4001 back, /oled/state /oled/text /led" --> osc
 
     osc --> org --> eng --> drw --> out
     eng --> old
