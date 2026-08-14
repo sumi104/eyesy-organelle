@@ -129,9 +129,26 @@ class OrganelleKeyTest(unittest.TestCase):
         self.assertEqual(self.e.bg_palette, 1)
         self.assertEqual(self.e.mode, "Alpha")  # mode untouched under shift
 
-    def test_footswitch_doubles_the_trigger_key(self):
+    def test_footswitch_saves_a_scene(self):
+        saved = []
+        self.e.save_scene = lambda: saved.append(1)
         self.tap(organelle.FOOTSWITCH)
-        self.assertTrue(self.e.trig)
+        self.assertEqual(len(saved), 1)
+        self.assertFalse(self.e.trig, "the pedal no longer triggers")
+
+    def test_holding_the_footswitch_cannot_delete_a_scene(self):
+        # the save key deletes the current scene when held for a second, which
+        # is what a foot resting on a pedal looks like
+        deleted = []
+        self.e.save_scene = lambda: None
+        self.e.delete_current_scene = lambda: deleted.append(1)
+        self.press(organelle.FOOTSWITCH)
+        self.assertFalse(self.e.save_key_status,
+                         "the pedal must not arm the delete timer")
+        self.e.save_key_time = 0          # as if held far longer than a second
+        self.e.update_scene_save_key()
+        self.release(organelle.FOOTSWITCH)
+        self.assertEqual(deleted, [])
 
     # --- organelle only controls ---------------------------------------
 
@@ -511,8 +528,9 @@ class OrganelleKeyTest(unittest.TestCase):
 
     def test_every_eyesy_button_has_exactly_one_key(self):
         buttons = sorted(organelle.EYESY_BUTTON.values())
-        # 10 is on both B and the foot switch, everything else is unique
-        self.assertEqual(buttons, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10])
+        self.assertEqual(buttons, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        self.assertNotIn(organelle.FOOTSWITCH, organelle.EYESY_BUTTON,
+                         "the pedal is handled on its own, not as a button")
 
     def test_black_keys_are_not_wired_to_panel_buttons(self):
         for key in (organelle.KEY_FS, organelle.KEY_GS, organelle.KEY_AS):

@@ -45,7 +45,6 @@ EYESY_BUTTON = {
     KEY_G:      8,   # save scene, hold to delete, with shift updates it
     KEY_A:      9,   # screen grab, with shift plays / stops the knob sequence
     KEY_B:      10,  # trigger, with shift arms the knob sequence recorder
-    FOOTSWITCH: 10,  # pedal doubles the trigger key
 }
 
 
@@ -117,6 +116,16 @@ def dispatch_key(eyesy, k, v):
                 oled.notify(f"Knob {knob + 1}",
                             "modulating" if on else "steady")
             eyesy.knob_mod_key_used[knob] = False
+        return
+
+    # The pedal saves a scene. It deliberately does not go through the save
+    # key's own handler: that one deletes the current scene when it is held for
+    # a second, which is a foot resting on a pedal.
+    if k == FOOTSWITCH:
+        if pressed and not eyesy.menu_mode:
+            eyesy.save_scene()
+            name = eyesy.scenes[-1]["name"] if eyesy.scenes else ""
+            oled.notify("Scene saved", name)
         return
 
     # controls that have no equivalent on the EYESY panel

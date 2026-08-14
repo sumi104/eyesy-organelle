@@ -12,7 +12,7 @@ carrier boards are near identical — so only the control surface differs.
 | Keys sent | lowest 10, reordered by a lookup table | all 25 raw, `0` = AUX, `1-24` = keyboard from low C |
 | Encoder | simplified edge detect | Organelle quadrature table, 2 detents per pulse |
 | OLED | not driven | 5 pages, encoder switches them |
-| Foot switch | polled, unused | sent as key `25` |
+| Foot switch | polled, unused | sent as key `25`, saves a scene |
 
 The knob that plays the fifth mode parameter is the **volume knob**. The
 Organelle applies volume in software, so on EYESY it is free to use as a
@@ -88,9 +88,13 @@ Hold **C#** for the shifted layer.
 | A# | left free on purpose, for later | — |
 | Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
-| Foot switch | Trigger | — |
+| Foot switch | Save scene | — |
 
 Shift + knob 1 still sets the input gain, as on EYESY.
+
+The pedal saves rather than going through the save key, which deletes the
+current scene when it is held for a second — which is what a foot resting on a
+pedal looks like. Deleting stays on `G`.
 
 Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
 saved as soon as a key is stored. A config written when the whole upper octave
