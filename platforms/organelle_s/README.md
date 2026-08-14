@@ -172,9 +172,11 @@ Link runs exactly while a Link trigger source is selected. `G#` mutes it, the
 same key that mutes the MIDI clock, and the MIDI page says which clock is
 driving and how many peers it can see.
 
-Link is a separate program here, because it is GPL and this tree is BSD, and
-it has to be built once before any of this appears. See
-[linkd/README.md](linkd/README.md).
+Link is a separate program here, because it is GPL and this tree is BSD, so
+its source is not in this repository and has to be cloned to `~/link` before
+`install.sh` will build it — see [Build and install](#build-and-install) and
+[linkd/README.md](linkd/README.md). Until that is done the Link trigger
+sources are selectable but nothing answers, and the MIDI page says `Link off`.
 
 A trigger lands on the next frame, so it can be up to 33 ms late. That is true
 of the MIDI clock sources too. It is enough to lock visuals to a beat and not
@@ -239,15 +241,24 @@ EYESY binary sitting where the Organelle binary belongs, and a stale one runs
 with the wrong ADC order and key map without complaining. If `eyesyhw.service`
 fails with "no such file", the build step below has not been run.
 
-On the device, as the `music` user — not with sudo, or the build output ends
-up owned by root and the next `git pull` trips over it:
+**For Ableton Link, clone it first.** `install.sh` builds `linkd` only if the
+headers are already there, so doing this afterwards means running `install.sh`
+again. Skip it and everything else still works, Link included in the trigger
+source list but reporting nothing.
+
+    git clone --recurse-submodules https://github.com/Ableton/link ~/link
+
+`--recurse-submodules` is not optional: the asio it needs to build is a
+submodule, and without it the compile fails on a missing header.
+
+Then, as the `music` user — not with sudo, or the build output ends up owned by
+root and the next `git pull` trips over it:
 
     ~/EYESY_OS/platforms/organelle_s/install.sh
 
-That remounts `/` writable, builds `controls`, runs `deploy.sh` and restarts
-the services. It builds `linkd` too when the Ableton Link headers are in
-`~/link`, and says it is skipping it when they are not. `/` is left writable,
-so reboot before pulling the plug.
+That remounts `/` writable, builds `controls`, builds `linkd` if `~/link` is
+there and says it is skipping it if not, runs `deploy.sh` and restarts the
+services. `/` is left writable, so reboot before pulling the plug.
 
 `deploy.sh` installs the systemd units from `rootfs/`, which point at this
 platform directory and set `EYESY_PLATFORM=organelle_s` for the video engine.

@@ -32,6 +32,12 @@ linkd : linkd.cpp
 	  echo "no Link headers at $(LINK_DIR)"; \
 	  echo "  git clone --recurse-submodules https://github.com/Ableton/link $(LINK_DIR)"; \
 	  exit 1; }
+	@# cloning without --recurse-submodules leaves this empty and the failure
+	@# is a page of template errors that never mentions the submodule
+	@test -f "$(LINK_DIR)/modules/asio-standalone/asio/include/asio.hpp" || { \
+	  echo "Link is at $(LINK_DIR) but its asio submodule is missing"; \
+	  echo "  git -C $(LINK_DIR) submodule update --init --recursive"; \
+	  exit 1; }
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $< $(LDLIBS)
 
 .PHONY : clean
