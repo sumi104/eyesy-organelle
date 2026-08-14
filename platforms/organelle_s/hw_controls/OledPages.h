@@ -66,6 +66,7 @@ struct OledState {
     char ip[OLED_TEXT_LEN];
     char midiDev[OLED_TEXT_LEN];
     char trigSrc[OLED_TEXT_LEN];
+    char clockLine[OLED_TEXT_LEN];  // clock mute, or the Link session
     char res[OLED_TEXT_LEN];
     char ver[OLED_TEXT_LEN];
     char url[OLED_TEXT_LEN];       // where to watch the live stream
@@ -85,7 +86,7 @@ class OledPages
         void setPage(int p);
         int  getPage() { return page; }
 
-        // key is one of: mode scene ssid ip midi trig res ver url sinfo
+        // key is one of: mode scene ssid ip midi trig clock res ver url sinfo
         void setText(const char *key, const char *val);
 
         // Name of the on/off setting this page owns, or null when there is

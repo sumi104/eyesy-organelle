@@ -146,6 +146,23 @@ one had. A scene saved before this existed simply has nothing wobbling.
 | `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
 | `knob_mod_rate` | 0.15 | how fast, about one turn a second |
 
+## Ableton Link
+
+Pick one of the **Link** entries under **Settings → Audio MIDI Settings →
+Trigger Source** and the visuals follow the beat of anything else on the
+network — Live, an iPad, another Organelle. There is no separate on switch:
+Link runs exactly while a Link trigger source is selected. `G#` mutes it, the
+same key that mutes the MIDI clock, and the MIDI page says which clock is
+driving and how many peers it can see.
+
+Link is a separate program here, because it is GPL and this tree is BSD, and
+it has to be built once before any of this appears. See
+[linkd/README.md](linkd/README.md).
+
+A trigger lands on the next frame, so it can be up to 33 ms late. That is true
+of the MIDI clock sources too. It is enough to lock visuals to a beat and not
+enough to call it sample accurate.
+
 ## OLED
 
 The hardware process owns the frame buffer and the page state so the display

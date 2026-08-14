@@ -14,6 +14,7 @@ import eyesy
 import osc
 import sound
 import osd
+import link
 import oled
 import streamer
 import usbdrive
@@ -30,6 +31,7 @@ from screen_key_modes import ScreenKeyModes
 
 def exitexit(code):
     print("EXIT exiting\n")
+    link.close()
     streamer.close()
     pygame.display.quit()
     pygame.quit()
@@ -206,6 +208,9 @@ try :
 
     # organelle s oled, no-op on eyesy hardware
     oled.init(eyesy)
+
+    # ableton link, only runs while a Link trigger source is selected
+    link.apply(eyesy)
 
     # live video stream, no-op unless enabled in the config. the mode surface
     # is what gets published, and its pixel format decides whether the encoder

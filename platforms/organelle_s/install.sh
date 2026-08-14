@@ -34,6 +34,16 @@ if [ ! -f hw_controls/main.d ]; then
 fi
 make -C hw_controls
 
+# Ableton Link is GPL and lives outside this tree, so linkd is only built when
+# its headers have been fetched. Everything else works without it.
+if [ -f "$HOME/link/include/ableton/Link.hpp" ]; then
+    echo "== building linkd"
+    make -C linkd
+else
+    echo "== skipping linkd, no Link headers in ~/link"
+    echo "   git clone --recurse-submodules https://github.com/Ableton/link ~/link"
+fi
+
 echo "== installing services"
 sudo ./deploy.sh
 

@@ -48,7 +48,9 @@ class Eyesy:
         
         self.RES =  (0,0)
         
-        self.TRIGGER_SOURCES = ["Audio", "MIDI Note", "Audio or MIDI Note", "MIDI Clock 16th Note", "MIDI Clock 8th Note", "MIDI Clock 1/4 Note", "MIDI Clock Whole Note"]
+        # 3 to 6 are midi clock divisions, 7 to 10 the same divisions from an
+        # Ableton Link session. link.DIVISIONS has to agree about the indices
+        self.TRIGGER_SOURCES = ["Audio", "MIDI Note", "Audio or MIDI Note", "MIDI Clock 16th Note", "MIDI Clock 8th Note", "MIDI Clock 1/4 Note", "MIDI Clock Whole Note", "Link 16th Note", "Link 8th Note", "Link 1/4 Note", "Link Whole Note"]
 
         self.DEFAULT_CONFIG = {
             "video_resolution": 3,

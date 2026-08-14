@@ -25,6 +25,7 @@ OledPages::OledPages() {
     copyText(st.ip, "-");
     copyText(st.midiDev, "none");
     copyText(st.trigSrc, "Audio");
+    copyText(st.clockLine, "Clock on");
     copyText(st.res, "-");
     copyText(st.ver, "3.1");
     copyText(st.url, "no network");
@@ -71,6 +72,7 @@ void OledPages::setText(const char *key, const char *val) {
     else if (!strcmp(key, "ip"))    copyText(st.ip, val);
     else if (!strcmp(key, "midi"))  copyText(st.midiDev, val);
     else if (!strcmp(key, "trig"))  copyText(st.trigSrc, val);
+    else if (!strcmp(key, "clock")) copyText(st.clockLine, val);
     else if (!strcmp(key, "res"))   copyText(st.res, val);
     else if (!strcmp(key, "ver"))   copyText(st.ver, val);
     else if (!strcmp(key, "url"))   copyText(st.url, val);
@@ -247,9 +249,9 @@ void OledPages::renderMidi(OledScreen &s) {
     s.setLine(2, buf);
     snprintf(buf, sizeof(buf), "Trig %s", st.trigSrc);
     s.setLine(3, buf);
-    snprintf(buf, sizeof(buf), "Clock %s",
-             (st.flags & OLED_FLAG_CLOCK_MUTE) ? "MUTED" : "on");
-    s.setLine(4, buf);
+    // the engine composes this: it says the clock is muted, or which Link
+    // session is being followed, depending on where the beat comes from
+    s.setLine(4, st.clockLine);
     snprintf(buf, sizeof(buf), "In %s", st.midiDev);
     s.setLine(5, buf);
 

@@ -1,4 +1,5 @@
 import pygame
+import link
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -123,6 +124,8 @@ class ScreenMIDISettings(Screen):
                 item = self.menu.items[i]
                 self.eyesy.config[key] = item.value
         self.eyesy.save_config_file()
+        # picking a Link trigger source is what starts and stops linkd
+        link.apply(self.eyesy)
         self.exit_menu()
     
     def goto_midi_pc_mapping(self):

@@ -14,6 +14,7 @@ import threading
 import time
 
 import helpers
+import link
 import streamer
 
 # osc needs liblo, which the instrument has and a desktop may not. Nothing
@@ -162,6 +163,7 @@ def update(eyesy):
     send_text("midi", eyesy.usb_midi_name if eyesy.usb_midi_name else "none")
     send_text("trig", eyesy.TRIGGER_SOURCES[eyesy.config["trigger_source"]])
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
+    send_text("clock", _clock_line(eyesy))
     send_stream_info(eyesy)
 
     flags = 0
@@ -200,6 +202,16 @@ def update(eyesy):
         eyesy.config["knob3_cc"], eyesy.config["knob4_cc"],
         eyesy.config["knob5_cc"],
     )
+
+
+def _clock_line(eyesy):
+    """Line four of the MIDI page. Whichever clock is driving the visuals is
+    what belongs there, and whether it is muted comes first either way."""
+    if eyesy.midi_clock_muted:
+        return "Link MUTED" if link.is_link_source(eyesy) else "Clock MUTED"
+    if link.is_link_source(eyesy):
+        return link.describe()
+    return "Clock on"
 
 
 def _knob(v):

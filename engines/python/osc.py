@@ -2,6 +2,7 @@ import sys
 import liblo
 import os
 
+import link
 import oled
 import organelle
 import streamer
@@ -9,6 +10,7 @@ import streamer
 eyesy = None
 osc_server = None
 osc_target = None
+link_target = None
 organelle_keys = False
 
 # OSC callbacks
@@ -77,6 +79,16 @@ def encoder_button_callback(path, args) :
     eyesy.encoder_button = args[0] > 0
     if args[0] > 0 : eyesy.encoder_press = True
 
+# a beat division boundary went by in the Ableton Link session. the clock mute
+# covers this as well as MIDI clock, it is the same thing to a performer
+def link_trig_callback(path, args) :
+    global eyesy
+    if eyesy.midi_clock_muted : return
+    if link.is_link_source(eyesy) : eyesy.trig = True
+
+def link_status_callback(path, args) :
+    link.status(args[0], args[1], args[2])
+
 # the encoder was pressed on an oled page that owns an on/off setting,
 # the display picks the new state up from the next state message
 def oled_toggle_callback(path, args) :
@@ -89,13 +101,14 @@ def oled_toggle_callback(path, args) :
         print(f"unknown oled toggle {action}")
 
 def init (eyesy_object) :
-    global osc_server, osc_target, eyesy, organelle_keys
+    global osc_server, osc_target, link_target, eyesy, organelle_keys
     eyesy = eyesy_object
     organelle_keys = organelle.is_organelle()
 
     # OSC init server and client
     try:
         osc_target = liblo.Address(4001)
+        link_target = liblo.Address(4002)
     except liblo.AddressError as err:
         print(err)
 
@@ -108,6 +121,8 @@ def init (eyesy_object) :
     osc_server.add_method("/encoder/turn", 'i', encoder_turn_callback)
     osc_server.add_method("/encoder/button", 'i', encoder_button_callback)
     osc_server.add_method("/oled/toggle", 's', oled_toggle_callback)
+    osc_server.add_method("/link/trig", None, link_trig_callback)
+    osc_server.add_method("/link/status", 'iif', link_status_callback)
     osc_server.add_method("/reload", 'i', reload_callback)
     osc_server.add_method("/screengrab", 'i', screengrab_callback)
     osc_server.add_method("/set", 's', set_callback)
@@ -125,6 +140,14 @@ def send(addr, *args) :
         liblo.send(osc_target, addr, *args)
     except Exception as e :
         print(f"osc send to {addr} failed: {e}")
+
+# linkd listens on its own port, see platforms/organelle_s/linkd
+def send_link(addr, *args) :
+    global link_target
+    try :
+        liblo.send(link_target, addr, *args)
+    except Exception as e :
+        print(f"osc send to linkd {addr} failed: {e}")
 
 def close():
     global osc_server
