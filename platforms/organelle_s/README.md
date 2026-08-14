@@ -101,6 +101,11 @@ Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
 saved as soon as a key is stored. A config written when the whole upper octave
 was mode slots is carried over, keeping what the white keys held.
 
+**Settings → Mode Keys** shows all seven at once. `C` and `D` step a slot
+through the modes, and one step below the first mode is `None` — that is how
+an assignment is cleared. There is no gesture for clearing one while playing:
+shift and a white key always stores whatever is playing now.
+
 ## Knob modulation
 
 Each black key of the upper octave wobbles the knob above it — C# is knob 1
