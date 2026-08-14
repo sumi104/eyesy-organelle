@@ -232,16 +232,23 @@ class OrganelleKeyTest(unittest.TestCase):
         self.tap(self.upper("F#"))
         self.assertFalse(any(self.e.knob_mod))
 
+    def run_frames(self, n, triggering=False):
+        """Frames of the main loop, with or without something triggering."""
+        seen = set()
+        for _ in range(n):
+            self.e.trig = triggering
+            self.e.set_knobs()
+            seen.add(round(self.e.knob2, 4))
+        self.e.trig = False
+        return seen
+
     def test_modulation_moves_the_knob_the_modes_read(self):
         self.e.knob[1] = 0.5
         self.e.set_knobs()
         self.assertEqual(self.e.knob2, 0.5)
 
         self.tap(self.upper("D#"))             # knob 2
-        moved = set()
-        for _ in range(200):
-            self.e.set_knobs()
-            moved.add(round(self.e.knob2, 4))
+        moved = self.run_frames(200, triggering=True)
         self.assertGreater(len(moved), 5, "the value should be wandering")
         self.assertTrue(all(0.0 <= v <= 1.0 for v in moved))
 
@@ -250,15 +257,52 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e.set_knobs()
         self.assertEqual(self.e.knob2, 0.5)
 
+    def test_the_wobble_is_stepped_by_the_trigger(self):
+        # whatever drives the visuals drives this: audio, notes, MIDI clock and
+        # Link all arrive as trig, so one hook covers all of them
+        self.e.knob[1] = 0.5
+        self.tap(self.upper("D#"))
+        self.assertGreater(len(self.run_frames(200, triggering=True)), 5)
+
+    def test_without_a_trigger_it_settles_and_stays(self):
+        # the complaint that started this: muting the audio left it running
+        self.e.knob[1] = 0.5
+        self.tap(self.upper("D#"))
+        self.run_frames(200, triggering=True)     # get it moving
+
+        self.run_frames(200, triggering=False)    # now nothing is triggering
+        at_rest = self.run_frames(60, triggering=False)
+        self.assertEqual(len(at_rest), 1,
+                         f"should have come to rest, saw {sorted(at_rest)}")
+
+    def test_muting_the_audio_stops_it(self):
+        # main.py skips the block that sets trig from audio while muted, so
+        # from here that simply looks like no triggers arriving
+        self.e.knob[1] = 0.5
+        self.tap(self.upper("D#"))
+        self.run_frames(100, triggering=True)
+        self.e.audio_muted = True
+        self.run_frames(200, triggering=False)
+        self.assertEqual(len(self.run_frames(60, triggering=False)), 1)
+
+    def test_free_running_is_still_available_in_the_config(self):
+        self.e.config["knob_mod_sync"] = False
+        self.e.knob[1] = 0.5
+        self.tap(self.upper("D#"))
+        self.assertGreater(len(self.run_frames(300, triggering=False)), 5,
+                           "unsynced it keeps its own time")
+
     def test_modulation_stays_inside_the_range_at_the_extremes(self):
         for base in (0.0, 1.0):
             self.e.knob_mod = [False] * 5
             self.e.knob[0] = base
             self.tap(self.upper("C#"))
             for _ in range(300):
+                self.e.trig = True
                 self.e.set_knobs()
                 self.assertGreaterEqual(self.e.knob1, 0.0)
                 self.assertLessEqual(self.e.knob1, 1.0)
+            self.e.trig = False
             self.tap(self.upper("C#"))
 
     def test_a_scene_stores_the_set_position_not_the_wobble(self):
@@ -266,7 +310,9 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e.set_knobs()
         self.tap(self.upper("C#"))
         for _ in range(50):
+            self.e.trig = True
             self.e.set_knobs()
+        self.e.trig = False
         self.assertNotEqual(self.e.knob1, 0.5, "modulation should be active")
         self.assertEqual(self.e.knob_base[0], 0.5)
 
@@ -277,8 +323,10 @@ class OrganelleKeyTest(unittest.TestCase):
         self.press(organelle.KEY_CS)
         moved = set()
         for _ in range(200):
+            self.e.trig = True
             self.e.set_knobs()
             moved.add(round(self.e.knob4, 4))
+        self.e.trig = False
         self.assertGreater(len(moved), 5)
 
     # --- a modulating knob shapes the wobble ---------------------------

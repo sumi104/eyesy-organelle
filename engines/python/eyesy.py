@@ -79,6 +79,9 @@ class Eyesy:
             # a drift
             "knob_mod_depth": .25,
             "knob_mod_rate": .15,
+            # step the wobble on the trigger rather than on a clock of its own,
+            # so it follows the audio, the MIDI clock or the Link session
+            "knob_mod_sync": True,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -379,6 +382,7 @@ class Eyesy:
         self._validate_config_int("notes_change_mode", 0, 1)
         self._validate_config_bool("stream_enabled")
         self._validate_config_bool("stream_smooth")
+        self._validate_config_bool("knob_mod_sync")
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         # the config holds the starting point, each knob keeps its own after
@@ -565,16 +569,29 @@ class Eyesy:
             if self.midi_notes[i] > 0 and self.midi_notes_last[i] == 0:
                 self.midi_note_new = True
     
-    # one knob's random modulation, called once a frame while it is on.
-    # the offset drifts towards a new random target and picks another when it
-    # gets there, so the movement is continuous rather than stepped
-    def update_knob_mod(self, i) :
-        rate = self.knob_mod_rate[i]
-        value = self.knob_mod_value[i]
-        value += (self.knob_mod_target[i] - value) * rate
-        if abs(self.knob_mod_target[i] - value) < 0.02 :
+    # One knob's random modulation, called once a frame while it is on.
+    #
+    # A trigger picks somewhere new to head for and the offset glides towards
+    # it, so what times the movement is whatever is driving the visuals -
+    # audio, MIDI notes, MIDI clock or Ableton Link, they all arrive as trig -
+    # while the rate knob decides how sharply it gets there. Turned up it
+    # lands on the beat, turned down it is still wandering when the next one
+    # comes.
+    #
+    # With nothing triggering, it glides onto its last target and stays there.
+    # That is why muting the audio or the clock stops the wobble instead of
+    # leaving it running on a clock of its own.
+    def update_knob_mod(self, i, stepped) :
+        if stepped :
             self.knob_mod_target[i] = random.uniform(-1.0, 1.0)
-        self.knob_mod_value[i] = value
+        elif not self.config["knob_mod_sync"] :
+            # free running: pick the next target once this one is reached
+            if abs(self.knob_mod_target[i] - self.knob_mod_value[i]) < 0.02 :
+                self.knob_mod_target[i] = random.uniform(-1.0, 1.0)
+
+        rate = self.knob_mod_rate[i]
+        self.knob_mod_value[i] += \
+            (self.knob_mod_target[i] - self.knob_mod_value[i]) * rate
 
     def toggle_knob_mod(self, i) :
         if not (0 <= i < 5) : return False
@@ -643,10 +660,11 @@ class Eyesy:
 
         # modulation rides on top of the set position, and keeps running with
         # shift held so it does not stall while the gain is being adjusted
+        stepped = self.trig and self.config["knob_mod_sync"]
         out = list(self.knob_base)
         for i in range(0, 5) :
             if self.knob_mod[i] :
-                self.update_knob_mod(i)
+                self.update_knob_mod(i, stepped)
                 out[i] = max(0.0, min(1.0,
                                       out[i] + (self.knob_mod_value[i]
                                                 * self.knob_mod_depth[i])))

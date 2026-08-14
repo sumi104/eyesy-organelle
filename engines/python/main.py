@@ -260,9 +260,6 @@ while 1:
         # only changes assigned 
         eyesy.knob_seq_run()
         
-        # fills in eyesy.knob1 etc, for the modes
-        eyesy.set_knobs()
-
         # measure fps
         eyesy.frame_count += 1
         if ((eyesy.frame_count % 30) == 0):
@@ -306,6 +303,11 @@ while 1:
                 eyesy.audio_peak = 25000 # also set peak value
                 eyesy.audio_peak_r = 25000 # also set peak value
         
+        # Fills in eyesy.knob1 etc, for the modes. This has to come after the
+        # trigger has been settled above, because knob modulation steps on it:
+        # run earlier and an audio trigger would always be missed by a frame.
+        eyesy.set_knobs()
+
         # set the mode on which to call draw
         try : 
             mode = sys.modules[eyesy.mode]

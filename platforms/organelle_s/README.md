@@ -110,10 +110,16 @@ shift and a white key always stores whatever is playing now.
 Each black key of the upper octave wobbles the knob above it — C# is knob 1
 through to A# for knob 5. Tap it to start, tap again to stop.
 
-The offset drifts towards a new random target and picks another when it gets
-there, so it eases in and out rather than stepping. It rides on top of the
-position rather than sweeping the whole range. Scenes store the set position,
-not wherever the wobble happened to be.
+**The movement is timed by whatever is driving the visuals.** Each trigger
+picks somewhere new for the offset to head for and it glides there, and since
+audio, MIDI notes, MIDI clock and Ableton Link all arrive as the same trigger,
+the wobble follows whichever one is selected under Trigger Source. With
+nothing triggering it settles on its last target and stays there, so muting
+the audio with `F#` or the clock with `G#` stops it rather than leaving it
+running on a clock of its own.
+
+It rides on top of the position rather than sweeping the whole range. Scenes
+store the set position, not wherever the wobble happened to be.
 
 **While a knob is modulating it stops setting a value and shapes the wobble
 instead**: turn it for the rate, or hold its own black key and turn it for the
@@ -125,10 +131,11 @@ Because the key doubles as a modifier it acts on release, and only when it was
 tapped: holding it while turning its knob adjusts the depth and leaves the
 modulation running.
 
-Rate runs from about one turn every ten seconds to nearly four a second, on an
-exponential curve so the slow end is not all crammed into the first millimetre
-of travel. To move the centre position, switch modulation off, set it, and
-switch back on.
+Rate is how quickly the offset reaches each new target, on an exponential
+curve so the slow end is not all crammed into the first millimetre of travel.
+Turned up, the wobble lands on the beat and waits there; turned down it is
+still travelling when the next one arrives. To move the centre position,
+switch modulation off, set it, and switch back on.
 
 Both take over smoothly: nothing changes until the knob has moved a little
 from where it was, so a knob left at one end does not slam the value across
@@ -144,7 +151,8 @@ one had. A scene saved before this existed simply has nothing wobbling.
 | | default | |
 |---|---|---|
 | `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
-| `knob_mod_rate` | 0.15 | how fast, about one turn a second |
+| `knob_mod_rate` | 0.15 | how quickly it reaches each target |
+| `knob_mod_sync` | true | step on the trigger; false brings back a wobble that keeps its own time |
 
 ## Ableton Link
 
