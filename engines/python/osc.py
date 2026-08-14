@@ -85,8 +85,6 @@ def oled_toggle_callback(path, args) :
     if action == "stream" :
         on = streamer.toggle(eyesy)
         oled.notify("Live On" if on else "Live Off")
-    elif action == "clock" :
-        eyesy.toggle_midi_clock_mute()
     else :
         print(f"unknown oled toggle {action}")
 

@@ -156,7 +156,7 @@ dot next to the page number marks the ones that respond.
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — wifi network, IP address, resolution, frame rate, version | — |
-| 3 | **MIDI** — channel, knob CCs, trigger source, clock state, input device | MIDI clock mute |
+| 3 | **MIDI** — channel, knob CCs, trigger source, clock state, input device | — |
 | 4 | **MODE KEYS** — knob modulation lamps, and what each white key recalls | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CONTROLS** — the key map above, in short form | — |
@@ -169,9 +169,13 @@ Letters in the top bar: `M` audio muted, `K` clock muted, `N` notes muted,
 `F` frozen, `P` persist, `S` shift held, `R` recording, `Q` sequence playing.
 
 On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
-volume, and `L` `R` `G` are the input meters and the gain. The thin bar
-blinking under them is the trigger, the same thing the yellow square shows in
-the video OSD — what makes it fire is the `Trig` setting on the MIDI page.
+volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar
+means that knob is being wobbled — the same filled circle MODE KEYS uses, and
+drawn only for the knobs it applies to, so the usual case stays quiet.
+
+The thin bar blinking under the meters is the trigger, the same thing the
+yellow square shows in the video OSD — what makes it fire is the `Trig`
+setting on the MIDI page.
 A trigger only lasts one frame, so it is latched between display refreshes
 rather than being missed.
 

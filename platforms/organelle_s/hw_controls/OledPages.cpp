@@ -60,7 +60,6 @@ void OledPages::setPage(int p) {
 const char *OledPages::toggleAction() {
     switch (page) {
         case OLED_PAGE_STREAM: return "stream";
-        case OLED_PAGE_MIDI:   return "clock";
         default:               return 0;
     }
 }
@@ -200,9 +199,15 @@ void OledPages::renderPerform(OledScreen &s) {
         snprintf(buf, sizeof(buf), "S -/%d none", st.sceneCount);
     s.setLine(2, buf);
 
-    // knob faders, left to right same as the panel: knob 1-4 then volume
-    for (int i = 0; i < 5; i++)
-        drawKnobBar(s, 2 + (i * 13), 34, 26, st.knobs[i]);
+    // Knob faders, left to right same as the panel: knob 1-4 then volume. A
+    // dot over one says that knob is being wobbled, the same filled circle
+    // the MODE KEYS page uses, so the two pages read the same way. Nothing is
+    // drawn for a knob that is not, which keeps the usual case quiet.
+    for (int i = 0; i < 5; i++) {
+        int x = 2 + (i * 13);
+        if (st.flags & OLED_FLAG_KNOB_MOD(i)) s.draw_filled_circle(x + 5, 33, 2, 1);
+        drawKnobBar(s, x, 38, 24, st.knobs[i]);
+    }
 
     // stereo VU and input gain on the right
     s.println("L", 70, 34, 8, 1);
