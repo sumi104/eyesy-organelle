@@ -152,7 +152,7 @@ one had. A scene saved before this existed simply has nothing wobbling.
 |---|---|---|
 | `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
 | `knob_mod_rate` | 0.15 | how quickly it reaches each target |
-| `knob_mod_sync` | true | step on the trigger; false brings back a wobble that keeps its own time |
+| `knob_mod_sync` | true | step on the trigger; false brings back a wobble that keeps its own time. Also on **Settings → Audio MIDI Settings** |
 
 ## Ableton Link
 

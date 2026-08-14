@@ -1,5 +1,6 @@
 import pygame
 import link
+import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -29,6 +30,9 @@ class ScreenMIDISettings(Screen):
         self.menu.items.append(self.create_adjustable_menu_item("bg_palette_cc", -1, 127,  "BG Palette CC: {value}"))
         self.menu.items.append(self.create_adjustable_menu_item("mode_cc", -1, 127,  "Mode Select CC: {value}"))
         self.menu.items.append(self.create_adjustable_menu_item("notes_change_mode", 0, 1, ""))
+        # knob modulation only exists on the organelle keyboard
+        if organelle.is_organelle():
+            self.menu.items.append(self.create_adjustable_menu_item("knob_mod_sync", 0, 1, ""))
 
         self.menu.items.append(MenuItem('◀  Exit', self.exit_menu))
         self.menu.visible_items = 8
@@ -60,6 +64,9 @@ class ScreenMIDISettings(Screen):
         elif item.name == "notes_change_mode" :
             if item.value == 1: item.text = "MIDI Notes Select Mode: Yes"
             else : item.text = "MIDI Notes Select Mode: No"
+        elif item.name == "knob_mod_sync" :
+            if item.value == 1: item.text = "Knob Modulation: Synced to Trigger"
+            else : item.text = "Knob Modulation: Free Running"
         else:
             if item.value < 0: item.text = item.format_string.format(value="None")
             else: item.text = item.format_string.format(value=item.value)
@@ -122,7 +129,14 @@ class ScreenMIDISettings(Screen):
             i = self.get_item_index(key)
             if i >= 0:
                 item = self.menu.items[i]
-                self.eyesy.config[key] = item.value
+                # The menu holds every value as an int. The settings that
+                # were here are all validated as ints so that was fine, but a
+                # setting declared as a bool is checked with isinstance and
+                # would be thrown away on the next boot for arriving as 0.
+                if isinstance(self.eyesy.DEFAULT_CONFIG.get(key), bool):
+                    self.eyesy.config[key] = bool(item.value)
+                else:
+                    self.eyesy.config[key] = item.value
         self.eyesy.save_config_file()
         # picking a Link trigger source is what starts and stops linkd
         link.apply(self.eyesy)
