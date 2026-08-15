@@ -379,6 +379,31 @@ class OrganelleKeyTest(unittest.TestCase):
         self.release(self.upper("D#"))
         self.assertTrue(self.e.knob_mod[1])
 
+    def test_a_playing_knob_sequence_blocks_the_wobble(self):
+        # the sequence is writing those knobs, so a wobble on top would be two
+        # things driving one control
+        self.e.knob_seq_state = "playing"
+        self.tap(self.upper("F#"))
+        self.assertFalse(self.e.knob_mod[2], "must not switch on")
+
+        self.e.knob_seq_state = "stopped"
+        self.tap(self.upper("F#"))
+        self.assertTrue(self.e.knob_mod[2], "and works again once it stops")
+
+    def test_an_already_running_wobble_can_still_be_switched_off(self):
+        self.tap(self.upper("F#"))
+        self.assertTrue(self.e.knob_mod[2])
+        self.e.knob_seq_state = "playing"
+        self.tap(self.upper("F#"))
+        self.assertFalse(self.e.knob_mod[2], "turning it off stays allowed")
+
+    def test_recording_and_armed_do_not_block_it(self):
+        for state in ("recording", "enabled", "stopped"):
+            self.e.knob_mod = [False] * 5
+            self.e.knob_seq_state = state
+            self.tap(self.upper("F#"))
+            self.assertTrue(self.e.knob_mod[2], state)
+
     def test_a_tap_toggles_but_a_hold_and_turn_does_not(self):
         key = self.upper("F#")                  # knob 3
         self.tap(key)

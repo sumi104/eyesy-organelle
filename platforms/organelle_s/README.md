@@ -122,9 +122,10 @@ random, and off again. It moves the moment it is switched on rather than
 leaving you wondering whether the key did anything, and it never picks what is
 already playing, which would look the same as nothing happening.
 
-How long it waits is set on **Settings → Mode Keys**: 30, 50 or 60 seconds, or
-`Random`, which draws a fresh interval between 15 and 60 seconds each time. `A`
-in the top bar of the OLED means it is running.
+How long it waits is set on **Settings → Mode Keys**: 15, 30, 50 or 60
+seconds, or `Random`, which draws a fresh interval between 15 and 60 seconds
+each time. `M` or `S` in the top bar of the OLED says it is running and which
+of the two it is picking.
 
 It holds still while a menu is open, so it cannot change the mode out from
 under someone reading a settings page. Picking scenes with none saved does
@@ -155,6 +156,11 @@ OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
 Because the key doubles as a modifier it acts on release, and only when it was
 tapped: holding it while turning its knob adjusts the depth and leaves the
 modulation running.
+
+A wobble cannot be started while the knob sequencer is playing — `Q` in the top
+bar — because the sequence is already writing those knobs and the two would be
+driving one control. Switching off one that is already running still works,
+and the key says why when it refuses.
 
 Rate is how quickly the offset reaches each new target, on an exponential
 curve so the slow end is not all crammed into the first millimetre of travel.
@@ -221,9 +227,13 @@ Pages declare their setting by name in `OledPages::toggleAction()`, and
 `osc.py` maps the name to the action, so wiring a switch to another page is
 two lines.
 
-Letters in the top bar: `M` audio muted, `K` clock muted, `N` notes muted,
-`F` frozen, `P` persist, `S` shift held, `A` auto random, `R` recording,
-`Q` sequence playing.
+Letters in the top bar: `X` audio muted, `K` clock muted, `N` notes muted,
+`F` frozen, `P` persist, `^` shift held, `M` auto random picking modes,
+`S` auto random picking scenes, `R` recording, `Q` sequence playing.
+
+Audio mute is `X` and shift is `^` because the auto picker wanted `M` and `S`
+to say which of the two things it is picking, and one letter meaning two
+things is worse than a letter that has to be learned.
 
 On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
 volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar

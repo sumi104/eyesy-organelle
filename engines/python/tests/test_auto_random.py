@@ -170,7 +170,8 @@ class AutoRandomTest(unittest.TestCase):
             screen.interval_item.value = value
             screen._relabel(screen.interval_item)
             seen.append(screen.interval_item.text)
-        self.assertEqual(seen, ["Auto Random Cycle: 30 sec",
+        self.assertEqual(seen, ["Auto Random Cycle: 15 sec",
+                                "Auto Random Cycle: 30 sec",
                                 "Auto Random Cycle: 50 sec",
                                 "Auto Random Cycle: 60 sec",
                                 "Auto Random Cycle: Random"])
@@ -178,12 +179,12 @@ class AutoRandomTest(unittest.TestCase):
     def test_the_interval_saves_as_seconds_not_as_a_row_number(self):
         screen = skm.ScreenKeyModes(self.e)
         screen.before()
-        screen.interval_item.value = 2          # the 60 sec row
+        screen.interval_item.value = 3          # the 60 sec row
         screen.save()
         self.assertEqual(self.e.config["auto_random_interval"], 60)
 
         screen.before()
-        self.assertEqual(screen.interval_item.value, 2, "and comes back")
+        self.assertEqual(screen.interval_item.value, 3, "and comes back")
 
     def test_the_mode_slots_still_line_up_under_the_new_row(self):
         self.e.key_modes[0] = "Gamma"

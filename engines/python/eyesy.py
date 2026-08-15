@@ -55,7 +55,7 @@ class Eyesy:
         # auto random, cycled by the organelle's A# key
         self.AUTO_RANDOM_OFF, self.AUTO_RANDOM_MODES, self.AUTO_RANDOM_SCENES = 0, 1, 2
         # seconds between picks, -1 draws a fresh interval every time
-        self.AUTO_RANDOM_INTERVALS = [30, 50, 60, -1]
+        self.AUTO_RANDOM_INTERVALS = [15, 30, 50, 60, -1]
         self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX = 15, 60
 
         self.DEFAULT_CONFIG = {

@@ -164,13 +164,17 @@ void OledPages::renderTopBar(OledScreen &s) {
     // status letters in the middle, right aligned against the wifi icon
     char st_letters[12];
     int n = 0;
-    if (st.flags & OLED_FLAG_AUDIO_MUTE) st_letters[n++] = 'M';
+    // M and S say what the auto picker is picking, so the audio mute and the
+    // shift key give those letters up: X is the usual mark for muted and ^ is
+    // what shift is called on a keyboard
+    if (st.flags & OLED_FLAG_AUDIO_MUTE) st_letters[n++] = 'X';
     if (st.flags & OLED_FLAG_CLOCK_MUTE) st_letters[n++] = 'K';
     if (st.flags & OLED_FLAG_NOTE_MUTE)  st_letters[n++] = 'N';
     if (st.flags & OLED_FLAG_FREEZE)     st_letters[n++] = 'F';
     if (st.flags & OLED_FLAG_PERSIST)    st_letters[n++] = 'P';
-    if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = 'S';
-    if (st.flags & OLED_FLAG_AUTO_RANDOM) st_letters[n++] = 'A';
+    if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = '^';
+    if (st.flags & OLED_FLAG_AUTO_MODES)  st_letters[n++] = 'M';
+    if (st.flags & OLED_FLAG_AUTO_SCENES) st_letters[n++] = 'S';
     if (st.flags & OLED_FLAG_SEQ_REC)    st_letters[n++] = 'R';
     else if (st.flags & OLED_FLAG_SEQ_PLAY) st_letters[n++] = 'Q';
     st_letters[n] = 0;

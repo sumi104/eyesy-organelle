@@ -42,7 +42,8 @@ engine is busy drawing or restarting.
 #define OLED_FLAG_STREAM      (1 << 14)
 // bits 15 to 19, one per knob, set while its random modulation is running
 #define OLED_FLAG_KNOB_MOD(i) (1 << (15 + (i)))
-#define OLED_FLAG_AUTO_RANDOM (1 << 20)
+#define OLED_FLAG_AUTO_MODES  (1 << 20)
+#define OLED_FLAG_AUTO_SCENES (1 << 21)
 
 #define OLED_TEXT_LEN 40
 

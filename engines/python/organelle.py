@@ -112,9 +112,15 @@ def dispatch_key(eyesy, k, v):
         else:
             eyesy.knob_mod_key_held[knob] = False
             if not eyesy.knob_mod_key_used[knob]:
-                on = eyesy.toggle_knob_mod(knob)
-                oled.notify(f"Knob {knob + 1}",
-                            "modulating" if on else "steady")
+                # A playing sequence is writing these knobs itself, so adding
+                # a wobble would be two things driving one control. Switching
+                # an existing one off stays allowed.
+                if not eyesy.knob_mod[knob] and eyesy.knob_seq_state == "playing":
+                    oled.notify("Modulation", "knob seq is playing")
+                else:
+                    on = eyesy.toggle_knob_mod(knob)
+                    oled.notify(f"Knob {knob + 1}",
+                                "modulating" if on else "steady")
             eyesy.knob_mod_key_used[knob] = False
         return
 
