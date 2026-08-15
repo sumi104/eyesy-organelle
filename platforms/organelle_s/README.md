@@ -97,7 +97,7 @@ Hold **C#** for the shifted layer.
 | A# | Auto random: off, then modes, then scenes, then off | — |
 | Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
-| Foot switch | Save scene, or the trigger — Settings > System picks which | — |
+| Foot switch | Save scene, or whatever `B` does — Settings > System picks which | Same as `B` when set to Trigger |
 
 Shift + knob 1 still sets the input gain, as on EYESY.
 
@@ -108,11 +108,12 @@ Saving goes straight to `save_scene()` rather than through the save key, which
 deletes the current scene when it is held for a second — which is what a foot
 resting on a pedal looks like. Deleting stays on `G`.
 
-Set to Trigger it fires `eyesy.trig` on the way down, one press one trigger,
-whatever the `Trig` setting on the MIDI page says. It does not also hold the
-analysis input at a simulated sine wave the way the panel's own trigger key
-does, for the same reason: a foot resting on the pedal would silence the real
-audio for as long as it rested there.
+Set to Trigger it **is** the `B` key: the pedal goes through that key's own
+handler rather than a copy of part of it, so it fires the trigger, plays the
+test tone while it is held, and arms the knob sequence recorder when shift is
+down, exactly as the key does. Which of the two the pedal is gets latched when
+it goes down, so changing the setting mid-press cannot leave the test tone
+playing with no way back.
 
 Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
 saved as soon as a key is stored. A config written when the whole upper octave

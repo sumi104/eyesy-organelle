@@ -114,22 +114,59 @@ class FootswitchKeyTest(unittest.TestCase):
         self.release()
         self.assertFalse(self.e.trig)
 
-    def test_it_does_not_hold_the_analysis_input_at_a_simulated_wave(self):
-        # the panel trigger key does, through key10_status. A foot resting on
-        # a pedal would then silence the real audio for as long as it rested.
+    # --- it is the panel trigger key, not a copy of half of it ------------
+
+    def test_holding_it_plays_the_test_tone_the_panel_key_plays(self):
+        # key10_status is what makes main.py feed the modes a sine wave
+        # instead of the live input, same as holding B on the keyboard
         self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
         self.press()
+        self.assertTrue(self.e.key10_status)
+        self.release()
         self.assertFalse(self.e.key10_status)
+
+    def test_shift_and_the_pedal_arm_the_recorder_as_the_key_does(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        armed = []
+        self.e.knob_seq_record_key = lambda: armed.append(True)
+        self.e.key2_status = True
+        self.press()
+        self.assertEqual(len(armed), 1)
+        self.assertFalse(self.e.trig, "the shifted meaning replaces it")
+
+    def test_switching_the_setting_mid_press_does_not_strand_the_tone(self):
+        # the release would go to the save branch and leave key10_status on,
+        # with the analysis input stuck at a sine wave
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.press()
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_SAVE
+        self.release()
+        self.assertFalse(self.e.key10_status)
+        self.assertEqual(self.saved, [], "and does not save on that release")
+
+    def test_the_other_way_round_is_not_stranded_either(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_SAVE
+        self.press()
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.release()
+        self.assertFalse(self.e.key10_status)
+        self.assertEqual(len(self.saved), 1, "the press is what saved")
 
     # --- both -------------------------------------------------------------
 
-    def test_neither_action_fires_with_a_menu_open(self):
-        for action in (self.e.FOOTSWITCH_SAVE, self.e.FOOTSWITCH_TRIGGER):
-            self.e.config["footswitch"] = action
-            self.e.menu_mode = True
-            self.press()
-            self.assertEqual(self.saved, [])
-            self.assertFalse(self.e.trig)
+    def test_saving_does_not_fire_with_a_menu_open(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_SAVE
+        self.e.menu_mode = True
+        self.press()
+        self.assertEqual(self.saved, [])
+
+    def test_the_trigger_does_not_fire_with_a_menu_open(self):
+        # dispatch_key_event routes key 10 to menu navigation there, the same
+        # as the panel key, so nothing triggers behind the menu
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.e.menu_mode = True
+        self.press()
+        self.assertFalse(self.e.trig)
 
     # --- the stored value -------------------------------------------------
 

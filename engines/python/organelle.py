@@ -33,6 +33,9 @@ SLOT_NAMES = ["C", "D", "E", "F", "G", "A", "B"]
 # raw key index -> knob 0-4, the five black keys of the upper octave
 KNOB_MOD_KEYS = {14: 0, 16: 1, 19: 2, 21: 3, 23: 4}
 
+# the panel button the pedal borrows when it is set to Trigger
+EYESY_TRIGGER_BUTTON = 10
+
 # organelle key -> eyesy panel button, see dispatch_key_event() in eyesy.py
 EYESY_BUTTON = {
     AUX:        1,   # osd, with shift opens the menu
@@ -128,23 +131,31 @@ def dispatch_key(eyesy, k, v):
 
     # The pedal does one of two things, picked in Settings > System.
     if k == FOOTSWITCH:
-        if not pressed or eyesy.menu_mode:
-            return
-
-        # A tap fires the trigger the same way the panel's own trigger key
-        # does. Unlike that key it does not also hold the analysis input at a
-        # simulated sine wave, because a foot resting on a pedal would then
-        # silence the real audio for as long as it rested there.
-        if eyesy.config["footswitch"] == eyesy.FOOTSWITCH_TRIGGER:
-            eyesy.trig = True
+        # Set to Trigger it is the panel's trigger key, so it goes through
+        # that key's own handler and picks up everything the key does rather
+        # than a copy of some of it: the trigger, the test tone while it is
+        # held, and the shifted meaning too.
+        #
+        # Which of the two it is gets latched on the way down. Changing the
+        # setting with the pedal held would otherwise send the release to the
+        # other branch, and key10_status would stay on with the analysis input
+        # stuck at a sine wave until the key was pressed again.
+        if pressed:
+            eyesy.footswitch_trigger_held = (
+                eyesy.config["footswitch"] == eyesy.FOOTSWITCH_TRIGGER)
+        if eyesy.footswitch_trigger_held:
+            eyesy.dispatch_key_event(EYESY_TRIGGER_BUTTON, v)
+            if not pressed:
+                eyesy.footswitch_trigger_held = False
             return
 
         # Saving deliberately does not go through the save key's own handler:
         # that one deletes the current scene when it is held for a second,
         # which is also what a foot resting on a pedal looks like.
-        eyesy.save_scene()
-        name = eyesy.scenes[-1]["name"] if eyesy.scenes else ""
-        oled.notify("Scene saved", name)
+        if pressed and not eyesy.menu_mode:
+            eyesy.save_scene()
+            name = eyesy.scenes[-1]["name"] if eyesy.scenes else ""
+            oled.notify("Scene saved", name)
         return
 
     # A# steps the auto picker: off, random modes, random scenes, off again
