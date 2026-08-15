@@ -3,40 +3,105 @@ import subprocess
 import os
 import shutil
 import pygame
+import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
+
+FOOTER_PLAIN = (chr(0x2680) + "     = Cancel     " + chr(0x2682)
+                + "   = Up/Down     " + chr(0x2683) + "  = Enter")
+FOOTER_ADJUST = (chr(0x2680) + "     = Cancel     " + chr(0x2681)
+                 + "   = Adjust     " + chr(0x2682) + "   = Up/Down     "
+                 + chr(0x2683) + "  = Save")
 
 class ScreenFlashDrive(Screen):
     def __init__(self, eyesy):
         super().__init__(eyesy)
         self.state = "idle"  # "idle" or "running"
         self.title = "System Stuff"
-        self.footer = chr(0x2680) + "     = Cancel     " + chr(0x2682) + "   = Up/Down     " + chr(0x2683) + "  = Enter"
+        self.footer = FOOTER_PLAIN
 
-        self.menu = WidgetMenu(eyesy, [
+        items = [
             MenuItem('Backup SD card to USB drive', self.start_backup),
             MenuItem('Eject USB drive', self.eject),
             MenuItem('Forget all WiFi networks', self.forgetnets),
             MenuItem('Restart Video', self.restart),
             MenuItem('◀  Exit', self.goto_home)
-        ])
+        ]
+
+        # the pedal jack is only wired up on the organelle
+        self.footswitch_item = None
+        if organelle.is_organelle():
+            self.footswitch_item = MenuItem("", self.save_footswitch)
+            self.footswitch_item.adjustable = True
+            self.footswitch_item.name = "footswitch"
+            self.footswitch_item.min_value = 0
+            self.footswitch_item.max_value = len(eyesy.FOOTSWITCH_ACTIONS) - 1
+            items.insert(0, self.footswitch_item)
+
+        self.menu = WidgetMenu(eyesy, items)
         self.menu.off_y = 43
         self.font = pygame.font.Font("font.ttf", 16)
         self.font_small = pygame.font.Font("font.ttf", 12)
         self.logs = []
 
+        # key press timers for repeats while adjusting a value
+        self.key4_td = 0
+        self.key5_td = 0
+
     def before(self):
-        self.menu.selected_index = 4
+        # by index the menu would land somewhere else as soon as a row is
+        # added or removed, and Exit is the one that has to stay under the
+        # cursor so nothing here goes off by accident
+        self.menu.selected_index = len(self.menu.items) - 1
         self.logs = []
+        if self.footswitch_item is not None:
+            self.footswitch_item.value = self.eyesy.config["footswitch"]
+            self.relabel_footswitch()
         self.ensure_usb_mounted()
-        pass
 
     def after(self):
         pass
 
+    def relabel_footswitch(self):
+        action = self.eyesy.FOOTSWITCH_ACTIONS[self.footswitch_item.value]
+        self.footswitch_item.text = f"Foot Switch: {action}"
+
+    def menu_dec_value(self, item):
+        item.value = max(item.value - item.value_delta, item.min_value)
+        self.relabel_footswitch()
+
+    def menu_inc_value(self, item):
+        item.value = min(item.value + item.value_delta, item.max_value)
+        self.relabel_footswitch()
+
+    def save_footswitch(self):
+        self.eyesy.config["footswitch"] = self.footswitch_item.value
+        self.eyesy.save_config_file()
+
     def handle_events(self):
-        if self.state == "idle":
-            self.menu.handle_events()
+        if self.state != "idle":
+            return
+
+        self.menu.handle_events()
+
+        item = self.menu.items[self.menu.selected_index]
+        self.footer = FOOTER_ADJUST if item.adjustable else FOOTER_PLAIN
+        if not item.adjustable:
+            return
+
+        if self.eyesy.key4_press:
+            self.menu_dec_value(item)
+            self.key4_td = 0
+        if self.eyesy.key4_status:
+            self.key4_td += 1
+            if self.key4_td > 10: self.menu_dec_value(item)
+
+        if self.eyesy.key5_press:
+            self.menu_inc_value(item)
+            self.key5_td = 0
+        if self.eyesy.key5_status:
+            self.key5_td += 1
+            if self.key5_td > 10: self.menu_inc_value(item)
 
     def render(self, surface):     
 

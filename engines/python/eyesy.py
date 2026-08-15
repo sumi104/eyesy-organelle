@@ -56,6 +56,12 @@ class Eyesy:
         self.AUTO_RANDOM_OFF, self.AUTO_RANDOM_MODES, self.AUTO_RANDOM_SCENES = 0, 1, 2
         # seconds between picks, -1 draws a fresh interval every time
         self.AUTO_RANDOM_INTERVALS = [15, 30, 50, 60, -1]
+
+        # What the pedal jack does, picked in Settings > System. The index is
+        # what "footswitch" holds in the config, so only append to this.
+        self.FOOTSWITCH_ACTIONS = ["Save Scene", "Trigger"]
+        self.FOOTSWITCH_SAVE = 0
+        self.FOOTSWITCH_TRIGGER = 1
         self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX = 15, 60
 
         self.DEFAULT_CONFIG = {
@@ -90,6 +96,8 @@ class Eyesy:
             "knob_mod_sync": True,
             # seconds between automatic picks, -1 for a random interval
             "auto_random_interval": 30,
+            # what the pedal jack does, see FOOTSWITCH_ACTIONS below
+            "footswitch": 0,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -396,6 +404,7 @@ class Eyesy:
         self._validate_config_bool("stream_smooth")
         self._validate_config_bool("knob_mod_sync")
         self._validate_config_int("auto_random_interval", -1, 3600)
+        self._validate_config_int("footswitch", 0, len(self.FOOTSWITCH_ACTIONS) - 1)
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         # the config holds the starting point, each knob keeps its own after

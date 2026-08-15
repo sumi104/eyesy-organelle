@@ -126,14 +126,25 @@ def dispatch_key(eyesy, k, v):
             eyesy.knob_mod_key_used[knob] = False
         return
 
-    # The pedal saves a scene. It deliberately does not go through the save
-    # key's own handler: that one deletes the current scene when it is held for
-    # a second, which is a foot resting on a pedal.
+    # The pedal does one of two things, picked in Settings > System.
     if k == FOOTSWITCH:
-        if pressed and not eyesy.menu_mode:
-            eyesy.save_scene()
-            name = eyesy.scenes[-1]["name"] if eyesy.scenes else ""
-            oled.notify("Scene saved", name)
+        if not pressed or eyesy.menu_mode:
+            return
+
+        # A tap fires the trigger the same way the panel's own trigger key
+        # does. Unlike that key it does not also hold the analysis input at a
+        # simulated sine wave, because a foot resting on a pedal would then
+        # silence the real audio for as long as it rested there.
+        if eyesy.config["footswitch"] == eyesy.FOOTSWITCH_TRIGGER:
+            eyesy.trig = True
+            return
+
+        # Saving deliberately does not go through the save key's own handler:
+        # that one deletes the current scene when it is held for a second,
+        # which is also what a foot resting on a pedal looks like.
+        eyesy.save_scene()
+        name = eyesy.scenes[-1]["name"] if eyesy.scenes else ""
+        oled.notify("Scene saved", name)
         return
 
     # A# steps the auto picker: off, random modes, random scenes, off again
