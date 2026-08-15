@@ -246,8 +246,13 @@ Pages declare their setting by name in `OledPages::toggleAction()`, and
 two lines.
 
 Letters in the top bar: `X` audio muted, `K` clock muted, `N` notes muted,
-`F` frozen, `P` persist, `^` shift held, `M` auto random picking modes,
-`S` auto random picking scenes, `R` recording, `Q` sequence playing.
+`F` frozen, `P` persist, `M` auto random picking modes, `S` auto random
+picking scenes, `r` sequencer armed, `R` recording, `Q` sequence playing,
+`^` shift held.
+
+Seven fit before the wifi icon and eight can be set at once, so they are in
+the order they are given up: `^` goes first, being the only one you are
+holding down while you read it.
 
 Audio mute is `X` and shift is `^` because the auto picker wanted `M` and `S`
 to say which of the two things it is picking, and one letter meaning two

@@ -44,6 +44,7 @@ engine is busy drawing or restarting.
 #define OLED_FLAG_KNOB_MOD(i) (1 << (15 + (i)))
 #define OLED_FLAG_AUTO_MODES  (1 << 20)
 #define OLED_FLAG_AUTO_SCENES (1 << 21)
+#define OLED_FLAG_SEQ_ARM     (1 << 22)
 
 #define OLED_TEXT_LEN 40
 

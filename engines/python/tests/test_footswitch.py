@@ -232,6 +232,46 @@ class FootswitchKeyTest(unittest.TestCase):
         self.press()
         self.assertFalse(self.e.trig)
 
+    # --- what the display says --------------------------------------------
+
+    def oled_flags(self):
+        """The flags field of the next /oled/state, as the display sees it."""
+        sent = []
+
+        class _Osc:
+            def send(self, address, *args):
+                if address == "/oled/state":
+                    sent.append(args)
+
+        was, oled.osc, oled.enabled = oled.osc, _Osc(), True
+        oled._last_state = 0.0
+        try:
+            oled.update(self.e)
+        finally:
+            oled.osc, oled.enabled = was, False
+        self.assertTrue(sent, "no state went out")
+        return sent[-1][8]        # the field main.cpp reads into st.flags
+
+    def test_arming_lights_the_sequencer_letter(self):
+        # it used to sit armed with nothing on screen to say so, so the only
+        # sign the key had worked was a knob starting a recording
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.e.key2_status = True
+        self.press()
+        self.assertEqual(self.e.knob_seq_state, "enabled")
+        self.assertTrue(self.oled_flags() & oled.FLAG_SEQ_ARM)
+
+    def test_each_sequencer_state_lights_one_letter_and_no_other(self):
+        # the three share a single slot in the top bar
+        wanted = {"stopped": 0,
+                  "enabled": oled.FLAG_SEQ_ARM,
+                  "recording": oled.FLAG_SEQ_REC,
+                  "playing": oled.FLAG_SEQ_PLAY}
+        every = oled.FLAG_SEQ_ARM | oled.FLAG_SEQ_REC | oled.FLAG_SEQ_PLAY
+        for state, bit in wanted.items():
+            self.e.knob_seq_state = state
+            self.assertEqual(self.oled_flags() & every, bit, state)
+
     # --- the stored value -------------------------------------------------
 
     def test_a_junk_value_falls_back_rather_than_picking_nothing(self):

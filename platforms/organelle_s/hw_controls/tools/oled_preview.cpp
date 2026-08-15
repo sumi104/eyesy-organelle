@@ -96,6 +96,18 @@ int main(int argc, char *argv[]) {
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 4);
 
+    // the sequencer armed rather than recording, worst case top bar
+    pages.tickNotify(10000);
+    pages.setPage(OLED_PAGE_KEYS);
+    st.flags = OLED_FLAG_AUDIO_MUTE | OLED_FLAG_CLOCK_MUTE | OLED_FLAG_NOTE_MUTE
+             | OLED_FLAG_FREEZE | OLED_FLAG_PERSIST | OLED_FLAG_SHIFT
+             | OLED_FLAG_AUTO_MODES | OLED_FLAG_SEQ_ARM;
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 5);
+    st.flags = (st.flags & ~OLED_FLAG_SEQ_ARM) | OLED_FLAG_SEQ_REC;
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 6);
+
     // the live page again with the stream stopped
     pages.tickNotify(10000);
     pages.setPage(OLED_PAGE_STREAM);

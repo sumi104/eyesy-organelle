@@ -45,6 +45,7 @@ FLAG_KNOB_MOD = 1 << 15
 
 FLAG_AUTO_MODES  = 1 << 20
 FLAG_AUTO_SCENES = 1 << 21
+FLAG_SEQ_ARM     = 1 << 22
 
 # how often the packed state message goes out, the display refreshes at 20hz
 STATE_INTERVAL = 0.05
@@ -195,6 +196,9 @@ def update(eyesy):
     if any(eyesy.midi_notes):     flags |= FLAG_MIDI_ACT
     if eyesy.knob_seq_state == "playing":   flags |= FLAG_SEQ_PLAY
     if eyesy.knob_seq_state == "recording": flags |= FLAG_SEQ_REC
+    # armed and waiting for a knob to move, which is the state shift and a
+    # key leaves it in and had nothing to show for itself
+    if eyesy.knob_seq_state == "enabled":   flags |= FLAG_SEQ_ARM
     if eyesy.config.get("stream_enabled"):  flags |= FLAG_STREAM
     for i, on in enumerate(eyesy.knob_mod):
         if on: flags |= FLAG_KNOB_MOD << i

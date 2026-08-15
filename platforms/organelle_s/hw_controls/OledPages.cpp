@@ -176,11 +176,16 @@ void OledPages::renderTopBar(OledScreen &s) {
     if (st.flags & OLED_FLAG_NOTE_MUTE)  st_letters[n++] = 'N';
     if (st.flags & OLED_FLAG_FREEZE)     st_letters[n++] = 'F';
     if (st.flags & OLED_FLAG_PERSIST)    st_letters[n++] = 'P';
-    if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = '^';
     if (st.flags & OLED_FLAG_AUTO_MODES)  st_letters[n++] = 'M';
     if (st.flags & OLED_FLAG_AUTO_SCENES) st_letters[n++] = 'S';
-    if (st.flags & OLED_FLAG_SEQ_REC)    st_letters[n++] = 'R';
+    // the three sequencer states are exclusive, so this stays one letter:
+    // lower case r is armed and waiting for a knob, capital R is recording
+    if (st.flags & OLED_FLAG_SEQ_REC)       st_letters[n++] = 'R';
+    else if (st.flags & OLED_FLAG_SEQ_ARM)  st_letters[n++] = 'r';
     else if (st.flags & OLED_FLAG_SEQ_PLAY) st_letters[n++] = 'Q';
+    // last because it is the one to lose when they do not all fit: shift is
+    // the only one of these you are holding down while you read it
+    if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = '^';
     // Right aligned against the wifi icon, but never far enough left to run
     // into the page name: MODE KEYS is the longest at nine characters and
     // ends at x 55. That leaves room for seven letters, which is as many as
