@@ -291,6 +291,18 @@ class SystemScreenTest(unittest.TestCase):
         self.frame()
         self.assertNotIn("Adjust", self.screen.footer)
 
+    def test_the_logs_start_below_the_last_menu_row(self):
+        # the pedal row pushed Exit onto the fixed y the logs used to start
+        # at, so "No USB device found." landed on top of it
+        rows = min(len(self.screen.menu.items), self.screen.menu.visible_items)
+        last_row = 30 + self.screen.menu.off_y + (rows - 1) * 25
+        row_height = 25
+        self.assertGreaterEqual(self.screen.log_top(), last_row + row_height)
+
+    def test_the_logs_still_fit_on_the_screen(self):
+        # ten lines of the small font, inside the frame render_with_title draws
+        self.assertLess(self.screen.log_top() + 10 * 15, 430)
+
     def test_nothing_responds_while_a_backup_is_running(self):
         self.select_footswitch()
         self.screen.state = "running"

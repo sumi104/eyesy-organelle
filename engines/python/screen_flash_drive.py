@@ -113,9 +113,21 @@ class ScreenFlashDrive(Screen):
         self.menu.render(surface)
 
         line_height = self.font_small.get_linesize()
+        top = self.log_top()
         for i, log in enumerate(self.logs[-10:]):  # Show last 10 log entries
             text_surface = self.font_small.render(log, True, (200, 200, 200))  # White text
-            surface.blit(text_surface, (32, 200 + i * line_height))
+            surface.blit(text_surface, (32, top + i * line_height))
+
+    def log_top(self):
+        """First log line, kept below the last menu row.
+
+        This used to be a fixed 200, which the pedal row pushed Exit into.
+        Measuring the menu instead means another row can be added without
+        landing on top of whatever the backup is saying.
+        """
+        rows = min(len(self.menu.items), self.menu.visible_items)
+        # the row geometry WidgetMenu.render() lays out, plus a gap
+        return 30 + self.menu.off_y + rows * 25 + 8
 
     def restart(self):
         self.eyesy.restart = True
