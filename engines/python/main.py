@@ -246,6 +246,13 @@ while 1:
         midi.recv_ttymidi(eyesy)
         midi.recv_usbmidi(eyesy)
 
+        # picks a new mode or scene when its timer is up, if A# switched it on.
+        # this is an input like the ones above and belongs with them: it has to
+        # land before the knobs are read and before the module to draw is
+        # looked up, or the frame runs one mode's code against the next one's
+        # mode_root and any mode that opens a file in draw() dies on it.
+        eyesy.update_auto_random()
+
         # get knobs, checking for override, and check for new note on
         # for the knobs, only changes are assinged
         eyesy.update_knobs_and_notes()
@@ -323,9 +330,6 @@ while 1:
             
         # see if save is being held down for deleting scene
         eyesy.update_scene_save_key()
-
-        # picks a new mode or scene when its timer is up, if A# switched it on
-        eyesy.update_auto_random()
 
         # clear it with bg color if auto clear enabled
         if eyesy.auto_clear and not eyesy.freeze :

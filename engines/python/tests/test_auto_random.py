@@ -219,5 +219,54 @@ class AutoRandomTest(unittest.TestCase):
         self.assertEqual(slot.value, -1, "one below the first mode is None")
 
 
+class LoopOrderTest(unittest.TestCase):
+    """Where update_auto_random() sits in the main loop is the whole bug.
+
+    It changes eyesy.mode and eyesy.mode_root. The loop binds the module to
+    draw once per frame from eyesy.mode, so if the pick happens after that
+    binding the frame calls the outgoing mode's draw() with the incoming
+    mode's mode_root. Modes that only read knobs never notice. A mode that
+    opens a file in draw(), "T - Font Recedes" loading font.ttf out of
+    eyesy.mode_root, raises FileNotFoundError against a folder that has no
+    such file.
+
+    It has to land with the other inputs, before the knobs are read and
+    before the module lookup.
+    """
+
+    def setUp(self):
+        with open("main.py") as f:
+            self.lines = f.read().splitlines()
+
+    def line_of(self, needle, after=0):
+        for i in range(after, len(self.lines)):
+            stripped = self.lines[i].strip()
+            if stripped.startswith("#"):
+                continue
+            if needle in stripped:
+                return i
+        self.fail(f"{needle!r} is gone from main.py")
+
+    def test_the_pick_happens_before_the_module_to_draw_is_chosen(self):
+        # the loop body, past the once-only setup that also binds a module
+        loop = self.line_of("osc.recv()")
+        pick = self.line_of("eyesy.update_auto_random()", loop)
+        bind = self.line_of("mode = sys.modules[eyesy.mode]", loop)
+        draw = self.line_of("mode.draw(mode_screen, eyesy)", loop)
+
+        self.assertLess(pick, bind,
+                        "a mode picked after this binding draws the old "
+                        "module against the new mode_root")
+        self.assertLess(bind, draw)
+
+    def test_the_pick_happens_before_the_knobs_are_read(self):
+        # recall_scene() writes eyesy.knob, set_knobs() is what hands those
+        # to the mode. The other way round and a recalled scene is a frame late.
+        loop = self.line_of("osc.recv()")
+        pick = self.line_of("eyesy.update_auto_random()", loop)
+        knobs = self.line_of("eyesy.set_knobs()", loop)
+        self.assertLess(pick, knobs)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
