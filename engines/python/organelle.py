@@ -128,6 +128,16 @@ def dispatch_key(eyesy, k, v):
             oled.notify("Scene saved", name)
         return
 
+    # A# steps the auto picker: off, random modes, random scenes, off again
+    if k == KEY_AS:
+        if pressed and not eyesy.menu_mode:
+            state = eyesy.cycle_auto_random()
+            if state == eyesy.AUTO_RANDOM_SCENES and not eyesy.scenes:
+                oled.notify("Auto Random", "no scenes to pick")
+            else:
+                oled.notify("Auto Random", eyesy.auto_random_text())
+        return
+
     # controls that have no equivalent on the EYESY panel
     if k == KEY_FS:
         if pressed:

@@ -162,7 +162,7 @@ void OledPages::renderTopBar(OledScreen &s) {
     s.println(name, 2, 0, 8, 1);
 
     // status letters in the middle, right aligned against the wifi icon
-    char st_letters[10];
+    char st_letters[12];
     int n = 0;
     if (st.flags & OLED_FLAG_AUDIO_MUTE) st_letters[n++] = 'M';
     if (st.flags & OLED_FLAG_CLOCK_MUTE) st_letters[n++] = 'K';
@@ -170,6 +170,7 @@ void OledPages::renderTopBar(OledScreen &s) {
     if (st.flags & OLED_FLAG_FREEZE)     st_letters[n++] = 'F';
     if (st.flags & OLED_FLAG_PERSIST)    st_letters[n++] = 'P';
     if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = 'S';
+    if (st.flags & OLED_FLAG_AUTO_RANDOM) st_letters[n++] = 'A';
     if (st.flags & OLED_FLAG_SEQ_REC)    st_letters[n++] = 'R';
     else if (st.flags & OLED_FLAG_SEQ_PLAY) st_letters[n++] = 'Q';
     st_letters[n] = 0;

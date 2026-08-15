@@ -43,6 +43,8 @@ FLAG_STREAM     = 1 << 14
 # bits 15 to 19, one per knob, set while its random modulation is running
 FLAG_KNOB_MOD = 1 << 15
 
+FLAG_AUTO_RANDOM = 1 << 20
+
 # how often the packed state message goes out, the display refreshes at 20hz
 STATE_INTERVAL = 0.05
 
@@ -184,6 +186,7 @@ def update(eyesy):
     if eyesy.config.get("stream_enabled"):  flags |= FLAG_STREAM
     for i, on in enumerate(eyesy.knob_mod):
         if on: flags |= FLAG_KNOB_MOD << i
+    if eyesy.auto_random != eyesy.AUTO_RANDOM_OFF: flags |= FLAG_AUTO_RANDOM
     _trig_seen = False
 
     osc.send(

@@ -324,6 +324,9 @@ while 1:
         # see if save is being held down for deleting scene
         eyesy.update_scene_save_key()
 
+        # picks a new mode or scene when its timer is up, if A# switched it on
+        eyesy.update_auto_random()
+
         # clear it with bg color if auto clear enabled
         if eyesy.auto_clear and not eyesy.freeze :
             #hwscreen.fill(eyesy.bg_color)

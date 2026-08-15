@@ -94,7 +94,7 @@ Hold **C#** for the shifted layer.
 | B | Trigger (hold for test tone) | Knob sequence record |
 | F# | Audio input mute | Freeze the picture |
 | G# | MIDI clock mute | MIDI note mute |
-| A# | left free on purpose, for later | — |
+| A# | Auto random: off, then modes, then scenes, then off | — |
 | Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Save scene | — |
@@ -109,10 +109,26 @@ Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
 saved as soon as a key is stored. A config written when the whole upper octave
 was mode slots is carried over, keeping what the white keys held.
 
-**Settings → Mode Keys** shows all seven at once. `C` and `D` step a slot
-through the modes, and one step below the first mode is `None` — that is how
-an assignment is cleared. There is no gesture for clearing one while playing:
-shift and a white key always stores whatever is playing now.
+**Settings → Mode Keys** shows all seven at once, under the auto random
+interval. `C` and `D` step a slot through the modes, and one step below the
+first mode is `None` — that is how an assignment is cleared. There is no
+gesture for clearing one while playing: shift and a white key always stores
+whatever is playing now.
+
+## Auto random
+
+`A#` steps a picker through off, picking modes at random, picking scenes at
+random, and off again. It moves the moment it is switched on rather than
+leaving you wondering whether the key did anything, and it never picks what is
+already playing, which would look the same as nothing happening.
+
+How long it waits is set on **Settings → Mode Keys**: 30, 50 or 60 seconds, or
+`Random`, which draws a fresh interval between 15 and 60 seconds each time. `A`
+in the top bar of the OLED means it is running.
+
+It holds still while a menu is open, so it cannot change the mode out from
+under someone reading a settings page. Picking scenes with none saved does
+nothing and says so.
 
 ## Knob modulation
 
@@ -206,7 +222,8 @@ Pages declare their setting by name in `OledPages::toggleAction()`, and
 two lines.
 
 Letters in the top bar: `M` audio muted, `K` clock muted, `N` notes muted,
-`F` frozen, `P` persist, `S` shift held, `R` recording, `Q` sequence playing.
+`F` frozen, `P` persist, `S` shift held, `A` auto random, `R` recording,
+`Q` sequence playing.
 
 On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
 volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar

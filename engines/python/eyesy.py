@@ -52,6 +52,12 @@ class Eyesy:
         # Ableton Link session. link.DIVISIONS has to agree about the indices
         self.TRIGGER_SOURCES = ["Audio", "MIDI Note", "Audio or MIDI Note", "MIDI Clock 16th Note", "MIDI Clock 8th Note", "MIDI Clock 1/4 Note", "MIDI Clock Whole Note", "Link 16th Note", "Link 8th Note", "Link 1/4 Note", "Link Whole Note"]
 
+        # auto random, cycled by the organelle's A# key
+        self.AUTO_RANDOM_OFF, self.AUTO_RANDOM_MODES, self.AUTO_RANDOM_SCENES = 0, 1, 2
+        # seconds between picks, -1 draws a fresh interval every time
+        self.AUTO_RANDOM_INTERVALS = [30, 50, 60, -1]
+        self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX = 15, 60
+
         self.DEFAULT_CONFIG = {
             "video_resolution": 3,
             "audio_gain": .25,
@@ -82,6 +88,8 @@ class Eyesy:
             # step the wobble on the trigger rather than on a clock of its own,
             # so it follows the audio, the MIDI clock or the Link session
             "knob_mod_sync": True,
+            # seconds between automatic picks, -1 for a random interval
+            "auto_random_interval": 30,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -212,6 +220,10 @@ class Eyesy:
         self.encoder_turn = 0     # -1, 0 or 1, cleared every frame
         self.encoder_press = False
         self.encoder_button = False
+
+        # off, then random modes, then random scenes, back to off
+        self.auto_random = 0
+        self.auto_random_next = 0.0
 
         # modes recalled by the upper octave white keys, filled from config
         self.key_modes = [""] * 7
@@ -383,6 +395,7 @@ class Eyesy:
         self._validate_config_bool("stream_enabled")
         self._validate_config_bool("stream_smooth")
         self._validate_config_bool("knob_mod_sync")
+        self._validate_config_int("auto_random_interval", -1, 3600)
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         # the config holds the starting point, each knob keeps its own after
@@ -766,6 +779,59 @@ class Eyesy:
             if (elapsed_time > 1) : # held down for 1 seconds, delete the scene
                 self.delete_current_scene()
                 self.save_key_status = False
+
+    # Auto random. A# steps it through off, random modes, random scenes, and
+    # while it is on something new is picked every so often. The picking is
+    # the same call the mode and scene keys make, so nothing downstream needs
+    # to know this exists.
+    def cycle_auto_random(self):
+        self.auto_random = (self.auto_random + 1) % 3
+        if self.auto_random != self.AUTO_RANDOM_OFF:
+            self.arm_auto_random()
+            self.pick_random()      # act on the press rather than in a minute
+        print(f"auto random {self.auto_random}")
+        return self.auto_random
+
+    def auto_random_text(self):
+        """Short enough for the display to say what it is doing."""
+        if self.auto_random == self.AUTO_RANDOM_OFF : return "off"
+        what = "modes" if self.auto_random == self.AUTO_RANDOM_MODES else "scenes"
+        seconds = self.config["auto_random_interval"]
+        return f"{what} every {'random' if seconds < 0 else str(seconds) + 's'}"
+
+    def arm_auto_random(self):
+        interval = self.config["auto_random_interval"]
+        if interval < 0:
+            interval = random.uniform(self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX)
+        self.auto_random_next = time.time() + interval
+
+    def pick_random(self):
+        """True if it actually moved somewhere."""
+        if self.auto_random == self.AUTO_RANDOM_MODES:
+            return self.pick_random_mode()
+        if self.auto_random == self.AUTO_RANDOM_SCENES:
+            return self.pick_random_scene()
+        return False
+
+    # never picks what is already playing, or pressing the key looks broken
+    def pick_random_mode(self):
+        choices = [i for i in range(0, len(self.mode_names)) if i != self.mode_index]
+        if not choices : return False
+        self.set_mode_by_index(random.choice(choices))
+        return True
+
+    def pick_random_scene(self):
+        choices = [i for i in range(0, len(self.scenes)) if i != self.scene_index]
+        if not choices : return False
+        self.recall_scene(random.choice(choices))
+        return True
+
+    def update_auto_random(self):
+        if self.auto_random == self.AUTO_RANDOM_OFF : return
+        if self.menu_mode : return          # not while someone is in a menu
+        if time.time() < self.auto_random_next : return
+        self.arm_auto_random()
+        self.pick_random()
 
     def save_or_delete_scene(self, key_stat):
         if key_stat > 0 :
