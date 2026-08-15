@@ -4,6 +4,8 @@
 #include <string.h>
 
 #define NOTIFY_MS 1200.f
+// a refusal has to be read to be any use, a confirmation does not
+#define NOTIFY_WARN_MS 2200.f
 
 // the 5x8 font advances 6px per character, so 21 characters fit across
 #define MAXCHARS 21
@@ -37,6 +39,7 @@ OledPages::OledPages() {
     dirty = true;
     notifyLine1[0] = 0;
     notifyLine2[0] = 0;
+    notifyWarn = false;
     notifyTimeLeft = 0;
 }
 
@@ -87,10 +90,11 @@ void OledPages::setKeymap(int slot, const char *name) {
     dirty = true;
 }
 
-void OledPages::notify(const char *line1, const char *line2) {
+void OledPages::notify(const char *line1, const char *line2, bool warn) {
     copyText(notifyLine1, line1);
     copyText(notifyLine2, line2 ? line2 : "");
-    notifyTimeLeft = NOTIFY_MS;
+    notifyWarn = warn;
+    notifyTimeLeft = warn ? NOTIFY_WARN_MS : NOTIFY_MS;
     dirty = true;
 }
 
@@ -376,28 +380,33 @@ void OledPages::renderHelp(OledScreen &s) {
     }
 }
 
+// Both lines in the small font. The second line is usually the half that
+// matters — which mode was stored, why something was refused — and setting the
+// first in the big font made the important one the harder one to read.
+//
+// Drawn over the page rather than instead of it, so a second of message does
+// not cost you your place.
 void OledPages::renderNotify(OledScreen &s) {
-    s.clear();
+    const bool twoLines = notifyLine2[0] != 0;
+    const int top = twoLines ? 19 : 24;
+    const int height = twoLines ? 30 : 18;
 
-    if (!notifyLine2[0]) {
-        s.draw_box(0, 18, 128, 28, 1);
-        s.println(notifyLine1, 4, 24, 16, 1);
-        return;
-    }
+    s.fill_area(0, top, 128, height, 0);
+    s.draw_box(0, top, 128, height, 1);
 
-    // the heading gets the big font, the detail goes underneath in the small
-    // one where a long mode name still fits across the screen
-    s.draw_box(0, 12, 128, 40, 1);
-    s.println(notifyLine1, 5, 16, 16, 1);
-    s.println(notifyLine2, 5, 37, 8, 1);
+    // a reversed ! or i, the same mark the key names wear, so what kind of
+    // message it is reads before any of the words do
+    const int line1 = top + 6;
+    int x = 8 + drawKey(s, 6, line1, notifyWarn ? "!" : "i");
+    s.println(notifyLine1, x, line1, 8, 1);
+
+    if (twoLines) s.println(notifyLine2, 6, top + 17, 8, 1);
 }
 
 void OledPages::render(OledScreen &s) {
     s.clear();
 
-    if (notifyTimeLeft > 0) {
-        renderNotify(s);
-    } else {
+    {
         renderTopBar(s);
         switch (page) {
             case OLED_PAGE_STATUS: renderStatus(s); break;
@@ -408,6 +417,8 @@ void OledPages::render(OledScreen &s) {
             default:               renderPerform(s); break;
         }
     }
+
+    if (notifyTimeLeft > 0) renderNotify(s);
 
     dirty = false;
 }

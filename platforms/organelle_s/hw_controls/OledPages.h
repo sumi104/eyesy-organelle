@@ -97,9 +97,10 @@ class OledPages
         const char *toggleAction();
         void setKeymap(int slot, const char *name);
 
-        // transient full screen message, the second line is optional and is
-        // set in the small font under the first
-        void notify(const char *line1, const char *line2);
+        // Transient message over the current page. warn marks the ones that
+        // say an action did not happen, which get a different mark and a
+        // little longer on screen than the ones that just report.
+        void notify(const char *line1, const char *line2, bool warn);
         void tickNotify(float elapsedMs);
 
         // true when something changed since the last render
@@ -113,6 +114,7 @@ class OledPages
         bool dirty;
         char notifyLine1[OLED_TEXT_LEN];
         char notifyLine2[OLED_TEXT_LEN];
+        bool notifyWarn;
         float notifyTimeLeft;
 
         void renderTopBar(OledScreen &s);

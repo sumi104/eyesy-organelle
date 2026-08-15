@@ -78,14 +78,23 @@ int main(int argc, char *argv[]) {
         dump(screen, prefix, p);
     }
 
-    // and the transient notification overlay, one line and two
-    pages.notify("Audio Muted", "");
+    // and the transient overlay, one line and two, info and warning
+    pages.setPage(OLED_PAGE_PERFORM);
+    pages.notify("Audio Muted", "", false);
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES);
 
-    pages.notify("C# set", "Bounce Bounce Bounce");
+    pages.notify("C# set", "Bounce Bounce Bounce", false);
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 2);
+
+    pages.notify("Modulation", "knob seq is playing", true);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 3);
+
+    pages.notify("Depth 3", "0.62 =========-----", false);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 4);
 
     // the live page again with the stream stopped
     pages.tickNotify(10000);

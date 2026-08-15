@@ -91,15 +91,26 @@ def send_stream_info(eyesy):
     send_text("url", f"{ip}/live" if ip and ip != "-" else "no network")
 
 
-def notify(heading, detail=""):
-    """Transient full screen message, about a second.
+def notify(heading, detail="", warn=False):
+    """Transient message over the current page, about a second.
 
-    The heading is drawn in the big font, so it has to stay short. Anything
-    that can be long, a mode name for instance, belongs in the detail line.
+    Both lines are the small font now, so the detail line is as readable as
+    the heading. The heading loses room to the marker, the detail gets the
+    full width, which suits it since the detail is usually the part you are
+    reading for.
+
+    warn is for the ones that say something did not happen. They get a
+    different marker and a little longer on screen.
     """
     if not enabled:
         return
-    osc.send("/oled/notify", str(heading)[:12], str(detail)[:21])
+    osc.send("/oled/notify", str(heading)[:18], str(detail)[:20],
+             1 if warn else 0)
+
+
+def warn(heading, detail=""):
+    """notify() for the messages that report a refusal or a missing thing."""
+    notify(heading, detail, True)
 
 
 def notify_value(heading, fraction):

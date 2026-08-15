@@ -65,13 +65,13 @@ def knob_for_key(k):
 def _recall_mode(eyesy, slot):
     name = eyesy.key_modes[slot]
     if not name:
-        oled.notify(SLOT_NAMES[slot], "not assigned")
+        oled.warn(SLOT_NAMES[slot], "not assigned")
         return
     try:
         eyesy.set_mode_by_name(name)
     except ValueError:
         print(f"key slot {slot} points at missing mode {name}")
-        oled.notify(SLOT_NAMES[slot], f"missing: {name}")
+        oled.warn(SLOT_NAMES[slot], f"missing: {name}")
         return
     oled.notify(SLOT_NAMES[slot], name)
 
@@ -118,7 +118,7 @@ def dispatch_key(eyesy, k, v):
                 # a wobble would be two things driving one control. Switching
                 # an existing one off stays allowed.
                 if not eyesy.knob_mod[knob] and eyesy.knob_seq_state == "playing":
-                    oled.notify("Modulation", "knob seq is playing")
+                    oled.warn("Modulation", "knob seq is playing")
                 else:
                     on = eyesy.toggle_knob_mod(knob)
                     oled.notify(f"Knob {knob + 1}",
@@ -141,7 +141,7 @@ def dispatch_key(eyesy, k, v):
         if pressed and not eyesy.menu_mode:
             state = eyesy.cycle_auto_random()
             if state == eyesy.AUTO_RANDOM_SCENES and not eyesy.scenes:
-                oled.notify("Auto Random", "no scenes to pick")
+                oled.warn("Auto Random", "no scenes to pick")
             else:
                 oled.notify("Auto Random", eyesy.auto_random_text())
         return

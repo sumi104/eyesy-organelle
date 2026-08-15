@@ -251,6 +251,29 @@ The LIVE page is the quickest way to get the video onto a laptop mid set:
 page to it, press the encoder, and the address shown is what to open in a
 browser. See `web/STREAMING.md`.
 
+### Messages
+
+Pressing a key that changes something puts a message over the current page for
+a second. Both lines are the small font: the second one carries the mode name,
+the scene name, the reason — the half you are actually reading for — so making
+the first one big only made the important half the harder one to read.
+
+A reversed marker at the start says which kind it is, the same reversed block
+the key names wear:
+
+| Mark | Means | Example |
+|---|---|---|
+| `i` | it happened | `i Scene saved` / `scene-0004` |
+| `!` | it did not | `! Modulation` / `knob seq is playing` |
+
+Warnings stay up about twice as long, since a refusal has to be read to be any
+use and a confirmation does not. Send them with `oled.warn()` instead of
+`oled.notify()` — that is the whole difference at the call site.
+
+The message is drawn over the page rather than instead of it, so a second of
+message does not cost you your place. Line one fits 18 characters next to the
+marker, line two fits 20 across the full width.
+
 ### Working on the layout without the device
 
 `tools/oled_preview.cpp` renders every page to a raw frame buffer dump and
