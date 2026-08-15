@@ -1449,7 +1449,23 @@ class Eyesy:
             self.knob_seq_stop()
 
    
+    # The sequencer and the wobble both write the same five knobs, so they
+    # cannot both be running. The key refuses to start a wobble during
+    # playback; this is the other direction, and it sits here because every
+    # route into playing goes through this one call — including recalling a
+    # scene, which applies its modulation before it loads its sequence.
+    def stop_all_knob_mod(self):
+        for i in range(0, 5):
+            if not self.knob_mod[i] : continue
+            self.knob_mod[i] = False
+            self.knob_mod_value[i] = 0.0
+            self.knob_mod_editing[i] = None
+            # hold the value until the knob is moved, as switching off by hand does
+            self.knob_override[i] = True
+            self.knob_snapshot[i] = self.knob_hardware[i]
+
     def knob_seq_play(self):
+        self.stop_all_knob_mod()
         self.knob_seq_state = "playing"
         self.knob_seq_index = 0
         print("knob sequence playing")

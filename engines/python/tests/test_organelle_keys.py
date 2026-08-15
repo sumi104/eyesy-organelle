@@ -404,6 +404,39 @@ class OrganelleKeyTest(unittest.TestCase):
             self.tap(self.upper("F#"))
             self.assertTrue(self.e.knob_mod[2], state)
 
+    def test_starting_the_sequencer_drops_any_running_wobble(self):
+        # the key refuses to start one during playback; this is the other
+        # direction, and it is what a scene recall goes through
+        self.tap(self.upper("F#"))
+        self.tap(self.upper("C#"))
+        self.assertTrue(self.e.knob_mod[2] and self.e.knob_mod[0])
+
+        self.e.knob_seq_play()
+        self.assertFalse(any(self.e.knob_mod),
+                         "playback and a wobble cannot both drive a knob")
+        # only the two that were wobbling are held, the rest are left alone
+        self.assertEqual([i for i, o in enumerate(self.e.knob_override) if o],
+                         [0, 2])
+
+    def test_a_scene_cannot_bring_back_both(self):
+        # apply_scene_knob_mod runs before the sequence is loaded, so the
+        # invariant has to survive that ordering
+        self.e.apply_scene_knob_mod([{"on": True, "rate": 0.2, "depth": 0.3}]
+                                    + [{"on": False}] * 4)
+        self.assertTrue(self.e.knob_mod[0])
+        self.e.knob_seq_play()
+        self.assertFalse(any(self.e.knob_mod))
+
+    def test_the_black_keys_do_nothing_while_a_menu_is_open(self):
+        self.e.menu_mode = True
+        self.tap(self.upper("F#"))
+        self.assertFalse(self.e.knob_mod[2])
+
+        # and the key is not left half pressed when the menu closes
+        self.e.menu_mode = False
+        self.tap(self.upper("F#"))
+        self.assertTrue(self.e.knob_mod[2])
+
     def test_a_tap_toggles_but_a_hold_and_turn_does_not(self):
         key = self.upper("F#")                  # knob 3
         self.tap(key)

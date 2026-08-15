@@ -111,7 +111,9 @@ def dispatch_key(eyesy, k, v):
             eyesy.knob_mod_key_used[knob] = False
         else:
             eyesy.knob_mod_key_held[knob] = False
-            if not eyesy.knob_mod_key_used[knob]:
+            # the held and used bookkeeping runs either way, so a key pressed
+            # outside a menu and let go inside one does not get stuck
+            if not eyesy.knob_mod_key_used[knob] and not eyesy.menu_mode:
                 # A playing sequence is writing these knobs itself, so adding
                 # a wobble would be two things driving one control. Switching
                 # an existing one off stays allowed.

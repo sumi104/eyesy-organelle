@@ -177,8 +177,20 @@ void OledPages::renderTopBar(OledScreen &s) {
     if (st.flags & OLED_FLAG_AUTO_SCENES) st_letters[n++] = 'S';
     if (st.flags & OLED_FLAG_SEQ_REC)    st_letters[n++] = 'R';
     else if (st.flags & OLED_FLAG_SEQ_PLAY) st_letters[n++] = 'Q';
+    // Right aligned against the wifi icon, but never far enough left to run
+    // into the page name: MODE KEYS is the longest at nine characters and
+    // ends at x 55. That leaves room for seven letters, which is as many as
+    // can be set at once, and any more are dropped rather than drawn over
+    // something else.
+    const int lettersLeft = 58;
+    const int maxLetters = (100 - lettersLeft) / 6;
+    if (n > maxLetters) n = maxLetters;
     st_letters[n] = 0;
-    if (n) s.println(st_letters, 96 - (n * 6), 0, 8, 1);
+    if (n) {
+        int x = 96 - (n * 6);
+        if (x < lettersLeft) x = lettersLeft;
+        s.println(st_letters, x, 0, 8, 1);
+    }
 
     // wifi and page number on the right
     drawWifi(s, 100, 1, st.wifiLevel);

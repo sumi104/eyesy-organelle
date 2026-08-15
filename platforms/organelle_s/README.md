@@ -157,10 +157,11 @@ Because the key doubles as a modifier it acts on release, and only when it was
 tapped: holding it while turning its knob adjusts the depth and leaves the
 modulation running.
 
-A wobble cannot be started while the knob sequencer is playing — `Q` in the top
-bar — because the sequence is already writing those knobs and the two would be
-driving one control. Switching off one that is already running still works,
-and the key says why when it refuses.
+The knob sequencer and the wobble both write the same five knobs, so they do
+not run together. Starting a wobble while the sequence is playing — `Q` in the
+top bar — is refused, and the key says why. Starting the sequence drops any
+wobble that was running, which is also what happens when a scene carrying both
+is recalled. Switching a running wobble off is always allowed.
 
 Rate is how quickly the offset reaches each new target, on an exponential
 curve so the slow end is not all crammed into the first millimetre of travel.
