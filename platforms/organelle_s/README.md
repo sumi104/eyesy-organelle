@@ -97,7 +97,7 @@ Hold **C#** for the shifted layer.
 | A# | Auto random: off, then modes, then scenes, then off | — |
 | Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
-| Foot switch | Save scene, or whatever `B` does — Settings > System picks which | Same as `B` when set to Trigger |
+| Foot switch | Save scene, or the same as `B` — Settings > System picks which | Knob sequence arm / disarm, when set to Trigger |
 
 Shift + knob 1 still sets the input gain, as on EYESY.
 
@@ -108,12 +108,19 @@ Saving goes straight to `save_scene()` rather than through the save key, which
 deletes the current scene when it is held for a second — which is what a foot
 resting on a pedal looks like. Deleting stays on `G`.
 
-Set to Trigger it **is** the `B` key: the pedal goes through that key's own
+Set to Trigger a plain press **is** the `B` key: it goes through that key's own
 handler rather than a copy of part of it, so it fires the trigger, plays the
-test tone while it is held, and arms the knob sequence recorder when shift is
-down, exactly as the key does. Which of the two the pedal is gets latched when
-it goes down, so changing the setting mid-press cannot leave the test tone
-playing with no way back.
+test tone while held, and repeats after about a third of a second, exactly as
+the key does.
+
+Shift and the pedal arm the knob sequencer, and disarm it next time. That one
+does not go through `B`: holding key 10 down is what starts the test tone and
+the repeat, and neither belongs on a pedal being used to arm a recorder.
+
+Which of the two jobs the pedal has gets latched when it goes down, and the
+**Foot Switch** row stops responding while the pedal or `B` is held, saying so
+on screen. Letting the setting move under a press already in flight is how the
+test tone ends up playing with no way back.
 
 Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
 saved as soon as a key is stored. A config written when the whole upper octave

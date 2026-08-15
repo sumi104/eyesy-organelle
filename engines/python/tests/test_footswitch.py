@@ -125,14 +125,78 @@ class FootswitchKeyTest(unittest.TestCase):
         self.release()
         self.assertFalse(self.e.key10_status)
 
-    def test_shift_and_the_pedal_arm_the_recorder_as_the_key_does(self):
+    def test_shift_and_the_pedal_arm_the_knob_sequencer(self):
         self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
-        armed = []
-        self.e.knob_seq_record_key = lambda: armed.append(True)
         self.e.key2_status = True
         self.press()
-        self.assertEqual(len(armed), 1)
+        self.assertEqual(self.e.knob_seq_state, "enabled")
         self.assertFalse(self.e.trig, "the shifted meaning replaces it")
+
+    def test_shift_and_the_pedal_again_disarm_it(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.e.key2_status = True
+        self.press()
+        self.release()
+        self.press()
+        self.assertEqual(self.e.knob_seq_state, "stopped")
+
+    def test_arming_does_not_start_the_test_tone(self):
+        # it goes nowhere near key 10, which is what plays it
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.e.key2_status = True
+        self.press()
+        self.assertFalse(self.e.key10_status)
+
+    def test_arming_does_nothing_with_a_menu_open(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.e.key2_status = True
+        self.e.menu_mode = True
+        self.press()
+        self.assertEqual(self.e.knob_seq_state, "stopped")
+
+    # --- and no repeat off the pedal --------------------------------------
+
+    def repeat_frames(self, n=40):
+        fired = 0
+        for _ in range(n):
+            self.e.update_key_repeater()
+            if self.e.trig:
+                fired += 1
+            self.e.clear_flags()
+        return fired
+
+    def test_shift_and_a_held_pedal_do_not_machine_gun_the_trigger(self):
+        # the repeat lives in the unshifted branch of update_key_repeater, so
+        # reaching for shift with the pedal already down stops it rather than
+        # starting it. Worth pinning: it reads the other way round.
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.press()                    # down first, unshifted
+        self.e.clear_flags()
+        self.e.key2_status = True       # then shift, with the pedal still down
+        self.assertEqual(self.repeat_frames(), 0)
+
+    def test_holding_the_pedal_repeats_exactly_as_holding_b_does(self):
+        self.e.config["footswitch"] = self.e.FOOTSWITCH_TRIGGER
+        self.press()
+        self.e.clear_flags()
+        by_pedal = self.repeat_frames()
+
+        self.release()
+        self.e.key10_td = 0
+        self.e.dispatch_key_event(organelle.EYESY_TRIGGER_BUTTON, 100)
+        self.e.clear_flags()
+        by_key = self.repeat_frames()
+
+        self.assertGreater(by_pedal, 0)
+        self.assertEqual(by_pedal, by_key)
+
+    def test_the_pedal_reports_itself_held_whatever_it_is_set_to(self):
+        for action in (self.e.FOOTSWITCH_SAVE, self.e.FOOTSWITCH_TRIGGER):
+            self.e.config["footswitch"] = action
+            self.press()
+            self.assertTrue(self.e.footswitch_status)
+            self.release()
+            self.assertFalse(self.e.footswitch_status)
 
     def test_switching_the_setting_mid_press_does_not_strand_the_tone(self):
         # the release would go to the save branch and leave key10_status on,
@@ -196,6 +260,8 @@ class SystemScreenTest(unittest.TestCase):
 
         for name in _Keys.NAMES:
             setattr(self.e, name, False)
+        self.e.key10_status = False
+        self.e.footswitch_status = False
 
         self.screen = ScreenFlashDrive(self.e)
         self.screen.ensure_usb_mounted = lambda: True   # no lsblk in a test
@@ -302,6 +368,56 @@ class SystemScreenTest(unittest.TestCase):
     def test_the_logs_still_fit_on_the_screen(self):
         # ten lines of the small font, inside the frame render_with_title draws
         self.assertLess(self.screen.log_top() + 10 * 15, 430)
+
+    # --- the row locks while something is holding the trigger -------------
+
+    def hold_pedal(self):
+        self.e.footswitch_status = True
+
+    def hold_b(self):
+        self.e.key10_status = True
+
+    def test_the_mode_keys_do_nothing_while_the_pedal_is_down(self):
+        self.select_footswitch()
+        self.hold_pedal()
+        self.frame(key5_press=True)
+        self.assertEqual(self.item().value, self.e.FOOTSWITCH_SAVE)
+
+    def test_the_mode_keys_do_nothing_while_b_is_down(self):
+        self.select_footswitch()
+        self.hold_b()
+        self.frame(key5_press=True)
+        self.assertEqual(self.item().value, self.e.FOOTSWITCH_SAVE)
+
+    def test_save_does_not_commit_while_something_is_held(self):
+        # adjusted first, then a foot lands on the pedal before save
+        self.select_footswitch()
+        self.frame(key5_press=True)
+        self.hold_pedal()
+        self.frame(key8_press=True)
+        self.assertEqual(self.e.config["footswitch"], self.e.FOOTSWITCH_SAVE)
+        self.assertEqual(self.written, [])
+
+    def test_it_works_again_once_everything_is_let_go(self):
+        self.select_footswitch()
+        self.hold_pedal()
+        self.frame(key5_press=True)
+        self.e.footswitch_status = False
+        self.frame(key5_press=True)
+        self.frame(key8_press=True)
+        self.assertEqual(self.e.config["footswitch"], self.e.FOOTSWITCH_TRIGGER)
+
+    def test_it_says_why_rather_than_looking_broken(self):
+        self.select_footswitch()
+        self.assertFalse(self.screen.footswitch_blocked())
+        self.hold_pedal()
+        self.assertTrue(self.screen.footswitch_blocked())
+
+    def test_the_other_rows_are_not_locked_by_a_held_pedal(self):
+        self.hold_pedal()
+        self.screen.menu.selected_index = self.screen.menu.items.index(
+            next(i for i in self.screen.menu.items if i.text == "Restart Video"))
+        self.assertFalse(self.screen.footswitch_blocked())
 
     def test_nothing_responds_while_a_backup_is_running(self):
         self.select_footswitch()

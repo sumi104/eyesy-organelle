@@ -131,18 +131,31 @@ def dispatch_key(eyesy, k, v):
 
     # The pedal does one of two things, picked in Settings > System.
     if k == FOOTSWITCH:
-        # Set to Trigger it is the panel's trigger key, so it goes through
-        # that key's own handler and picks up everything the key does rather
-        # than a copy of some of it: the trigger, the test tone while it is
-        # held, and the shifted meaning too.
-        #
-        # Which of the two it is gets latched on the way down. Changing the
-        # setting with the pedal held would otherwise send the release to the
-        # other branch, and key10_status would stay on with the analysis input
-        # stuck at a sine wave until the key was pressed again.
+        eyesy.footswitch_status = pressed
+
         if pressed:
-            eyesy.footswitch_trigger_held = (
-                eyesy.config["footswitch"] == eyesy.FOOTSWITCH_TRIGGER)
+            trigger = eyesy.config["footswitch"] == eyesy.FOOTSWITCH_TRIGGER
+
+            # Shift arms the knob sequencer, and disarms it next time. This
+            # does not go through the trigger key the way the plain press
+            # does: holding key 10 down is what starts the test tone and the
+            # repeating trigger, and neither belongs on a pedal that is being
+            # used to arm a recorder.
+            if trigger and shift and not eyesy.menu_mode:
+                eyesy.knob_seq_record_key()
+                eyesy.footswitch_trigger_held = False
+                return
+
+            # Unshifted it is the panel's trigger key, so it goes through that
+            # key's own handler and picks up what the key does rather than a
+            # copy of some of it: the trigger and the test tone while held.
+            #
+            # Which of the two it is gets latched on the way down. Changing
+            # the setting with the pedal held would otherwise send the release
+            # to the other branch, and key10_status would stay on with the
+            # analysis input stuck at a sine wave until the key was pressed.
+            eyesy.footswitch_trigger_held = trigger and not shift
+
         if eyesy.footswitch_trigger_held:
             eyesy.dispatch_key_event(EYESY_TRIGGER_BUTTON, v)
             if not pressed:

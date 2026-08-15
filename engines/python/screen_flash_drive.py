@@ -13,6 +13,8 @@ FOOTER_ADJUST = (chr(0x2680) + "     = Cancel     " + chr(0x2681)
                  + "   = Adjust     " + chr(0x2682) + "   = Up/Down     "
                  + chr(0x2683) + "  = Save")
 
+BLOCKED_MESSAGE = "Trigger is on. Let go of the foot switch or B to change this."
+
 class ScreenFlashDrive(Screen):
     def __init__(self, eyesy):
         super().__init__(eyesy)
@@ -74,7 +76,26 @@ class ScreenFlashDrive(Screen):
         item.value = min(item.value + item.value_delta, item.max_value)
         self.relabel_footswitch()
 
+    def trigger_held(self):
+        """The pedal or the B key is down right now.
+
+        Both drive the same trigger, and the pedal latches which of its two
+        jobs it has when it goes down. Letting the setting move underneath a
+        press that is already in flight is how the test tone gets stranded on,
+        so the row stops responding until whatever is held is let go.
+        """
+        return bool(self.eyesy.key10_status or self.eyesy.footswitch_status)
+
+    def footswitch_blocked(self):
+        """True when the row is under the cursor and cannot be moved."""
+        if self.footswitch_item is None:
+            return False
+        selected = self.menu.items[self.menu.selected_index]
+        return selected is self.footswitch_item and self.trigger_held()
+
     def save_footswitch(self):
+        if self.trigger_held():
+            return
         self.eyesy.config["footswitch"] = self.footswitch_item.value
         self.eyesy.save_config_file()
 
@@ -86,7 +107,7 @@ class ScreenFlashDrive(Screen):
 
         item = self.menu.items[self.menu.selected_index]
         self.footer = FOOTER_ADJUST if item.adjustable else FOOTER_PLAIN
-        if not item.adjustable:
+        if not item.adjustable or self.footswitch_blocked():
             return
 
         if self.eyesy.key4_press:
@@ -114,6 +135,13 @@ class ScreenFlashDrive(Screen):
 
         line_height = self.font_small.get_linesize()
         top = self.log_top()
+
+        # say why the row is not moving rather than looking broken
+        if self.footswitch_blocked():
+            notice = self.font_small.render(BLOCKED_MESSAGE, True, (255, 200, 80))
+            surface.blit(notice, (32, top))
+            top += line_height
+
         for i, log in enumerate(self.logs[-10:]):  # Show last 10 log entries
             text_surface = self.font_small.render(log, True, (200, 200, 200))  # White text
             surface.blit(text_surface, (32, top + i * line_height))

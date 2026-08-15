@@ -261,6 +261,8 @@ class Eyesy:
         # true from the moment the pedal goes down until it comes back up, if
         # it was set to Trigger when it went down. See organelle.dispatch_key.
         self.footswitch_trigger_held = False
+        # true whenever the pedal is down, whatever it is set to
+        self.footswitch_status = False
 
         # counters for key repeaters
         self.key4_td = 0
