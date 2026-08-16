@@ -104,10 +104,10 @@ class OledPages
         void notify(const char *line1, const char *line2, bool warn);
         void tickNotify(float elapsedMs);
 
-        // Slides a mode name too long for its line through the room it has,
-        // a character at a time, holding at each end. Called on the same tick
-        // as tickNotify. Wrapping is what this avoids: the line under it is
-        // the scene and has nowhere to move down to.
+        // Slides the mode and scene names, when they are too long for their
+        // lines, through the room they have: a character at a time, holding at
+        // each end. Called on the same tick as tickNotify. Wrapping is what
+        // this avoids - neither line has anywhere to move down to.
         void tickScroll(float elapsedMs);
 
         // true when something changed since the last render
@@ -124,12 +124,32 @@ class OledPages
         bool notifyWarn;
         float notifyTimeLeft;
 
-        // marquee state for the mode name on the perform page
-        void resetScroll();
-        int scrollOffset;       // characters currently off the left
-        int scrollMax;          // how many there are to give, 0 when it fits
-        float scrollMs;         // since the last step
-        char scrollText[OLED_TEXT_LEN];   // to notice the mode changing
+        // One of these per line of the perform page that slides. They run on
+        // their own clocks rather than a shared one: the two names are
+        // different lengths, so a shared clock would reach one end before the
+        // other and they would drift apart at the holds anyway.
+        struct Marquee {
+            int offset;     // characters currently off the left
+            int max;        // how many there are to give, 0 when it fits
+            float ms;       // since the last step
+            char text[OLED_TEXT_LEN];   // to notice the line's text changing
+        };
+        Marquee marquee[2];
+        static const int MARQUEE_MODE  = 0;
+        static const int MARQUEE_SCENE = 1;
+
+        void resetMarquee(Marquee &m);
+        void tickMarquee(Marquee &m, const char *text, float elapsedMs);
+
+        // Lays out one sliding line: the prefix stays put and the text slides
+        // through whatever is left. Sets m.max on the way, since that is where
+        // the room is known.
+        void marqueeLine(Marquee &m, char *dst, int dstLen,
+                         const char *prefix, const char *text);
+
+        // what the scene line calls a name, which is not st.scene when there
+        // is no scene loaded
+        const char *sceneName();
 
         void renderTopBar(OledScreen &s);
         void renderPerform(OledScreen &s);

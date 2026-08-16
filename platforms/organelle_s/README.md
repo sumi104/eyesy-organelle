@@ -306,21 +306,24 @@ Pages declare their setting by name in `OledPages::toggleAction()`, and
 `osc.py` maps the name to the action, so wiring a switch to another page is
 two lines.
 
-**A mode name too long for the line slides through it** rather than being cut
-off at the right hand edge. It holds at the start for a second and a half,
-steps left two characters a second, holds again with the last character on
-screen, and goes back to the beginning. `12/57 ` stays put — the number is
-read at a glance and the name is the part that runs off the end. Changing
-mode, or leaving the page and coming back, starts it from the left again.
+**A mode or scene name too long for its line slides through it** rather than
+being cut off at the right hand edge. It holds at the start for a second and a
+half, steps left two characters a second, holds again with the last character
+on screen, and goes back to the beginning. `12/57 ` and `S 2/8 ` stay put — the
+numbers are read at a glance and the names are what run off the end. Changing
+mode or scene, or leaving the page and coming back, starts from the left again.
 
-Wrapping onto a second line was the alternative and would have pushed the
-scene line down. Nothing else on the page can move, so the name moves instead.
+The two lines keep their own clocks. They are usually different lengths, so a
+shared one would reach the end of the short name first and they would come
+apart at the holds regardless; a name short enough to fit simply sits still.
+
+Wrapping was the alternative, and neither line has anywhere to move down to.
+Nothing else on the page can shift either, so the names move instead.
 
 It costs nothing to run. The engine pushes `/oled/state` every 50ms and that
 marks the page dirty, so the display is already being redrawn and shipped over
-SPI twenty times a second whatever the name is doing; the scroll adds a counter
-and an offset into a string. Only the mode name scrolls — the scene name is
-still cut off, which is a change of the same shape if it turns out to matter.
+SPI twenty times a second whatever the names are doing; each line adds a
+counter and an offset into a string.
 
 Letters in the top bar: `X` audio muted, `K` clock muted, `N` notes muted,
 `F` frozen, `P` persist, `M` auto random picking modes, `S` auto random
@@ -394,8 +397,15 @@ constant that governs it argued about, before anything is flashed.
     ./oled_anim /tmp/anim
     python3 tools/oled_view.py --html /tmp/anim.html /tmp/anim*.raw
 
-`oled_anim` takes the mode name to scroll as a second argument, so the awkward
-lengths — one character over the line, twice the line — can be tried directly.
+`oled_anim` takes the mode name as a second argument and the scene name as a
+third, so the awkward lengths — one character over the line, twice the line,
+one of each — can be tried directly.
+
+    ./oled_anim /tmp/anim "a very long mode name" "a very long scene name"
+
+The Makefile points clang at the SDK when `uname` says Darwin, so a bare `make`
+works on a Mac as well as on the device. Without it MacPorts' `g++` is found
+first and the build dies on `<string>`.
 
 ## Build and install
 

@@ -47,10 +47,12 @@ OledPages::OledPages() {
     notifyLine2[0] = 0;
     notifyWarn = false;
     notifyTimeLeft = 0;
-    scrollOffset = 0;
-    scrollMax = 0;
-    scrollMs = 0;
-    scrollText[0] = 0;
+    for (int i = 0; i < 2; i++) {
+        marquee[i].offset = 0;
+        marquee[i].max = 0;
+        marquee[i].ms = 0;
+        marquee[i].text[0] = 0;
+    }
 }
 
 void OledPages::nextPage() {
@@ -119,45 +121,67 @@ void OledPages::tickNotify(float elapsedMs) {
     }
 }
 
-void OledPages::resetScroll() {
-    if (scrollOffset != 0) dirty = true;
-    scrollOffset = 0;
-    scrollMs = 0;
+const char *OledPages::sceneName() {
+    return st.sceneIndex >= 0 ? st.scene : "none";
+}
+
+void OledPages::resetMarquee(Marquee &m) {
+    if (m.offset != 0) dirty = true;
+    m.offset = 0;
+    m.ms = 0;
+}
+
+void OledPages::tickMarquee(Marquee &m, const char *text, float elapsedMs) {
+    // New text starts from the left. Without this a short name inherits a long
+    // one's offset and turns up already part way through itself, or with
+    // nothing on the line at all.
+    if (strcmp(m.text, text)) {
+        copyText(m.text, text);
+        resetMarquee(m);
+        return;
+    }
+
+    // marqueeLine works out how much is over the end, so a name that fits sits
+    // still and costs nothing. It is a frame behind after the text changes,
+    // which the reset above has already covered.
+    if (m.max <= 0) {
+        resetMarquee(m);
+        return;
+    }
+
+    m.ms += elapsedMs;
+    bool atEnd = m.offset == 0 || m.offset >= m.max;
+    if (m.ms < (atEnd ? SCROLL_HOLD_MS : SCROLL_STEP_MS)) return;
+    m.ms = 0;
+
+    m.offset = (m.offset >= m.max) ? 0 : m.offset + 1;
+    dirty = true;
 }
 
 void OledPages::tickScroll(float elapsedMs) {
-    // Only the perform page shows the mode name. Leaving the page puts the
-    // name back to its start, so coming back to it reads from the beginning
-    // rather than wherever it had wandered to while you were not looking.
+    // Only the perform page has sliding lines. Leaving it puts them back to
+    // their starts, so coming back reads from the beginning rather than from
+    // wherever they had wandered to while you were not looking.
     if (page != OLED_PAGE_PERFORM) {
-        resetScroll();
+        for (int i = 0; i < 2; i++) resetMarquee(marquee[i]);
         return;
     }
 
-    // A new mode starts from the left as well. Without this a short name
-    // inherits a long one's offset and turns up already part way through,
-    // or with nothing on the line at all.
-    if (strcmp(scrollText, st.mode)) {
-        copyText(scrollText, st.mode);
-        resetScroll();
-        return;
-    }
+    tickMarquee(marquee[MARQUEE_MODE], st.mode, elapsedMs);
+    tickMarquee(marquee[MARQUEE_SCENE], sceneName(), elapsedMs);
+}
 
-    // renderPerform works out how much of the name is over the end, so a name
-    // that fits sits still and costs nothing. It is a frame behind after the
-    // name changes, which the reset above has already covered.
-    if (scrollMax <= 0) {
-        resetScroll();
-        return;
-    }
+void OledPages::marqueeLine(Marquee &m, char *dst, int dstLen,
+                            const char *prefix, const char *text) {
+    int n = snprintf(dst, dstLen, "%s", prefix);
+    if (n < 0 || n > MAXCHARS) n = MAXCHARS;
 
-    scrollMs += elapsedMs;
-    bool atEnd = scrollOffset == 0 || scrollOffset >= scrollMax;
-    if (scrollMs < (atEnd ? SCROLL_HOLD_MS : SCROLL_STEP_MS)) return;
-    scrollMs = 0;
+    int room = MAXCHARS - n;
+    int over = (int) strlen(text) - room;
+    m.max = (room > 0 && over > 0) ? over : 0;
 
-    scrollOffset = (scrollOffset >= scrollMax) ? 0 : scrollOffset + 1;
-    dirty = true;
+    int off = m.offset > m.max ? m.max : m.offset;
+    snprintf(dst + n, dstLen - n, "%s", text + off);
 }
 
 /* drawing helpers */
@@ -267,25 +291,21 @@ void OledPages::renderTopBar(OledScreen &s) {
 void OledPages::renderPerform(OledScreen &s) {
     char buf[64];
 
-    // "12/57 " stays put and the name slides through what is left of the
-    // line. Which one of the two is worth scrolling is not a close call: the
-    // number is two or three characters and is read at a glance, the name is
-    // the part that runs off the end.
-    int prefix = snprintf(buf, sizeof(buf), "%d/%d ",
-                          st.modeIndex + 1, st.modeCount);
-    if (prefix < 0 || prefix > MAXCHARS) prefix = MAXCHARS;
-    int room = MAXCHARS - prefix;
-    int over = (int) strlen(st.mode) - room;
-    scrollMax = (room > 0 && over > 0) ? over : 0;
-    int off = scrollOffset > scrollMax ? scrollMax : scrollOffset;
-    snprintf(buf + prefix, sizeof(buf) - prefix, "%s", st.mode + off);
+    char prefix[24];
+
+    // "12/57 " and "S 2/8 " stay put and the names slide through what is left
+    // of their lines. Which half is worth scrolling is not a close call: the
+    // numbers are read at a glance, the names are what run off the end.
+    snprintf(prefix, sizeof(prefix), "%d/%d ", st.modeIndex + 1, st.modeCount);
+    marqueeLine(marquee[MARQUEE_MODE], buf, sizeof(buf), prefix, st.mode);
     s.setLine(1, buf);
 
     if (st.sceneIndex >= 0)
-        snprintf(buf, sizeof(buf), "S %d/%d %s",
-                 st.sceneIndex + 1, st.sceneCount, st.scene);
+        snprintf(prefix, sizeof(prefix), "S %d/%d ",
+                 st.sceneIndex + 1, st.sceneCount);
     else
-        snprintf(buf, sizeof(buf), "S -/%d none", st.sceneCount);
+        snprintf(prefix, sizeof(prefix), "S -/%d ", st.sceneCount);
+    marqueeLine(marquee[MARQUEE_SCENE], buf, sizeof(buf), prefix, sceneName());
     s.setLine(2, buf);
 
     // Knob faders, left to right same as the panel: knob 1-4 then volume. A

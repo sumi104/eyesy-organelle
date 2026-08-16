@@ -12,8 +12,10 @@ per refresh. oled_view.py --html plays them back at that interval.
     ./oled_anim /tmp/anim
     python3 tools/oled_view.py --html /tmp/anim.html /tmp/anim*.raw
 
-The mode name on the perform page is the only thing that moves so far, so that
-is what this sets up. Pass a name to try your own.
+The mode and scene names on the perform page are what move so far, so that is
+what this sets up. Pass your own to try them:
+
+    ./oled_anim /tmp/anim "a long mode name" "a long scene name"
 
 */
 
@@ -49,6 +51,9 @@ static void dump(OledScreen &s, const char *prefix, int frame) {
 int main(int argc, char *argv[]) {
     const char *prefix = argc > 1 ? argv[1] : "anim";
     const char *mode = argc > 2 ? argv[2] : "S - Sound Jaws - Uniform Color";
+    // shorter than the mode name on purpose, so the default run shows the two
+    // lines running on their own clocks rather than in lockstep
+    const char *scene = argc > 3 ? argv[3] : "warehouse set 2 opener";
 
     OledScreen screen;
     OledPages pages;
@@ -68,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     pages.setPage(OLED_PAGE_PERFORM);
     pages.setText("mode", mode);
-    pages.setText("scene", "scene-0002");
+    pages.setText("scene", scene);
 
     for (int i = 0; i < FRAMES; i++) {
         // the same order main.cpp ticks it in, so the timing is the timing
