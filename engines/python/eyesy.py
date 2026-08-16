@@ -15,6 +15,7 @@ import csv
 import color_palettes
 import config
 import oled
+import audio_thru
 
 class Eyesy:
 
@@ -98,6 +99,11 @@ class Eyesy:
             "auto_random_interval": 30,
             # what the pedal jack does, see FOOTSWITCH_ACTIONS below
             "footswitch": 0,
+            # organelle s: how loud the line input is passed straight through
+            # to the line output, inside the codec. 0 is muted, which is also
+            # what off means here - there is no separate switch. Shift and the
+            # volume knob set it. See audio_thru.py
+            "audio_thru_volume": 0.0,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -289,6 +295,14 @@ class Eyesy:
         self.gain_knob_unlocked = False
         self.gain_knob_capture = 0
         self.gain_value_snapshot = 0
+
+        # the same shortcut on the volume knob, for the analogue passthrough.
+        # knob 5 is the one the panel prints "Volume" on, and shift is the
+        # only time it is not busy being a mode parameter
+        self.thru_knob_unlocked = False
+        self.thru_knob_capture = 0
+        self.thru_knob_last = -1
+        self.thru_value_snapshot = 0
     
         self.clear_flags()
 
@@ -410,6 +424,7 @@ class Eyesy:
         self._validate_config_bool("knob_mod_sync")
         self._validate_config_int("auto_random_interval", -1, 3600)
         self._validate_config_int("footswitch", 0, len(self.FOOTSWITCH_ACTIONS) - 1)
+        self._validate_config_float("audio_thru_volume", 0.0, 1.0)
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         # the config holds the starting point, each knob keeps its own after
@@ -1317,11 +1332,23 @@ class Eyesy:
                 self.gain_knob_capture = self.knob_hardware[0]
                 self.gain_knob_unlocked = False
                 self.gain_value_snapshot = self.config["audio_gain"]
+                # same again for the passthrough level on knob 5. the last
+                # seen position is cleared as well, so the first move after
+                # shift always draws its bar even when the knob happens to
+                # have come back to where it was left last time
+                self.thru_knob_capture = self.knob_hardware[4]
+                self.thru_knob_unlocked = False
+                self.thru_knob_last = -1
+                self.thru_value_snapshot = self.config["audio_thru_volume"]
             else :
                 # save gain to config if changed
                 if self.gain_value_snapshot != self.config["audio_gain"] : 
                     v = self.config["audio_gain"]
                     print(f"gain value updated {v}, saving to config")
+                    self.save_config_file()
+                if self.thru_value_snapshot != self.config["audio_thru_volume"] :
+                    v = self.config["audio_thru_volume"]
+                    print(f"audio thru level updated {v}, saving to config")
                     self.save_config_file()
                 self.key2_status = False
         
@@ -1436,6 +1463,34 @@ class Eyesy:
             if abs(self.gain_knob_capture - self.knob_hardware[0]) > .05: self.gain_knob_unlocked = True
             if self.gain_knob_unlocked:
                 self.config["audio_gain"] = self.knob_hardware[0]
+
+    # Shift and the volume knob set how loud the line input is passed straight
+    # through to the line output. Knob 5 is the one the panel prints "Volume"
+    # on, and shift is the only time it is not busy being a mode parameter.
+    #
+    # It has to be moved a little before it takes hold, the same way the gain
+    # knob does. On an output amp that matters more than it does on the gain:
+    # without it, pressing shift would jump the level to wherever the knob was
+    # left sitting, which is as likely to be full as it is to be silent.
+    def check_thru_knob(self):
+        if not self.key2_status:
+            return
+
+        if abs(self.thru_knob_capture - self.knob_hardware[4]) > .05:
+            self.thru_knob_unlocked = True
+        if not self.thru_knob_unlocked:
+            return
+
+        # a knob that has not moved needs neither an amp write nor a
+        # notification, and at sixty frames a second there would be plenty
+        if self.knob_hardware[4] == self.thru_knob_last:
+            return
+        self.thru_knob_last = self.knob_hardware[4]
+
+        v = self.knob_hardware[4]
+        self.config["audio_thru_volume"] = v
+        audio_thru.set_volume(v)
+        oled.notify_value("Audio Thru", v)
 
     def set_led(self, val):
         self.led = val

@@ -96,6 +96,12 @@ int main(int argc, char *argv[]) {
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 4);
 
+    // the longest heading that comes with a bar under it, shift and the
+    // volume knob setting the analogue passthrough level
+    pages.notify("Audio Thru", "1.00 ==============", false);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 7);
+
     // the sequencer armed rather than recording, worst case top bar
     pages.tickNotify(10000);
     pages.setPage(OLED_PAGE_KEYS);

@@ -99,7 +99,8 @@ Hold **C#** for the shifted layer.
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Save scene, or the same as `B` — Settings > System picks which | Knob sequence arm / disarm, when set to Trigger |
 
-Shift + knob 1 still sets the input gain, as on EYESY.
+Shift + knob 1 still sets the input gain, as on EYESY. Shift + knob 5 — the
+one the panel prints **Volume** on — sets the audio thru level, see below.
 
 **Foot Switch** in Settings > System says which of the two it does. It saves
 by default, which is what it did before there was a choice.
@@ -202,6 +203,40 @@ one had. A scene saved before this existed simply has nothing wobbling.
 | `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
 | `knob_mod_rate` | 0.15 | how quickly it reaches each target |
 | `knob_mod_sync` | true | step on the trigger; false brings back a wobble that keeps its own time. Also on **Settings → Audio MIDI Settings** |
+
+## Audio thru
+
+The Organelle has an audio output and EYESY has nothing to play through it, so
+**Audio In goes straight to Audio Out**. Hold shift and turn knob 5 to set how
+loud, from silent to a little above unity. The OLED shows a bar while it moves,
+the same one the modulation controls use, and the level is saved when shift
+comes up.
+
+It starts at silent, so this does nothing at all until the knob is turned.
+
+**It costs no CPU.** The signal never reaches the CPU: the WM8731 has an
+analogue path from its line input to its output mixer, inside the chip, and
+all the engine does is close that switch once at startup. No samples are
+copied, no thread runs, and the frame rate never sees it. There is no
+conversion either, so the passthrough is not resampled to the 32kHz the
+analysis runs at and adds no latency.
+
+Reading the capture stream back out through a playback stream would have put
+the audio in the same place as the drawing, where one late frame is a click.
+That is the version this replaces, and why the answer to "how much does it
+cost" is nothing rather than a number.
+
+There is no on/off switch because zero on the knob is the codec's own mute.
+The knob has to be moved a little before it takes hold, so pressing shift
+never jumps the level to wherever knob 5 was left sitting.
+
+The output amp is the level control, which nothing else uses. The input gain
+(shift + knob 1) is a software multiplier applied to the analysis only, so the
+two do not interact: turning the visuals up does not turn the monitor up.
+
+| | default | |
+|---|---|---|
+| `audio_thru_volume` | 0.0 | 0 is muted, 1 is +6dB. The knob spans -60dB to +6dB above zero |
 
 ## Ableton Link
 

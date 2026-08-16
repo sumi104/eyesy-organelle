@@ -16,6 +16,7 @@ import sound
 import osd
 import link
 import oled
+import audio_thru
 import streamer
 import usbdrive
 from screen_main_menu import ScreenMainMenu
@@ -209,6 +210,10 @@ try :
     # organelle s oled, no-op on eyesy hardware
     oled.init(eyesy)
 
+    # organelle s line in straight to line out, inside the codec. also a no-op
+    # on eyesy hardware, which has no bypass to open
+    audio_thru.init(eyesy)
+
     # ableton link, only runs while a Link trigger source is selected
     link.apply(eyesy)
 
@@ -262,6 +267,9 @@ while 1:
 
         # check gain knob
         eyesy.check_gain_knob()
+
+        # shift and the volume knob, the analogue passthrough level
+        eyesy.check_thru_knob()
 
         # sequence the knobs    
         # only changes assigned 
