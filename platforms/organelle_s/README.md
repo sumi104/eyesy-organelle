@@ -383,6 +383,20 @@ on a laptop:
     ./oled_preview /tmp/oled
     python3 tools/oled_view.py /tmp/oled*.raw -o /tmp/oled.png
 
+A contact sheet says whether a layout is right and nothing about whether a
+speed is. `tools/oled_anim.cpp` covers the other half: it ticks the same
+`OledPages` on the same 50ms clock `main.cpp` uses and dumps a frame per
+refresh, and `--html` plays them back at that interval in a self-contained page
+with no dependencies. So the scroll can be watched at its real speed, and any
+constant that governs it argued about, before anything is flashed.
+
+    make -f tools/Makefile oled_anim
+    ./oled_anim /tmp/anim
+    python3 tools/oled_view.py --html /tmp/anim.html /tmp/anim*.raw
+
+`oled_anim` takes the mode name to scroll as a second argument, so the awkward
+lengths — one character over the line, twice the line — can be tried directly.
+
 ## Build and install
 
 Unlike `eyesy_cm3`, the built `controls` binary is **not** committed here — it
