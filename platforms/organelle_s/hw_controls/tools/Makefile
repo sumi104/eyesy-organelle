@@ -16,6 +16,16 @@
 CXX ?= g++
 CXXFLAGS += -std=c++11 -Wall
 
+# A Mac with MacPorts on the path finds its g++ before anything else, and that
+# one cannot find the system C++ headers - the build dies on <string>. Point
+# clang at the SDK instead so a bare make works here as well as on the device.
+# An explicit make CXX=... still wins, command line beats this.
+ifeq ($(shell uname -s),Darwin)
+CXX := clang++
+SDK := $(shell xcrun --show-sdk-path)
+CXXFLAGS += -isysroot $(SDK) -cxx-isystem $(SDK)/usr/include/c++/v1
+endif
+
 all : oled_preview oled_anim
 
 oled_preview : tools/oled_preview.cpp OledScreen.cpp OledPages.cpp
