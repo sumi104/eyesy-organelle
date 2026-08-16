@@ -248,6 +248,14 @@ The stock Organelle is not like this because Pd scales the samples before they
 reach the DAC, which is ahead of both jacks. Nothing here goes near the DAC,
 which is the whole reason it is free.
 
+There is one other gain stage in the path, the input PGA — `Capture Volume` in
+ALSA — and it was measured to reach both jacks, so it would have made the 1/4in
+outputs adjustable. It is deliberately left alone. It also feeds the ADC, so
+turning the monitor down would take the visuals with it, and not gently: at the
+bottom of its range the signal drops by a factor of 53, which even the largest
+software gain the engine offers cannot lift back over the audio trigger
+threshold. Turning down the monitor would stop the picture moving.
+
 The output amp is the level control, which nothing else uses. The input gain
 (shift + knob 1) is a software multiplier applied to the analysis only, so the
 two do not interact: turning the visuals up does not turn the monitor up.
