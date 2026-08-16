@@ -306,6 +306,22 @@ Pages declare their setting by name in `OledPages::toggleAction()`, and
 `osc.py` maps the name to the action, so wiring a switch to another page is
 two lines.
 
+**A mode name too long for the line slides through it** rather than being cut
+off at the right hand edge. It holds at the start for a second and a half,
+steps left two characters a second, holds again with the last character on
+screen, and goes back to the beginning. `12/57 ` stays put — the number is
+read at a glance and the name is the part that runs off the end. Changing
+mode, or leaving the page and coming back, starts it from the left again.
+
+Wrapping onto a second line was the alternative and would have pushed the
+scene line down. Nothing else on the page can move, so the name moves instead.
+
+It costs nothing to run. The engine pushes `/oled/state` every 50ms and that
+marks the page dirty, so the display is already being redrawn and shipped over
+SPI twenty times a second whatever the name is doing; the scroll adds a counter
+and an offset into a string. Only the mode name scrolls — the scene name is
+still cut off, which is a change of the same shape if it turns out to matter.
+
 Letters in the top bar: `X` audio muted, `K` clock muted, `N` notes muted,
 `F` frozen, `P` persist, `M` auto random picking modes, `S` auto random
 picking scenes, `r` sequencer armed, `R` recording, `Q` sequence playing,

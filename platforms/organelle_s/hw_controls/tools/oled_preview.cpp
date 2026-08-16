@@ -102,6 +102,34 @@ int main(int argc, char *argv[]) {
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 7);
 
+    // A mode name too long for its line, at four points around its cycle,
+    // driven by the same clock the instrument uses. 500ms is one tick, which
+    // is one step once it is moving and a third of a hold when it is not.
+    //
+    // What the last two frames are for: the held end has to show the final
+    // character of the name, or the scroll stops short and part of the name is
+    // never readable, and the frame after it has to be back at the beginning.
+    pages.tickNotify(10000);
+    pages.setPage(OLED_PAGE_PERFORM);
+    pages.setText("mode", "S - Sound Jaws - Uniform Color");
+    pages.tickScroll(500.f);   // this one is taken by the name having changed
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 8);
+
+    for (int t = 0; t < 7; t++) pages.tickScroll(500.f);   // five along
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 9);
+
+    for (int t = 0; t < 11; t++) pages.tickScroll(500.f);  // held at the end
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 10);
+
+    for (int t = 0; t < 2; t++) pages.tickScroll(500.f);   // and round again
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 11);
+
+    pages.setText("mode", "S - Bounce Bounce");
+
     // the sequencer armed rather than recording, worst case top bar
     pages.tickNotify(10000);
     pages.setPage(OLED_PAGE_KEYS);

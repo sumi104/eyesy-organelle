@@ -10,6 +10,12 @@
 // the 5x8 font advances 6px per character, so 21 characters fit across
 #define MAXCHARS 21
 
+// A mode name wider than its line slides through it instead of being cut off.
+// Two characters a second is about reading pace, and both ends stop long
+// enough that the start and the finish are read rather than caught going past.
+#define SCROLL_STEP_MS 500.f
+#define SCROLL_HOLD_MS 1500.f
+
 static const char *KEY_NAMES[OLED_KEY_SLOTS] = {
     "C", "D", "E", "F", "G", "A", "B"
 };
@@ -41,6 +47,10 @@ OledPages::OledPages() {
     notifyLine2[0] = 0;
     notifyWarn = false;
     notifyTimeLeft = 0;
+    scrollOffset = 0;
+    scrollMax = 0;
+    scrollMs = 0;
+    scrollText[0] = 0;
 }
 
 void OledPages::nextPage() {
@@ -107,6 +117,47 @@ void OledPages::tickNotify(float elapsedMs) {
         notifyLine2[0] = 0;
         dirty = true;
     }
+}
+
+void OledPages::resetScroll() {
+    if (scrollOffset != 0) dirty = true;
+    scrollOffset = 0;
+    scrollMs = 0;
+}
+
+void OledPages::tickScroll(float elapsedMs) {
+    // Only the perform page shows the mode name. Leaving the page puts the
+    // name back to its start, so coming back to it reads from the beginning
+    // rather than wherever it had wandered to while you were not looking.
+    if (page != OLED_PAGE_PERFORM) {
+        resetScroll();
+        return;
+    }
+
+    // A new mode starts from the left as well. Without this a short name
+    // inherits a long one's offset and turns up already part way through,
+    // or with nothing on the line at all.
+    if (strcmp(scrollText, st.mode)) {
+        copyText(scrollText, st.mode);
+        resetScroll();
+        return;
+    }
+
+    // renderPerform works out how much of the name is over the end, so a name
+    // that fits sits still and costs nothing. It is a frame behind after the
+    // name changes, which the reset above has already covered.
+    if (scrollMax <= 0) {
+        resetScroll();
+        return;
+    }
+
+    scrollMs += elapsedMs;
+    bool atEnd = scrollOffset == 0 || scrollOffset >= scrollMax;
+    if (scrollMs < (atEnd ? SCROLL_HOLD_MS : SCROLL_STEP_MS)) return;
+    scrollMs = 0;
+
+    scrollOffset = (scrollOffset >= scrollMax) ? 0 : scrollOffset + 1;
+    dirty = true;
 }
 
 /* drawing helpers */
@@ -216,8 +267,18 @@ void OledPages::renderTopBar(OledScreen &s) {
 void OledPages::renderPerform(OledScreen &s) {
     char buf[64];
 
-    snprintf(buf, sizeof(buf), "%d/%d %s",
-             st.modeIndex + 1, st.modeCount, st.mode);
+    // "12/57 " stays put and the name slides through what is left of the
+    // line. Which one of the two is worth scrolling is not a close call: the
+    // number is two or three characters and is read at a glance, the name is
+    // the part that runs off the end.
+    int prefix = snprintf(buf, sizeof(buf), "%d/%d ",
+                          st.modeIndex + 1, st.modeCount);
+    if (prefix < 0 || prefix > MAXCHARS) prefix = MAXCHARS;
+    int room = MAXCHARS - prefix;
+    int over = (int) strlen(st.mode) - room;
+    scrollMax = (room > 0 && over > 0) ? over : 0;
+    int off = scrollOffset > scrollMax ? scrollMax : scrollOffset;
+    snprintf(buf + prefix, sizeof(buf) - prefix, "%s", st.mode + off);
     s.setLine(1, buf);
 
     if (st.sceneIndex >= 0)

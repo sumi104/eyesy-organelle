@@ -146,6 +146,7 @@ int main(int argc, char* argv[]) {
             float elapsed = oledTimer.getElapsed();
             oledTimer.reset();
             oledPages.tickNotify(elapsed);
+            oledPages.tickScroll(elapsed);
             if (oledPages.isDirty()) {
                 oledPages.render(oledScreen);
                 controls.updateOLED(oledScreen);

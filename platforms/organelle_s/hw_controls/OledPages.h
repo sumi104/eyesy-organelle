@@ -104,6 +104,12 @@ class OledPages
         void notify(const char *line1, const char *line2, bool warn);
         void tickNotify(float elapsedMs);
 
+        // Slides a mode name too long for its line through the room it has,
+        // a character at a time, holding at each end. Called on the same tick
+        // as tickNotify. Wrapping is what this avoids: the line under it is
+        // the scene and has nowhere to move down to.
+        void tickScroll(float elapsedMs);
+
         // true when something changed since the last render
         bool isDirty() { return dirty; }
         void touch() { dirty = true; }
@@ -117,6 +123,13 @@ class OledPages
         char notifyLine2[OLED_TEXT_LEN];
         bool notifyWarn;
         float notifyTimeLeft;
+
+        // marquee state for the mode name on the perform page
+        void resetScroll();
+        int scrollOffset;       // characters currently off the left
+        int scrollMax;          // how many there are to give, 0 when it fits
+        float scrollMs;         // since the last step
+        char scrollText[OLED_TEXT_LEN];   // to notice the mode changing
 
         void renderTopBar(OledScreen &s);
         void renderPerform(OledScreen &s);
