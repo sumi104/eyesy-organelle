@@ -230,6 +230,24 @@ There is no on/off switch because zero on the knob is the codec's own mute.
 The knob has to be moved a little before it takes hold, so pressing shift
 never jumps the level to wherever knob 5 was left sitting.
 
+**Knob 5 hands itself back to the mode where you leave it.** It is a mode
+parameter the rest of the time, and letting go of shift gives it to the mode at
+its new position rather than the one it had. Shift on knob 1 has always done
+this with the gain; setting the level here is the same thing on knob 5. Put the
+knob back before letting go if that parameter was somewhere you wanted it.
+
+**The headphone jack follows the knob, the 1/4in outputs do not.** They are
+different pins on the codec. The level control lives inside the headphone
+amplifier, and the 1/4in outputs are taken from the output mixer ahead of it,
+so they carry the passthrough at a fixed line level however the knob is set —
+and they do not get the +6dB at the top of it either. Whatever is downstream is
+expected to have its own level, which is what makes knob 5 a monitoring
+control.
+
+The stock Organelle is not like this because Pd scales the samples before they
+reach the DAC, which is ahead of both jacks. Nothing here goes near the DAC,
+which is the whole reason it is free.
+
 The output amp is the level control, which nothing else uses. The input gain
 (shift + knob 1) is a software multiplier applied to the analysis only, so the
 two do not interact: turning the visuals up does not turn the monitor up.
