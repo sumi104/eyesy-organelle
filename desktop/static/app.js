@@ -258,7 +258,7 @@ async function poll() {
     if (!next || !next.modes) return;
     state = next;
 
-    const modesKey = state.modes.join(" ") + "|" + state.mode;
+    const modesKey = state.modes.join("\x00") + "|" + state.mode;
     const errorsKey = JSON.stringify(state.mode_errors);
     if (modesKey !== lastModes || errorsKey !== lastErrors) {
       lastModes = modesKey;
