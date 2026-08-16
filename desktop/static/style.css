@@ -271,8 +271,8 @@ input[type=range] {
 /* ---- bottom panels ---- */
 
 #bottom {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 14px 16px;
   border-top: 1px solid var(--line);
@@ -283,6 +283,16 @@ input[type=range] {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 10px;
+  flex: 1 1 230px;
+  min-width: 0;
+}
+
+/* A traceback is what lands here, and in a third of the window it comes out
+   as a column of broken words. The audio and stream panels are short rows of
+   controls and suit a narrow column; this one wants the whole width, so it
+   takes a line of its own underneath them. */
+#status-panel {
+  flex-basis: 100%;
 }
 
 .panel h2 {
@@ -376,13 +386,19 @@ select {
 
 #error {
   margin: 0;
-  max-height: 130px;
+  /* a python traceback from a mode runs to a dozen lines or so, and the point
+     of the panel is reading one without scrolling it a line at a time */
+  max-height: 260px;
   overflow: auto;
   font-family: ui-monospace, Menlo, monospace;
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.45;
   color: var(--bad);
   white-space: pre-wrap;
+  tab-size: 4;
 }
+
+#error:empty { display: none; }
 
 /* ---- editor ---- */
 
