@@ -30,8 +30,12 @@ class ScreenFlashDrive(Screen):
             MenuItem('◀  Exit', self.goto_home)
         ]
 
-        # the pedal jack is only wired up on the organelle
+        # Both of these belong to keys and a jack that only the organelle has.
+        # The cycle drives the A# mode and scene picker and the palette wobble
+        # on upper C and D; nothing on EYESY hardware can switch either on, so
+        # the row would be a setting with nothing to set.
         self.footswitch_item = None
+        self.interval_item = None
         if organelle.is_organelle():
             self.footswitch_item = MenuItem("", self.save_footswitch)
             self.footswitch_item.adjustable = True
@@ -40,7 +44,17 @@ class ScreenFlashDrive(Screen):
             self.footswitch_item.max_value = len(eyesy.FOOTSWITCH_ACTIONS) - 1
             items.insert(0, self.footswitch_item)
 
+            self.interval_item = MenuItem("", self.save_interval)
+            self.interval_item.adjustable = True
+            self.interval_item.name = "auto_random_interval"
+            self.interval_item.min_value = 0
+            self.interval_item.max_value = len(eyesy.AUTO_RANDOM_INTERVALS) - 1
+            items.insert(1, self.interval_item)
+
         self.menu = WidgetMenu(eyesy, items)
+        # every row at once, so Exit does not slide under a scrollbar the way
+        # it did when the pedal row arrived
+        self.menu.visible_items = len(items)
         self.menu.off_y = 43
         self.font = pygame.font.Font("font.ttf", 16)
         self.font_small = pygame.font.Font("font.ttf", 12)
@@ -59,6 +73,16 @@ class ScreenFlashDrive(Screen):
         if self.footswitch_item is not None:
             self.footswitch_item.value = self.eyesy.config["footswitch"]
             self.relabel_footswitch()
+
+        if self.interval_item is not None:
+            seconds = self.eyesy.config["auto_random_interval"]
+            try:
+                self.interval_item.value = \
+                    self.eyesy.AUTO_RANDOM_INTERVALS.index(seconds)
+            except ValueError:
+                self.interval_item.value = 0
+            self.relabel_interval()
+
         self.ensure_usb_mounted()
 
     def after(self):
@@ -68,13 +92,24 @@ class ScreenFlashDrive(Screen):
         action = self.eyesy.FOOTSWITCH_ACTIONS[self.footswitch_item.value]
         self.footswitch_item.text = f"Foot Switch: {action}"
 
+    def relabel_interval(self):
+        seconds = self.eyesy.AUTO_RANDOM_INTERVALS[self.interval_item.value]
+        every = "Random" if seconds < 0 else f"{seconds} sec"
+        self.interval_item.text = f"Auto Random Cycle: {every}"
+
+    def relabel(self, item):
+        if item is self.interval_item:
+            self.relabel_interval()
+        elif item is self.footswitch_item:
+            self.relabel_footswitch()
+
     def menu_dec_value(self, item):
         item.value = max(item.value - item.value_delta, item.min_value)
-        self.relabel_footswitch()
+        self.relabel(item)
 
     def menu_inc_value(self, item):
         item.value = min(item.value + item.value_delta, item.max_value)
-        self.relabel_footswitch()
+        self.relabel(item)
 
     def trigger_held(self):
         """The pedal or the B key is down right now.
@@ -97,6 +132,11 @@ class ScreenFlashDrive(Screen):
         if self.trigger_held():
             return
         self.eyesy.config["footswitch"] = self.footswitch_item.value
+        self.eyesy.save_config_file()
+
+    def save_interval(self):
+        self.eyesy.config["auto_random_interval"] = \
+            self.eyesy.AUTO_RANDOM_INTERVALS[self.interval_item.value]
         self.eyesy.save_config_file()
 
     def handle_events(self):

@@ -14,6 +14,11 @@ sys.path.insert(0, os.path.dirname(HERE))
 os.chdir(os.path.dirname(HERE))
 
 
+# the cycle row and the pedal row only exist on the instrument that has the
+# keys and the jack, and this has to be set before organelle is imported
+os.environ["EYESY_PLATFORM"] = "organelle_s"
+
+
 def _install_stubs():
     liblo = types.ModuleType("liblo")
     liblo.Address = lambda *a, **k: object()
@@ -46,7 +51,7 @@ _install_stubs()
 import eyesy as eyesy_module        # noqa: E402
 import oled                         # noqa: E402
 import organelle                    # noqa: E402
-import screen_key_modes as skm      # noqa: E402
+from screen_flash_drive import ScreenFlashDrive   # noqa: E402
 
 
 class AutoRandomTest(unittest.TestCase):
@@ -162,13 +167,17 @@ class AutoRandomTest(unittest.TestCase):
             self.assertLessEqual(len(self.e.auto_random_text()), 21)
 
     # --- the settings screen --------------------------------------------
+    #
+    # The cycle used to live on a Mode Keys screen that no longer exists. It
+    # has no key of its own, so it moved to System rather than disappearing
+    # with the screen that happened to be hosting it.
 
     def test_the_interval_row_offers_every_choice(self):
-        screen = skm.ScreenKeyModes(self.e)
+        screen = ScreenFlashDrive(self.e)
         seen = []
         for value in range(0, len(self.e.AUTO_RANDOM_INTERVALS)):
             screen.interval_item.value = value
-            screen._relabel(screen.interval_item)
+            screen.relabel_interval()
             seen.append(screen.interval_item.text)
         self.assertEqual(seen, ["Auto Random Cycle: 15 sec",
                                 "Auto Random Cycle: 30 sec",
@@ -177,46 +186,42 @@ class AutoRandomTest(unittest.TestCase):
                                 "Auto Random Cycle: Random"])
 
     def test_the_interval_saves_as_seconds_not_as_a_row_number(self):
-        screen = skm.ScreenKeyModes(self.e)
+        screen = ScreenFlashDrive(self.e)
         screen.before()
         screen.interval_item.value = 3          # the 60 sec row
-        screen.save()
+        screen.save_interval()
         self.assertEqual(self.e.config["auto_random_interval"], 60)
 
         screen.before()
         self.assertEqual(screen.interval_item.value, 3, "and comes back")
 
-    def test_the_mode_slots_still_line_up_under_the_new_row(self):
-        self.e.key_modes[0] = "Gamma"
-        self.e.key_modes[6] = "Beta"
-        screen = skm.ScreenKeyModes(self.e)
-        screen.before()
-        self.assertIn("Gamma", screen.slot_items[0].text)
-        self.assertIn("Beta", screen.slot_items[6].text)
-        self.assertTrue(screen.slot_items[0].text.startswith("C "))
-        self.assertTrue(screen.slot_items[6].text.startswith("B "))
-
-        screen.slot_items[0].value = screen._mode_index("Delta")
-        screen.save()
-        self.assertEqual(self.e.key_modes[0], "Delta")
-        self.assertEqual(self.e.key_modes[6], "Beta")
-
-    def test_adjusting_respects_each_row_s_own_limits(self):
-        screen = skm.ScreenKeyModes(self.e)
+    def test_adjusting_stops_at_the_ends(self):
+        screen = ScreenFlashDrive(self.e)
         screen.before()
 
         for _ in range(20):
             screen.menu_inc_value(screen.interval_item)
         self.assertEqual(screen.interval_item.value,
                          len(self.e.AUTO_RANDOM_INTERVALS) - 1)
+        for _ in range(20):
+            screen.menu_dec_value(screen.interval_item)
+        self.assertEqual(screen.interval_item.value, 0)
 
-        slot = screen.slot_items[0]
-        for _ in range(20):
-            screen.menu_inc_value(slot)
-        self.assertEqual(slot.value, len(self.e.mode_names) - 1)
-        for _ in range(20):
-            screen.menu_dec_value(slot)
-        self.assertEqual(slot.value, -1, "one below the first mode is None")
+    def test_the_two_adjustable_rows_relabel_independently(self):
+        # one relabel() dispatches for both, and getting it wrong would put
+        # the pedal's text on the cycle row
+        screen = ScreenFlashDrive(self.e)
+        screen.before()
+        screen.menu_inc_value(screen.interval_item)
+        screen.menu_inc_value(screen.footswitch_item)
+        self.assertIn("Auto Random Cycle", screen.interval_item.text)
+        self.assertIn("Foot Switch", screen.footswitch_item.text)
+
+    def test_every_row_is_on_screen_at_once(self):
+        # Exit is the row the cursor opens on, so it cannot be below the fold
+        screen = ScreenFlashDrive(self.e)
+        self.assertGreaterEqual(screen.menu.visible_items,
+                                len(screen.menu.items))
 
 
 class LoopOrderTest(unittest.TestCase):

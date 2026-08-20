@@ -95,7 +95,9 @@ Hold **C#** for the shifted layer.
 | F# | Audio input mute | Freeze the picture |
 | G# | MIDI clock mute | MIDI note mute |
 | A# | Auto random: off, then modes, then scenes, then off | — |
-| Upper octave white keys | Recall the mode stored on that key | Store the playing mode there |
+| Upper octave `C` / `D` | Wobble the foreground / background palette, tap again to stop | — |
+| Upper octave `E` | MIDI channel +1, wrapping at 16 | — |
+| Upper octave `F` `G` `A` `B` | — | — |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Save scene, or the same as `B` — Settings > System picks which | Knob sequence arm / disarm, when set to Trigger |
 
@@ -123,15 +125,46 @@ Which of the two jobs the pedal has gets latched when it goes down, and the
 on screen. Letting the setting move under a press already in flight is how the
 test tone ends up playing with no way back.
 
-Mode assignments live in `key_modes` in `/sdcard/System/config.json` and are
-saved as soon as a key is stored. A config written when the whole upper octave
-was mode slots is carried over, keeping what the white keys held.
+## Palette wobble
 
-**Settings → Mode Keys** shows all seven at once, under the auto random
-interval. `C` and `D` step a slot through the modes, and one step below the
-first mode is `None` — that is how an assignment is cleared. There is no
-gesture for clearing one while playing: shift and a white key always stores
-whatever is playing now.
+Upper octave `C` picks a new foreground palette every so often, `D` does the
+same for the background, and pressing the key again stops it. Each switches on
+with a change rather than waiting out a cycle first, so the key has something
+to show for itself, and neither ever picks the palette already showing.
+
+**It runs on the Auto Random Cycle clock, not on the trigger.** This is the one
+way it is unlike the knob wobble, and the difference is the point: a palette
+that changed on every kick drum would be a strobe rather than a colour scheme.
+It does not need the `A#` picker switched on — it borrows that setting's
+interval, not the feature.
+
+The two run on separate clocks. Started at different moments they change at
+different moments, which is what you want; one clock would make the whole
+picture blink at once.
+
+Scenes carry it, the same way they carry the knob wobble. A scene also stores
+the palette numbers that were showing, and recalling one with the wobble on
+will move off them within a cycle — which is exactly what the knobs do too. A
+scene saved before this existed loads with both off.
+
+The `MOD` page of the OLED has a lamp for each, and switching one says on
+screen how often it will move. There is deliberately no letter for it in the
+top bar; see [OLED](#oled).
+
+## MIDI channel
+
+Upper octave `E` steps the MIDI channel by one, wrapping from 16 back to 1, and
+says the new number on screen. It is also on **Settings → Audio MIDI Settings**,
+which is where it was before it had a key.
+
+**It steps on the way up, not the way down, and holding it does nothing.** The
+other repeating keys here fire every frame once they start, which would run 1
+to 16 in about half a second and make landing on a channel a matter of luck. A
+key leaned on cannot walk the channel away from you.
+
+It works with a menu open too, since it is a setting rather than a performance
+control, and the MIDI page is where you would be looking while you set it. Each
+press is written to `config.json`.
 
 ## Auto random
 
@@ -140,10 +173,11 @@ random, and off again. It moves the moment it is switched on rather than
 leaving you wondering whether the key did anything, and it never picks what is
 already playing, which would look the same as nothing happening.
 
-How long it waits is set on **Settings → Mode Keys**: 15, 30, 50 or 60
-seconds, or `Random`, which draws a fresh interval between 15 and 60 seconds
-each time. `M` or `S` in the top bar of the OLED says it is running and which
-of the two it is picking.
+How long it waits is set on **Settings → System** as **Auto Random Cycle**: 15,
+30, 50 or 60 seconds, or `Random`, which draws a fresh interval between 15 and
+60 seconds each time. The same setting times the palette wobble above, so it is
+the one dial for how restless the instrument is. `M` or `S` in the top bar of
+the OLED says the picker is running and which of the two it is picking.
 
 It holds still while a menu is open, so it cannot change the mode out from
 under someone reading a settings page. Picking scenes with none saved does
@@ -298,7 +332,7 @@ dot next to the page number marks the ones that respond.
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — wifi network, IP address, resolution, frame rate, version | — |
 | 3 | **MIDI** — channel, knob CCs, trigger source, input device, and whichever clock is driving: MIDI, or the Link tempo and peer count | — |
-| 4 | **MODE KEYS** — knob modulation lamps, and what each white key recalls | — |
+| 4 | **MOD** — knob modulation lamps, the two palette wobble lamps, and the MIDI channel | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CONTROLS** — the key map above, in short form | — |
 
@@ -330,9 +364,17 @@ Letters in the top bar: `X` audio muted, `K` clock muted, `N` notes muted,
 picking scenes, `r` sequencer armed, `R` recording, `Q` sequence playing,
 `^` shift held.
 
-Seven fit before the wifi icon and eight can be set at once, so they are in
-the order they are given up: `^` goes first, being the only one you are
-holding down while you read it.
+Eight fit before the wifi icon and eight is as many as can be set at once,
+since `M` and `S` are the two things the picker can be doing and only one of
+them is ever true. They are still written in the order they would be given up,
+`^` first, being the only one you are holding down while you read it. The
+eighth slot came from retiring `MODE KEYS`: at nine characters it was the
+longest page name and it cost a letter.
+
+**The palette wobble has no letter here on purpose.** It follows the knob
+wobble instead — a lamp on the `MOD` page and a message when it is switched —
+which is what keeps this row from growing every time something new can be
+switched on.
 
 Audio mute is `X` and shift is `^` because the auto picker wanted `M` and `S`
 to say which of the two things it is picking, and one letter meaning two
@@ -340,7 +382,7 @@ things is worse than a letter that has to be learned.
 
 On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
 volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar
-means that knob is being wobbled — the same filled circle MODE KEYS uses, and
+means that knob is being wobbled — the same filled circle the MOD page uses, and
 drawn only for the knobs it applies to, so the usual case stays quiet.
 
 The thin bar blinking under the meters is the trigger, the same thing the

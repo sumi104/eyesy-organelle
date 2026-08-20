@@ -46,6 +46,9 @@ FLAG_KNOB_MOD = 1 << 15
 FLAG_AUTO_MODES  = 1 << 20
 FLAG_AUTO_SCENES = 1 << 21
 FLAG_SEQ_ARM     = 1 << 22
+# the palette wobble, one per palette, on the upper octave C and D keys
+FLAG_PAL_MOD_FG  = 1 << 23
+FLAG_PAL_MOD_BG  = 1 << 24
 
 # how often the packed state message goes out, the display refreshes at 20hz
 STATE_INTERVAL = 0.05
@@ -77,8 +80,6 @@ def init(eyesy):
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
     send_text("trig", eyesy.TRIGGER_SOURCES[eyesy.config["trigger_source"]])
     send_stream_info(eyesy)
-    for slot, name in enumerate(eyesy.key_modes):
-        send_keymap(slot, name)
 
     threading.Thread(target=_net_loop, daemon=True).start()
 
@@ -132,12 +133,6 @@ def send_text(key, value):
         return
     _texts[key] = value
     osc.send("/oled/text", key, value)
-
-
-def send_keymap(slot, name):
-    if not enabled:
-        return
-    osc.send("/oled/keymap", int(slot), str(name) if name else "")
 
 
 def set_page(page):
@@ -204,6 +199,8 @@ def update(eyesy):
         if on: flags |= FLAG_KNOB_MOD << i
     if eyesy.auto_random == eyesy.AUTO_RANDOM_MODES:  flags |= FLAG_AUTO_MODES
     if eyesy.auto_random == eyesy.AUTO_RANDOM_SCENES: flags |= FLAG_AUTO_SCENES
+    if eyesy.palette_mod[eyesy.PALETTE_FG]: flags |= FLAG_PAL_MOD_FG
+    if eyesy.palette_mod[eyesy.PALETTE_BG]: flags |= FLAG_PAL_MOD_BG
     _trig_seen = False
 
     osc.send(

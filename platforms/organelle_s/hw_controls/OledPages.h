@@ -20,7 +20,7 @@ engine is busy drawing or restarting.
 #define OLED_PAGE_PERFORM 0
 #define OLED_PAGE_STATUS  1
 #define OLED_PAGE_MIDI    2
-#define OLED_PAGE_KEYS    3
+#define OLED_PAGE_MOD     3
 #define OLED_PAGE_STREAM  4
 #define OLED_PAGE_HELP    5
 
@@ -45,11 +45,11 @@ engine is busy drawing or restarting.
 #define OLED_FLAG_AUTO_MODES  (1 << 20)
 #define OLED_FLAG_AUTO_SCENES (1 << 21)
 #define OLED_FLAG_SEQ_ARM     (1 << 22)
+// the palette wobble, one per palette, on the upper octave C and D keys
+#define OLED_FLAG_PAL_MOD_FG  (1 << 23)
+#define OLED_FLAG_PAL_MOD_BG  (1 << 24)
 
 #define OLED_TEXT_LEN 40
-
-// one per upper octave white key
-#define OLED_KEY_SLOTS 7
 
 struct OledState {
     int knobs[5];          // 0 - 1023
@@ -74,7 +74,6 @@ struct OledState {
     char ver[OLED_TEXT_LEN];
     char url[OLED_TEXT_LEN];       // where to watch the live stream
     char streamInfo[OLED_TEXT_LEN]; // size and frame rate of the stream
-    char keymap[OLED_KEY_SLOTS][OLED_TEXT_LEN];
 };
 
 class OledPages
@@ -96,7 +95,6 @@ class OledPages
         // nothing to switch here and the encoder press should do nothing.
         // The engine maps these in osc.py.
         const char *toggleAction();
-        void setKeymap(int slot, const char *name);
 
         // Transient message over the current page. warn marks the ones that
         // say an action did not happen, which get a different mark and a
@@ -155,7 +153,7 @@ class OledPages
         void renderPerform(OledScreen &s);
         void renderStatus(OledScreen &s);
         void renderMidi(OledScreen &s);
-        void renderKeys(OledScreen &s);
+        void renderMod(OledScreen &s);
         void renderStream(OledScreen &s);
         void renderHelp(OledScreen &s);
         void renderNotify(OledScreen &s);

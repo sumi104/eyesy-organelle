@@ -45,14 +45,17 @@ int main(int argc, char *argv[]) {
              | OLED_FLAG_WIFI | OLED_FLAG_SEQ_PLAY | OLED_FLAG_MIDI_ACT
              | OLED_FLAG_STREAM
              | OLED_FLAG_KNOB_MOD(0) | OLED_FLAG_KNOB_MOD(2)
-             | OLED_FLAG_KNOB_MOD(3);
+             | OLED_FLAG_KNOB_MOD(3)
+             // one palette wobbling and one not, so the MOD page shows both
+             // states of the lamp rather than a column of the same circle
+             | OLED_FLAG_PAL_MOD_FG;
     st.modeIndex = 11;
     st.modeCount = 57;
     st.sceneIndex = 1;
     st.sceneCount = 8;
     st.fps = 30;
     st.wifiLevel = 3;
-    st.midiChannel = 1;
+    st.midiChannel = 16;   // two digits, the wider case to lay out
     int cc[5] = { 20, 21, 22, 23, 24 };
     for (int i = 0; i < 5; i++) st.knobCC[i] = cc[i];
 
@@ -66,11 +69,6 @@ int main(int argc, char *argv[]) {
     pages.setText("ver", "3.1");
     pages.setText("url", "192.168.1.42/live");
     pages.setText("sinfo", "480x270 12fps");
-
-    const char *slots[OLED_KEY_SLOTS] = {
-        "Bounce", "Trails", "Grid", "", "Spiral", "Wave", "Strobe"
-    };
-    for (int i = 0; i < OLED_KEY_SLOTS; i++) pages.setKeymap(i, slots[i]);
 
     for (int p = 0; p < OLED_NUM_PAGES; p++) {
         pages.setPage(p);
@@ -132,7 +130,7 @@ int main(int argc, char *argv[]) {
 
     // the sequencer armed rather than recording, worst case top bar
     pages.tickNotify(10000);
-    pages.setPage(OLED_PAGE_KEYS);
+    pages.setPage(OLED_PAGE_MOD);
     st.flags = OLED_FLAG_AUDIO_MUTE | OLED_FLAG_CLOCK_MUTE | OLED_FLAG_NOTE_MUTE
              | OLED_FLAG_FREEZE | OLED_FLAG_PERSIST | OLED_FLAG_SHIFT
              | OLED_FLAG_AUTO_MODES | OLED_FLAG_SEQ_ARM;

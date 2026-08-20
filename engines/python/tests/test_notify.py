@@ -53,7 +53,7 @@ import oled                         # noqa: E402
 import organelle                    # noqa: E402
 
 # the upper octave keys these tests press
-MODE_KEY_C = next(k for k, slot in organelle.MODE_SLOTS.items() if slot == 0)
+PALETTE_KEY_FG = organelle.UPPER_C
 MOD_KEY_KNOB2 = next(k for k, i in organelle.KNOB_MOD_KEYS.items() if i == 1)
 
 # what the small font fits, from the x each line starts at in renderNotify()
@@ -133,22 +133,18 @@ class NotifyTest(unittest.TestCase):
 
     # --- which call sites are warnings ------------------------------------
 
-    def test_an_empty_mode_key_warns(self):
-        self.e.key_modes[0] = ""
-        self.tap(MODE_KEY_C)
-        self.assertEqual(self.last()[2], 1)
-
-    def test_a_mode_key_pointing_at_a_deleted_mode_warns(self):
-        self.e.key_modes[0] = "Vanished"
-        self.tap(MODE_KEY_C)
+    def test_switching_a_palette_wobble_on_does_not_warn(self):
+        self.tap(PALETTE_KEY_FG)
         heading, detail, warn = self.last()
-        self.assertIn("Vanished", detail)
-        self.assertEqual(warn, 1)
+        self.assertEqual(heading, "FG Palette")
+        # it says how often it will move, which is the thing you cannot see
+        self.assertIn("every", detail)
+        self.assertEqual(warn, 0)
 
-    def test_a_mode_key_that_works_does_not_warn(self):
-        self.e.key_modes[0] = "Beta"
-        self.tap(MODE_KEY_C)
-        self.assertEqual(self.last(), ("C", "Beta", 0))
+    def test_switching_a_palette_wobble_off_does_not_warn(self):
+        self.tap(PALETTE_KEY_FG)
+        self.tap(PALETTE_KEY_FG)
+        self.assertEqual(self.last(), ("FG Palette", "steady", 0))
 
     def test_modulation_refused_by_the_sequencer_warns(self):
         self.e.knob_seq_state = "playing"

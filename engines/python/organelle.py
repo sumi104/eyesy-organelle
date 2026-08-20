@@ -21,17 +21,21 @@ FOOTSWITCH = 25
 KEY_C, KEY_CS, KEY_D, KEY_DS, KEY_E, KEY_F = 1, 2, 3, 4, 5, 6
 KEY_FS, KEY_G, KEY_GS, KEY_A, KEY_AS, KEY_B = 7, 8, 9, 10, 11, 12
 
-# Upper octave. The white keys recall modes and the black keys switch random
-# modulation on and off for the knob above them, left to right.
+# Upper octave. The black keys switch random modulation on and off for the
+# knob above them, left to right. Three of the white keys took over what used
+# to be Mode Keys: C and D wobble a palette, E steps the MIDI channel. F, G, A
+# and B are unassigned.
 UPPER_OCTAVE_FIRST = 13
-NUM_MODE_SLOTS = 7
 
-# raw key index -> mode slot, the seven white keys of the upper octave
-MODE_SLOTS = {13: 0, 15: 1, 17: 2, 18: 3, 20: 4, 22: 5, 24: 6}
-SLOT_NAMES = ["C", "D", "E", "F", "G", "A", "B"]
+UPPER_C = 13    # foreground palette wobble on / off
+UPPER_D = 15    # background palette wobble on / off
+UPPER_E = 17    # midi channel +1 per press, wrapping at 16
 
 # raw key index -> knob 0-4, the five black keys of the upper octave
 KNOB_MOD_KEYS = {14: 0, 16: 1, 19: 2, 21: 3, 23: 4}
+
+# raw key index -> which palette, see eyesy.PALETTE_FG / PALETTE_BG
+PALETTE_MOD_KEYS = {UPPER_C: 0, UPPER_D: 1}
 
 # the panel button the pedal borrows when it is set to Trigger
 EYESY_TRIGGER_BUTTON = 10
@@ -55,37 +59,14 @@ def is_organelle():
     return os.environ.get("EYESY_PLATFORM", "") == "organelle_s"
 
 
-def slot_for_key(k):
-    """Mode slot 0-6 for an upper octave white key, or None."""
-    return MODE_SLOTS.get(k)
-
-
 def knob_for_key(k):
     """Knob 0-4 for an upper octave black key, or None."""
     return KNOB_MOD_KEYS.get(k)
 
 
-def _recall_mode(eyesy, slot):
-    name = eyesy.key_modes[slot]
-    if not name:
-        oled.warn(SLOT_NAMES[slot], "not assigned")
-        return
-    try:
-        eyesy.set_mode_by_name(name)
-    except ValueError:
-        print(f"key slot {slot} points at missing mode {name}")
-        oled.warn(SLOT_NAMES[slot], f"missing: {name}")
-        return
-    oled.notify(SLOT_NAMES[slot], name)
-
-
-def _assign_mode(eyesy, slot):
-    eyesy.key_modes[slot] = eyesy.mode
-    eyesy.config["key_modes"] = list(eyesy.key_modes)
-    eyesy.save_config_file()
-    oled.send_keymap(slot, eyesy.mode)
-    oled.notify(f"{SLOT_NAMES[slot]} set", eyesy.mode)
-    print(f"assigned mode {eyesy.mode} to key slot {slot}")
+def palette_for_key(k):
+    """Palette 0 or 1 for upper C or D, or None."""
+    return PALETTE_MOD_KEYS.get(k)
 
 
 def dispatch_key(eyesy, k, v):
@@ -93,15 +74,22 @@ def dispatch_key(eyesy, k, v):
     pressed = v > 0
     shift = eyesy.key2_status
 
-    # the white keys of the upper octave recall modes, holding shift while
-    # pressing one stores the mode that is playing right now
-    slot = slot_for_key(k)
-    if slot is not None:
+    # Upper C and D wobble a palette. Unlike the knob wobble this runs on the
+    # Auto Random Cycle clock rather than the trigger - a palette that changed
+    # on every kick drum would be a strobe.
+    palette = palette_for_key(k)
+    if palette is not None:
         if pressed and not eyesy.menu_mode:
-            if shift:
-                _assign_mode(eyesy, slot)
-            else:
-                _recall_mode(eyesy, slot)
+            on = eyesy.toggle_palette_mod(palette)
+            oled.notify(eyesy.PALETTE_NAMES[palette],
+                        eyesy.cycle_text() if on else "steady")
+        return
+
+    # Upper E steps the MIDI channel, one per press. It works in a menu too:
+    # it is a setting, and the MIDI page is where you would be looking while
+    # you set it.
+    if k == UPPER_E:
+        eyesy.midi_channel_key(pressed)
         return
 
     # The black keys up there wobble the knob above them. The key doubles as

@@ -28,7 +28,6 @@ from screen_applogs import ScreenApplogs
 from screen_midi_settings import ScreenMIDISettings
 from screen_midi_pc_mapping import ScreenMIDIPCMapping
 from screen_flash_drive import ScreenFlashDrive
-from screen_key_modes import ScreenKeyModes
 
 def exitexit(code):
     print("EXIT exiting\n")
@@ -204,7 +203,6 @@ try :
     eyesy.menu_screens["midi_settings"] = ScreenMIDISettings(eyesy)
     eyesy.menu_screens["midi_pc_mapping"] = ScreenMIDIPCMapping(eyesy)
     eyesy.menu_screens["flashdrive"] = ScreenFlashDrive(eyesy)
-    eyesy.menu_screens["key_modes"] = ScreenKeyModes(eyesy)
     eyesy.switch_menu_screen("home")
 
     # organelle s oled, no-op on eyesy hardware
@@ -257,6 +255,11 @@ while 1:
         # looked up, or the frame runs one mode's code against the next one's
         # mode_root and any mode that opens a file in draw() dies on it.
         eyesy.update_auto_random()
+
+        # the palette wobble runs on the same clock. it only sets fg_palette
+        # and bg_palette, which nothing above reads, but it belongs with the
+        # other thing that cycle drives.
+        eyesy.update_palette_mod()
 
         # get knobs, checking for override, and check for new note on
         # for the knobs, only changes are assinged

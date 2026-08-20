@@ -39,7 +39,6 @@ void setLED(OSCMessage &msg);
 void flashLED(OSCMessage &msg);
 void oledState(OSCMessage &msg);
 void oledText(OSCMessage &msg);
-void oledKeymap(OSCMessage &msg);
 void oledNotify(OSCMessage &msg);
 void oledPage(OSCMessage &msg);
 
@@ -99,7 +98,6 @@ int main(int argc, char* argv[]) {
                     || msgIn.dispatch("/led/flash", flashLED, 0)
                     || msgIn.dispatch("/oled/state", oledState, 0)
                     || msgIn.dispatch("/oled/text", oledText, 0)
-                    || msgIn.dispatch("/oled/keymap", oledKeymap, 0)
                     || msgIn.dispatch("/oled/notify", oledNotify, 0)
                     || msgIn.dispatch("/oled/page", oledPage, 0)
                     ;
@@ -210,13 +208,6 @@ void oledText(OSCMessage &msg) {
     msg.getString(0, key, sizeof(key));
     msg.getString(1, val, sizeof(val));
     oledPages.setText(key, val);
-}
-
-void oledKeymap(OSCMessage &msg) {
-    char val[64];
-    if (!msg.isInt(0) || !msg.isString(1)) return;
-    msg.getString(1, val, sizeof(val));
-    oledPages.setKeymap(msg.getInt(0), val);
 }
 
 void oledNotify(OSCMessage &msg) {

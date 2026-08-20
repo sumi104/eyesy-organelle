@@ -62,7 +62,6 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e = eyesy_module.Eyesy()
         # normally filled in by load_config_file()
         self.e.config = dict(self.e.DEFAULT_CONFIG)
-        self.e.config["key_modes"] = [""] * 12
         self.e.mode_names = ["Alpha", "Beta", "Gamma"]
         self.e.set_mode_by_index(0)
         self.e.scenes = []
@@ -188,36 +187,34 @@ class OrganelleKeyTest(unittest.TestCase):
                      "F#", "G", "G#", "A", "A#", "B"]
         return organelle.UPPER_OCTAVE_FIRST + chromatic.index(name)
 
-    def test_upper_octave_recalls_assigned_mode(self):
-        self.e.key_modes[2] = "Gamma"          # E
-        self.tap(self.upper("E"))
-        self.assertEqual(self.e.mode, "Gamma")
+    # Mode Keys is gone. C, D and E took its white keys and the rest are
+    # unassigned, so pressing one has to do nothing at all rather than fall
+    # through to whatever the lower octave key of that index does.
+    def test_the_leftover_white_keys_do_nothing(self):
+        before = (self.e.mode, self.e.fg_palette, self.e.bg_palette,
+                  self.e.config["midi_channel"])
+        for name in ("F", "G", "A", "B"):
+            self.tap(self.upper(name))
+        self.assertEqual((self.e.mode, self.e.fg_palette, self.e.bg_palette,
+                          self.e.config["midi_channel"]), before)
+        self.assertEqual(self.saved, [])
 
-    def test_upper_octave_ignores_empty_slot(self):
-        self.tap(self.upper("A"))
-        self.assertEqual(self.e.mode, "Alpha")
+    def test_upper_octave_no_longer_switches_mode(self):
+        for name in ("C", "D", "E", "F", "G", "A", "B"):
+            self.tap(self.upper(name))
+            self.assertEqual(self.e.mode, "Alpha")
 
-    def test_shift_upper_octave_assigns_current_mode(self):
-        self.e.set_mode_by_name("Beta")
-        self.press(organelle.KEY_CS)
-        self.tap(self.upper("G"))              # slot 4
-        self.assertEqual(self.e.key_modes[4], "Beta")
-        self.assertEqual(self.e.config["key_modes"][4], "Beta")
-        self.assertEqual(len(self.saved), 1, "assignment should be persisted")
-
-    def test_missing_mode_in_a_slot_does_not_crash(self):
-        self.e.key_modes[0] = "DeletedMode"
-        self.tap(self.upper("C"))
-        self.assertEqual(self.e.mode, "Alpha")
-
-    def test_white_keys_own_the_mode_slots_and_blacks_do_not(self):
-        whites = ["C", "D", "E", "F", "G", "A", "B"]
-        seen = {organelle.slot_for_key(self.upper(n)) for n in whites}
-        self.assertEqual(seen, set(range(7)))
-        for n in ["C#", "D#", "F#", "G#", "A#"]:
-            self.assertIsNone(organelle.slot_for_key(self.upper(n)))
-        self.assertIsNone(organelle.slot_for_key(organelle.KEY_B))
-        self.assertIsNone(organelle.slot_for_key(25))
+    def test_c_and_d_own_the_palettes_and_nothing_else_does(self):
+        self.assertEqual(organelle.palette_for_key(self.upper("C")),
+                         self.e.PALETTE_FG)
+        self.assertEqual(organelle.palette_for_key(self.upper("D")),
+                         self.e.PALETTE_BG)
+        for n in ["C#", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]:
+            self.assertIsNone(organelle.palette_for_key(self.upper(n)))
+        # the lower octave keys share no indices with the upper ones, and the
+        # pedal is not a keyboard key at all
+        self.assertIsNone(organelle.palette_for_key(organelle.KEY_C))
+        self.assertIsNone(organelle.palette_for_key(organelle.FOOTSWITCH))
 
     # --- upper octave black keys, knob modulation ----------------------
 
@@ -610,25 +607,18 @@ class OrganelleKeyTest(unittest.TestCase):
 
     # --- config -------------------------------------------------------
 
-    def test_an_old_twelve_slot_config_keeps_its_white_keys(self):
-        # the black keys of the upper octave became knob modulation, so a
-        # config written before that has to be carried over, not truncated
-        chromatic = ["cMode", "cs", "dMode", "ds", "eMode", "fMode",
-                     "fs", "gMode", "gs", "aMode", "as", "bMode"]
-        self.e.config["key_modes"] = list(chromatic)
-        self.e._validate_config_key_modes()
-        self.assertEqual(self.e.key_modes,
-                         ["cMode", "dMode", "eMode", "fMode",
-                          "gMode", "aMode", "bMode"])
-        self.assertEqual(self.e.config["key_modes"], self.e.key_modes)
+    def test_a_config_written_before_the_change_loses_its_mode_keys(self):
+        # every instrument out there has this in its config.json, and it now
+        # points at nothing. carrying it forever would mean the next person to
+        # read the file wondering what it does.
+        self.e.config["key_modes"] = ["cMode", "dMode", "", "", "", "", ""]
+        self.e.validate_config()
+        self.assertNotIn("key_modes", self.e.config)
 
-    def test_key_modes_config_is_always_seven_strings(self):
-        for bad in (None, [], ["only one"], list(range(20)), "nope",
-                    [""] * 7, [""] * 12):
-            self.e.config["key_modes"] = bad
-            self.e._validate_config_key_modes()
-            self.assertEqual(len(self.e.key_modes), 7, f"from {bad!r}")
-            self.assertTrue(all(isinstance(s, str) for s in self.e.key_modes))
+    def test_dropping_it_does_not_need_it_to_be_there(self):
+        self.e.config.pop("key_modes", None)
+        self.e.validate_config()
+        self.assertNotIn("key_modes", self.e.config)
 
     # --- the map itself -------------------------------------------------
 

@@ -65,6 +65,10 @@ class Eyesy:
         self.FOOTSWITCH_TRIGGER = 1
         self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX = 15, 60
 
+        # which palette a wobble is aimed at, the index into palette_mod
+        self.PALETTE_FG, self.PALETTE_BG = 0, 1
+        self.PALETTE_NAMES = ["FG Palette", "BG Palette"]
+
         self.DEFAULT_CONFIG = {
             "video_resolution": 3,
             "audio_gain": .25,
@@ -83,9 +87,6 @@ class Eyesy:
             "mode_cc": -1,
             "notes_change_mode": False,
             "pc_map": {},
-            # organelle s: modes recalled by the upper octave white keys, and
-            # the random knob wobble the black keys up there switch on
-            "key_modes": [""] * 7,
             # depth is how far the offset can swing either side of the knob,
             # rate is how quickly it gets to each new target. 0.15 comes out
             # at about one turn a second, which reads as a wobble rather than
@@ -95,7 +96,10 @@ class Eyesy:
             # step the wobble on the trigger rather than on a clock of its own,
             # so it follows the audio, the MIDI clock or the Link session
             "knob_mod_sync": True,
-            # seconds between automatic picks, -1 for a random interval
+            # Seconds between automatic picks, -1 for a random interval. Every
+            # part of the instrument that changes on its own runs on this: the
+            # A# mode and scene picker, and the palette wobble on upper C and
+            # D. One dial for how restless the thing is.
             "auto_random_interval": 30,
             # what the pedal jack does, see FOOTSWITCH_ACTIONS below
             "footswitch": 0,
@@ -239,9 +243,6 @@ class Eyesy:
         self.auto_random = 0
         self.auto_random_next = 0.0
 
-        # modes recalled by the upper octave white keys, filled from config
-        self.key_modes = [""] * 7
-
         # menu stuff
         self.current_screen = None
         self.menu_screens = {}
@@ -285,6 +286,13 @@ class Eyesy:
         self.color_lfo_index = 0
         self.palettes_user_defined = False
 
+        # Random palette changes, switched on from the upper octave C and D
+        # keys. Two independent clocks rather than one: started at different
+        # moments the two palettes should change at different moments, and
+        # tying them together would only make the picture blink.
+        self.palette_mod = [False, False]
+        self.palette_mod_next = [0.0, 0.0]
+
         # knob sequencer stuff
         self.knob_seq = []
         self.knob_seq_last_values = [-1] * 5
@@ -303,6 +311,7 @@ class Eyesy:
         self.thru_knob_capture = 0
         self.thru_knob_last = -1
         self.thru_value_snapshot = 0
+
     
         self.clear_flags()
 
@@ -433,25 +442,10 @@ class Eyesy:
         self.knob_mod_depth = [self.config["knob_mod_depth"]] * 5
         self._validate_config_int("stream_width", 320, 960)
         self._validate_config_int("stream_fps", 1, 30)
-        self._validate_config_key_modes()
-
-    # one mode name per upper octave white key, empty means unassigned
-    def _validate_config_key_modes(self):
-        slots = self.config.get("key_modes")
-        if not isinstance(slots, list):
-            slots = []
-        slots = [s if isinstance(s, str) else "" for s in slots]
-
-        # these used to be twelve chromatic slots, before the black keys up
-        # there were given over to knob modulation. carry the white ones over
-        if len(slots) == 12:
-            white = [0, 2, 4, 5, 7, 9, 11]
-            slots = [slots[i] for i in white]
-
-        slots = slots[:7]
-        slots += [""] * (7 - len(slots))
-        self.config["key_modes"] = slots
-        self.key_modes = list(slots)
+        # Mode Keys is gone - the upper octave white keys wobble the palettes
+        # and step the midi channel now. Drop what it left in the config file
+        # rather than carrying a dead setting around forever.
+        self.config.pop("key_modes", None)
 
     def save_config_file(self) :
         config_file = self.SYSTEM_PATH + "config.json"
@@ -821,18 +815,31 @@ class Eyesy:
         print(f"auto random {self.auto_random}")
         return self.auto_random
 
+    def cycle_text(self):
+        """How often anything on the Auto Random Cycle changes."""
+        seconds = self.config["auto_random_interval"]
+        return f"every {'random' if seconds < 0 else str(seconds) + 's'}"
+
     def auto_random_text(self):
         """Short enough for the display to say what it is doing."""
         if self.auto_random == self.AUTO_RANDOM_OFF : return "off"
         what = "modes" if self.auto_random == self.AUTO_RANDOM_MODES else "scenes"
-        seconds = self.config["auto_random_interval"]
-        return f"{what} every {'random' if seconds < 0 else str(seconds) + 's'}"
+        return f"{what} {self.cycle_text()}"
 
-    def arm_auto_random(self):
+    def random_interval(self):
+        """Seconds until the next automatic change, from Auto Random Cycle.
+
+        Shared by the mode and scene picker and by the palette wobble, so the
+        one setting says how restless the instrument is rather than each thing
+        having a dial of its own to keep in step.
+        """
         interval = self.config["auto_random_interval"]
         if interval < 0:
             interval = random.uniform(self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX)
-        self.auto_random_next = time.time() + interval
+        return interval
+
+    def arm_auto_random(self):
+        self.auto_random_next = time.time() + self.random_interval()
 
     def pick_random(self):
         """True if it actually moved somewhere."""
@@ -861,6 +868,71 @@ class Eyesy:
         if time.time() < self.auto_random_next : return
         self.arm_auto_random()
         self.pick_random()
+
+    # ---- palette wobble, upper octave C and D -----------------------------
+    #
+    # Unlike the knob wobble this does not ride on the trigger. A palette that
+    # changed on every kick drum would be a strobe, not a colour scheme, so it
+    # runs on the Auto Random Cycle clock instead - the same seconds the mode
+    # and scene picker uses. It does not need that picker switched on, though:
+    # it only borrows the interval.
+
+    def toggle_palette_mod(self, which):
+        if not (0 <= which < 2) : return False
+        self.palette_mod[which] = not self.palette_mod[which]
+        if self.palette_mod[which]:
+            # move now rather than in half a minute, so the key press has
+            # something to show for itself. The same reason A# picks on press.
+            self.arm_palette_mod(which)
+            self.pick_random_palette(which)
+        print(f"{self.PALETTE_NAMES[which]} modulation {self.palette_mod[which]}")
+        return self.palette_mod[which]
+
+    def arm_palette_mod(self, which):
+        self.palette_mod_next[which] = time.time() + self.random_interval()
+
+    def any_palette_mod(self):
+        return any(self.palette_mod)
+
+    # never picks the palette already showing, or a cycle goes by with nothing
+    # appearing to happen
+    def pick_random_palette(self, which):
+        current = self.fg_palette if which == self.PALETTE_FG else self.bg_palette
+        choices = [i for i in range(0, len(self.palettes)) if i != current]
+        if not choices : return False
+        pick = random.choice(choices)
+        if which == self.PALETTE_FG : self.fg_palette = pick
+        else : self.bg_palette = pick
+        return True
+
+    def update_palette_mod(self):
+        if self.menu_mode : return          # not while someone is in a menu
+        now = time.time()
+        for which in (self.PALETTE_FG, self.PALETTE_BG):
+            if not self.palette_mod[which] : continue
+            if now < self.palette_mod_next[which] : continue
+            self.arm_palette_mod(which)
+            self.pick_random_palette(which)
+
+    # ---- midi channel, upper octave E -------------------------------------
+
+    def next_midi_channel(self):
+        ch = self.config["midi_channel"] + 1
+        if ch > 16 : ch = 1
+        self.config["midi_channel"] = ch
+        oled.notify("MIDI Channel", str(ch))
+        return ch
+
+    def midi_channel_key(self, pressed):
+        """Upper octave E. One channel per press, on the way up.
+
+        Deliberately not a repeater. Holding it does nothing, so a key leaned
+        on cannot walk the channel away from you, and the step lands where the
+        finger leaves rather than where it arrives.
+        """
+        if pressed : return
+        self.next_midi_channel()
+        self.save_config_file()
 
     def save_or_delete_scene(self, key_stat):
         if key_stat > 0 :
@@ -947,7 +1019,25 @@ class Eyesy:
                  "depth": self.knob_mod_depth[i]}
                 for i in range(0, 5)
             ],
+            # whether the palettes were cycling, the same way knob_mod says
+            # whether the knobs were. The palette numbers above are still the
+            # ones that were showing, and a scene recalled with this on will
+            # move off them within a cycle - which is what the knobs do too.
+            "palette_mod": {"fg": self.palette_mod[self.PALETTE_FG],
+                            "bg": self.palette_mod[self.PALETTE_BG]},
         }
+
+    # Put the palette wobble back the way a scene had it. Anything missing is
+    # off, so scenes written before this existed still load.
+    def apply_scene_palette_mod(self, raw):
+        if not isinstance(raw, dict):
+            raw = {}
+        for which, key in ((self.PALETTE_FG, "fg"), (self.PALETTE_BG, "bg")):
+            self.palette_mod[which] = raw.get(key) is True
+            # a full cycle before the first change, rather than inheriting
+            # whatever was left on the clock from the last scene
+            if self.palette_mod[which]:
+                self.arm_palette_mod(which)
 
     # Five entries of on, rate and depth. Anything missing or out of range
     # falls back to off at the configured rate, so scenes written before knob
@@ -1155,6 +1245,7 @@ class Eyesy:
             self.bg_palette = scene["bg_palette"]
             self.fg_palette = scene["fg_palette"]
             self.apply_scene_knob_mod(scene.get("knob_mod"))
+            self.apply_scene_palette_mod(scene.get("palette_mod"))
 
             # make sure scenes pallete in range
             if self.fg_palette < 0 : self.fg_palette = 0
@@ -1425,7 +1516,7 @@ class Eyesy:
                     self.key10_td = 0
 
     def update_key_repeater(self) :
-       # if self.key10_status : 
+       # if self.key10_status :
        #     self.trig = True
         if not self.menu_mode :
             if self.key2_status : 

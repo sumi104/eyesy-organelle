@@ -16,10 +16,6 @@
 #define SCROLL_STEP_MS 500.f
 #define SCROLL_HOLD_MS 1500.f
 
-static const char *KEY_NAMES[OLED_KEY_SLOTS] = {
-    "C", "D", "E", "F", "G", "A", "B"
-};
-
 static void copyText(char *dst, const char *src) {
     strncpy(dst, src, OLED_TEXT_LEN - 1);
     dst[OLED_TEXT_LEN - 1] = 0;
@@ -38,7 +34,6 @@ OledPages::OledPages() {
     copyText(st.ver, "3.1");
     copyText(st.url, "no network");
     copyText(st.streamInfo, "-");
-    for (int i = 0; i < OLED_KEY_SLOTS; i++) st.keymap[i][0] = 0;
     for (int i = 0; i < 5; i++) st.knobCC[i] = -1;
     st.midiChannel = 1;
     page = OLED_PAGE_PERFORM;
@@ -93,12 +88,6 @@ void OledPages::setText(const char *key, const char *val) {
     else if (!strcmp(key, "url"))   copyText(st.url, val);
     else if (!strcmp(key, "sinfo")) copyText(st.streamInfo, val);
     else return;
-    dirty = true;
-}
-
-void OledPages::setKeymap(int slot, const char *name) {
-    if (slot < 0 || slot >= OLED_KEY_SLOTS) return;
-    copyText(st.keymap[slot], name);
     dirty = true;
 }
 
@@ -235,7 +224,7 @@ void OledPages::renderTopBar(OledScreen &s) {
     const char *name = "PERFORM";
     if (page == OLED_PAGE_STATUS) name = "STATUS";
     else if (page == OLED_PAGE_MIDI) name = "MIDI";
-    else if (page == OLED_PAGE_KEYS) name = "MODE KEYS";
+    else if (page == OLED_PAGE_MOD) name = "MOD";
     else if (page == OLED_PAGE_STREAM) name = "LIVE";
     else if (page == OLED_PAGE_HELP) name = "CONTROLS";
     s.println(name, 2, 0, 8, 1);
@@ -258,15 +247,19 @@ void OledPages::renderTopBar(OledScreen &s) {
     if (st.flags & OLED_FLAG_SEQ_REC)       st_letters[n++] = 'R';
     else if (st.flags & OLED_FLAG_SEQ_ARM)  st_letters[n++] = 'r';
     else if (st.flags & OLED_FLAG_SEQ_PLAY) st_letters[n++] = 'Q';
-    // last because it is the one to lose when they do not all fit: shift is
+    // last because it is the one to lose if they ever stop fitting: shift is
     // the only one of these you are holding down while you read it
     if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = '^';
     // Right aligned against the wifi icon, but never far enough left to run
-    // into the page name: MODE KEYS is the longest at nine characters and
-    // ends at x 55. That leaves room for seven letters, which is as many as
-    // can be set at once, and any more are dropped rather than drawn over
-    // something else.
-    const int lettersLeft = 58;
+    // into the page name. CONTROLS is the longest at eight characters and
+    // ends at x 50, which leaves room for eight letters - and eight is as
+    // many as can be set at once, since M and S are the two things the auto
+    // picker can be doing and only one of them is ever true. Losing MODE KEYS
+    // is what bought the eighth: it ran to x 55 and cost a letter.
+    // The palette wobble deliberately has no letter here. It follows the knob
+    // wobble instead, which says so with a lamp on the MOD page and a message
+    // when it is switched, and that keeps this row from growing without end.
+    const int lettersLeft = 52;
     const int maxLetters = (100 - lettersLeft) / 6;
     if (n > maxLetters) n = maxLetters;
     st_letters[n] = 0;
@@ -310,7 +303,7 @@ void OledPages::renderPerform(OledScreen &s) {
 
     // Knob faders, left to right same as the panel: knob 1-4 then volume. A
     // dot over one says that knob is being wobbled, the same filled circle
-    // the MODE KEYS page uses, so the two pages read the same way. Nothing is
+    // the MOD page uses, so the two pages read the same way. Nothing is
     // drawn for a knob that is not, which keeps the usual case quiet.
     for (int i = 0; i < 5; i++) {
         int x = 2 + (i * 13);
@@ -368,11 +361,15 @@ void OledPages::renderMidi(OledScreen &s) {
 
 // The upper octave, split the way the keyboard is: the five black keys drive
 // knob modulation across the top, the seven white keys recall modes below.
-void OledPages::renderKeys(OledScreen &s) {
+// Everything the upper octave does, on one page. The five black keys wobble
+// the knob above them, and three of the white keys took over from Mode Keys.
+// The lamp is the same filled circle throughout, so on and off read the same
+// way whatever the row is about.
+void OledPages::renderMod(OledScreen &s) {
     char buf[24];
 
     // one lamp per knob, filled while that knob is being wobbled
-    s.println("MOD", 2, 11, 8, 1);
+    s.println("KNOB", 2, 11, 8, 1);
     for (int i = 0; i < 5; i++) {
         int cx = 32 + (i * 18);
         if (st.flags & OLED_FLAG_KNOB_MOD(i)) s.draw_filled_circle(cx, 15, 4, 1);
@@ -381,21 +378,29 @@ void OledPages::renderKeys(OledScreen &s) {
 
     s.draw_line(0, 21, 127, 21, 1);
 
-    // Seven white keys, four in the left column and three in the right. The
-    // key is reversed out of a filled block so the eye can pick it out of the
-    // run of mode names, then a space, then the name.
-    for (int i = 0; i < OLED_KEY_SLOTS; i++) {
-        int col = i / 4;
-        int row = i % 4;
-        int x = (col * 64) + 2;
-        int y = 24 + (row * 9);
-        int after = x + drawKey(s, x, y, KEY_NAMES[i]);
-
-        const char *name = st.keymap[i][0] ? st.keymap[i] : "-";
-        snprintf(buf, sizeof(buf), "%s", name);
-        buf[8] = 0;   // what is left of the column after the key and the space
-        s.println(buf, after + 4, y, 8, 1);
+    // The key each row belongs to is reversed out of a filled block, the same
+    // as it was for the mode slots, so a row reads as "this key does this".
+    // Ten to a row rather than the nine the mode slots used. These lamps are
+    // stacked where those were side by side, and at nine the two circles touch
+    // and read as one figure of eight.
+    const char *rows[3] = { "C", "D", "E" };
+    const char *what[3] = { "FG Palette", "BG Palette", "MIDI Ch" };
+    for (int i = 0; i < 3; i++) {
+        int y = 24 + (i * 10);
+        int after = 2 + drawKey(s, 2, y, rows[i]);
+        s.println(what[i], after + 4, y, 8, 1);
     }
+
+    // the two palettes get a lamp each, the channel gets its number, all three
+    // centred on the same column so the right hand edge reads as one thing
+    const int rightCx = 110;
+    if (st.flags & OLED_FLAG_PAL_MOD_FG) s.draw_filled_circle(rightCx, 28, 4, 1);
+    else s.draw_circle(rightCx, 28, 4, 1);
+    if (st.flags & OLED_FLAG_PAL_MOD_BG) s.draw_filled_circle(rightCx, 38, 4, 1);
+    else s.draw_circle(rightCx, 38, 4, 1);
+
+    snprintf(buf, sizeof(buf), "%d", st.midiChannel);
+    s.println(buf, rightCx - (int)(strlen(buf) * 3), 44, 8, 1);
 }
 
 // the only page where the encoder press does something other than page home
@@ -413,7 +418,7 @@ void OledPages::renderStream(OledScreen &s) {
     s.println(on ? "Push knob to stop" : "Push knob to start", 2, 56, 8, 1);
 }
 
-// Keys reversed out the same way as on MODE KEYS, so the whole instrument
+// Keys reversed out the same way as on the MOD page, so the whole instrument
 // reads one way. Two keys next to each other are the pair that steps a thing
 // down and up, two with a + between them are held together.
 struct HelpEntry {
@@ -497,7 +502,7 @@ void OledPages::render(OledScreen &s) {
         switch (page) {
             case OLED_PAGE_STATUS: renderStatus(s); break;
             case OLED_PAGE_MIDI:   renderMidi(s);   break;
-            case OLED_PAGE_KEYS:   renderKeys(s);   break;
+            case OLED_PAGE_MOD:    renderMod(s);    break;
             case OLED_PAGE_STREAM: renderStream(s); break;
             case OLED_PAGE_HELP:   renderHelp(s);   break;
             default:               renderPerform(s); break;

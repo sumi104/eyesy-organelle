@@ -1,6 +1,5 @@
 # main_menu.py
 
-import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -20,9 +19,6 @@ class ScreenMainMenu(Screen):
             MenuItem('Logs  ▶', self.goto_applogs),
             MenuItem('◀  Exit', self.exit_menu)
         ]
-        # the upper octave only exists on the organelle keyboard
-        if organelle.is_organelle():
-            items.insert(5, MenuItem('Mode Keys  ▶', self.goto_key_modes))
         self.menu = WidgetMenu(eyesy, items)
         self.menu.visible_items = 9
         self.menu.off_y = 43
@@ -54,9 +50,6 @@ class ScreenMainMenu(Screen):
 
     def goto_wifi(self):
         self.eyesy.switch_menu_screen("wifi")
-
-    def goto_key_modes(self):
-        self.eyesy.switch_menu_screen("key_modes")
 
     def exit_menu(self):
         self.eyesy.exit_menu()
