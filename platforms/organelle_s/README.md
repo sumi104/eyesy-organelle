@@ -362,9 +362,9 @@ dot next to the page number marks the ones that respond.
 | | Page | Press |
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
-| 2 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | — |
-| 3 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
-| 4 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
+| 2 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
+| 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | — |
+| 4 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CTRL 1/2** — the lower octave, in short form | — |
 | 7 | **CTRL 2/2** — the upper octave | — |
@@ -375,7 +375,9 @@ two lines.
 
 `SETTINGS` and `STATUS` swapped names when the second one grew: the wifi and
 resolution page says how the instrument is set up, and the page that gained
-palettes, channel and trigger source says what it is doing.
+palettes, channel and trigger source says what it is doing. `STATUS` sits
+second because it is the one to glance at mid set; the other two are pages you
+go and look at.
 
 `CTRL 1/2` is not spelled `CONTROLS 1/2` because twelve characters run to x 74
 and straight through the status letters, which start at x 52.

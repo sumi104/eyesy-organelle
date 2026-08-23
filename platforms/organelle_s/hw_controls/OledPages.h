@@ -16,13 +16,19 @@ engine is busy drawing or restarting.
 
 #define OLED_NUM_PAGES 7
 
-// Pages. SETTINGS and STATUS swapped names here: the wifi and resolution page
-// is the one that says how the instrument is set up, and the page that grew
-// palettes, channel and trigger source is the one that says what it is doing.
+// Pages, in the order the encoder walks them. SETTINGS and STATUS swapped
+// names when the second one grew: the wifi and resolution page says how the
+// instrument is set up, and the page that gained palettes, channel and trigger
+// source says what it is doing.
+//
+// STATUS sits second because it is the one to glance at mid set - what the
+// palettes are and what is wobbling. SETTINGS and MIDI are things you go and
+// look at, so they are a turn further on. Nothing outside this block knows a
+// page number: renumbering here moves a page.
 #define OLED_PAGE_PERFORM  0
-#define OLED_PAGE_SETTINGS 1
-#define OLED_PAGE_MIDI     2
-#define OLED_PAGE_STATUS   3
+#define OLED_PAGE_STATUS   1
+#define OLED_PAGE_SETTINGS 2
+#define OLED_PAGE_MIDI     3
 #define OLED_PAGE_STREAM   4
 #define OLED_PAGE_HELP     5
 #define OLED_PAGE_HELP2    6
