@@ -102,12 +102,3 @@ def close():
         except subprocess.TimeoutExpired:
             _proc.kill()
     _proc = None
-
-
-def describe():
-    """One short line for the OLED."""
-    if not running:
-        return "Link off"
-    if peers == 0:
-        return f"Link {tempo:.1f} alone"
-    return f"Link {tempo:.1f} {peers} peer" + ("s" if peers != 1 else "")

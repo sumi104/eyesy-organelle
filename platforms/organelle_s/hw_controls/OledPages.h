@@ -14,15 +14,18 @@ engine is busy drawing or restarting.
 #include <stdint.h>
 #include "OledScreen.h"
 
-#define OLED_NUM_PAGES 6
+#define OLED_NUM_PAGES 7
 
-// pages
-#define OLED_PAGE_PERFORM 0
-#define OLED_PAGE_STATUS  1
-#define OLED_PAGE_MIDI    2
-#define OLED_PAGE_MOD     3
-#define OLED_PAGE_STREAM  4
-#define OLED_PAGE_HELP    5
+// Pages. SETTINGS and STATUS swapped names here: the wifi and resolution page
+// is the one that says how the instrument is set up, and the page that grew
+// palettes, channel and trigger source is the one that says what it is doing.
+#define OLED_PAGE_PERFORM  0
+#define OLED_PAGE_SETTINGS 1
+#define OLED_PAGE_MIDI     2
+#define OLED_PAGE_STATUS   3
+#define OLED_PAGE_STREAM   4
+#define OLED_PAGE_HELP     5
+#define OLED_PAGE_HELP2    6
 
 // bits of OledState.flags, kept in sync with engines/python/oled.py
 #define OLED_FLAG_TRIG        (1 << 0)
@@ -48,6 +51,8 @@ engine is busy drawing or restarting.
 // the palette wobble, one per palette, on the upper octave C and D keys
 #define OLED_FLAG_PAL_MOD_FG  (1 << 23)
 #define OLED_FLAG_PAL_MOD_BG  (1 << 24)
+// midi notes pick the mode, the notes_change_mode setting
+#define OLED_FLAG_NOTES_MODE  (1 << 25)
 
 #define OLED_TEXT_LEN 40
 
@@ -62,14 +67,16 @@ struct OledState {
     int wifiLevel;         // 0 - 4, 0 is not connected
     int midiChannel;
     int knobCC[5];
+    int extraCC[4];        // clear, fg palette, bg palette, mode
 
     char mode[OLED_TEXT_LEN];
     char scene[OLED_TEXT_LEN];
     char ssid[OLED_TEXT_LEN];
     char ip[OLED_TEXT_LEN];
     char midiDev[OLED_TEXT_LEN];
-    char trigSrc[OLED_TEXT_LEN];
-    char clockLine[OLED_TEXT_LEN];  // clock mute, or the Link session
+    char trigSrc[OLED_TEXT_LEN];   // shortened to fit, see oled.py
+    char fgPal[OLED_TEXT_LEN];     // palette names, which run long
+    char bgPal[OLED_TEXT_LEN];
     char res[OLED_TEXT_LEN];
     char ver[OLED_TEXT_LEN];
     char url[OLED_TEXT_LEN];       // where to watch the live stream
@@ -88,7 +95,8 @@ class OledPages
         void setPage(int p);
         int  getPage() { return page; }
 
-        // key is one of: mode scene ssid ip midi trig clock res ver url sinfo
+        // key is one of: mode scene ssid ip midi trig res ver url sinfo
+        // fgpal bgpal
         void setText(const char *key, const char *val);
 
         // Name of the on/off setting this page owns, or null when there is
@@ -132,17 +140,22 @@ class OledPages
             float ms;       // since the last step
             char text[OLED_TEXT_LEN];   // to notice the line's text changing
         };
-        Marquee marquee[2];
-        static const int MARQUEE_MODE  = 0;
+        static const int MARQUEE_COUNT = 4;
+        Marquee marquee[MARQUEE_COUNT];
+        static const int MARQUEE_MODE  = 0;   // perform page
         static const int MARQUEE_SCENE = 1;
+        static const int MARQUEE_FG    = 2;   // status page
+        static const int MARQUEE_BG    = 3;
 
         void resetMarquee(Marquee &m);
         void tickMarquee(Marquee &m, const char *text, float elapsedMs);
 
         // Lays out one sliding line: the prefix stays put and the text slides
-        // through whatever is left. Sets m.max on the way, since that is where
-        // the room is known.
-        void marqueeLine(Marquee &m, char *dst, int dstLen,
+        // through whatever is left of the columns given. Sets m.max on the
+        // way, since that is where the room is known. columns is what the line
+        // has, which is not always the full width - the status page starts its
+        // text after a lamp.
+        void marqueeLine(Marquee &m, char *dst, int dstLen, int columns,
                          const char *prefix, const char *text);
 
         // what the scene line calls a name, which is not st.scene when there
@@ -151,14 +164,16 @@ class OledPages
 
         void renderTopBar(OledScreen &s);
         void renderPerform(OledScreen &s);
-        void renderStatus(OledScreen &s);
+        void renderSettings(OledScreen &s);
         void renderMidi(OledScreen &s);
-        void renderMod(OledScreen &s);
+        void renderStatus(OledScreen &s);
         void renderStream(OledScreen &s);
         void renderHelp(OledScreen &s);
+        void renderHelp2(OledScreen &s);
         void renderNotify(OledScreen &s);
 
         int  drawKey(OledScreen &s, int x, int y, const char *key);
+        void lampFor(OledScreen &s, int cx, int cy, bool on);
         void drawKnobBar(OledScreen &s, int x, int y, int h, int val);
         void drawMeter(OledScreen &s, int x, int y, int w, int h, int val);
         void drawWifi(OledScreen &s, int x, int y, int level);

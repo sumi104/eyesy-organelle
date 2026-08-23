@@ -29,12 +29,14 @@ OledPages::OledPages() {
     copyText(st.ip, "-");
     copyText(st.midiDev, "none");
     copyText(st.trigSrc, "Audio");
-    copyText(st.clockLine, "Clock on");
+    copyText(st.fgPal, "-");
+    copyText(st.bgPal, "-");
     copyText(st.res, "-");
     copyText(st.ver, "3.1");
     copyText(st.url, "no network");
     copyText(st.streamInfo, "-");
     for (int i = 0; i < 5; i++) st.knobCC[i] = -1;
+    for (int i = 0; i < 4; i++) st.extraCC[i] = -1;
     st.midiChannel = 1;
     page = OLED_PAGE_PERFORM;
     dirty = true;
@@ -42,7 +44,7 @@ OledPages::OledPages() {
     notifyLine2[0] = 0;
     notifyWarn = false;
     notifyTimeLeft = 0;
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < MARQUEE_COUNT; i++) {
         marquee[i].offset = 0;
         marquee[i].max = 0;
         marquee[i].ms = 0;
@@ -82,7 +84,8 @@ void OledPages::setText(const char *key, const char *val) {
     else if (!strcmp(key, "ip"))    copyText(st.ip, val);
     else if (!strcmp(key, "midi"))  copyText(st.midiDev, val);
     else if (!strcmp(key, "trig"))  copyText(st.trigSrc, val);
-    else if (!strcmp(key, "clock")) copyText(st.clockLine, val);
+    else if (!strcmp(key, "fgpal")) copyText(st.fgPal, val);
+    else if (!strcmp(key, "bgpal")) copyText(st.bgPal, val);
     else if (!strcmp(key, "res"))   copyText(st.res, val);
     else if (!strcmp(key, "ver"))   copyText(st.ver, val);
     else if (!strcmp(key, "url"))   copyText(st.url, val);
@@ -148,29 +151,42 @@ void OledPages::tickMarquee(Marquee &m, const char *text, float elapsedMs) {
 }
 
 void OledPages::tickScroll(float elapsedMs) {
-    // Only the perform page has sliding lines. Leaving it puts them back to
-    // their starts, so coming back reads from the beginning rather than from
-    // wherever they had wandered to while you were not looking.
-    if (page != OLED_PAGE_PERFORM) {
-        for (int i = 0; i < 2; i++) resetMarquee(marquee[i]);
-        return;
+    // A line only slides while its page is up. Leaving a page puts its lines
+    // back to their starts, so coming back reads from the beginning rather
+    // than from wherever they had wandered to while you were not looking.
+    if (page == OLED_PAGE_PERFORM) {
+        tickMarquee(marquee[MARQUEE_MODE], st.mode, elapsedMs);
+        tickMarquee(marquee[MARQUEE_SCENE], sceneName(), elapsedMs);
+    } else {
+        resetMarquee(marquee[MARQUEE_MODE]);
+        resetMarquee(marquee[MARQUEE_SCENE]);
     }
 
-    tickMarquee(marquee[MARQUEE_MODE], st.mode, elapsedMs);
-    tickMarquee(marquee[MARQUEE_SCENE], sceneName(), elapsedMs);
+    if (page == OLED_PAGE_STATUS) {
+        tickMarquee(marquee[MARQUEE_FG], st.fgPal, elapsedMs);
+        tickMarquee(marquee[MARQUEE_BG], st.bgPal, elapsedMs);
+    } else {
+        resetMarquee(marquee[MARQUEE_FG]);
+        resetMarquee(marquee[MARQUEE_BG]);
+    }
 }
 
-void OledPages::marqueeLine(Marquee &m, char *dst, int dstLen,
+void OledPages::marqueeLine(Marquee &m, char *dst, int dstLen, int columns,
                             const char *prefix, const char *text) {
     int n = snprintf(dst, dstLen, "%s", prefix);
-    if (n < 0 || n > MAXCHARS) n = MAXCHARS;
+    if (n < 0 || n > columns) n = columns;
 
-    int room = MAXCHARS - n;
+    int room = columns - n;
     int over = (int) strlen(text) - room;
     m.max = (room > 0 && over > 0) ? over : 0;
 
     int off = m.offset > m.max ? m.max : m.offset;
-    snprintf(dst + n, dstLen - n, "%s", text + off);
+    // Only what fits. setLine() used to do this cut for the two lines that
+    // had it, but println() draws whatever it is handed: the overflow runs
+    // off the right hand edge and wraps onto the row underneath.
+    int cap = room + 1;
+    if (cap > dstLen - n) cap = dstLen - n;
+    snprintf(dst + n, cap, "%s", text + off);
 }
 
 /* drawing helpers */
@@ -215,6 +231,12 @@ void OledPages::drawWifi(OledScreen &s, int x, int y, int level) {
     }
 }
 
+// filled while whatever it stands for is running
+void OledPages::lampFor(OledScreen &s, int cx, int cy, bool on) {
+    if (on) s.draw_filled_circle(cx, cy, 4, 1);
+    else s.draw_circle(cx, cy, 4, 1);
+}
+
 /* pages */
 
 void OledPages::renderTopBar(OledScreen &s) {
@@ -222,11 +244,14 @@ void OledPages::renderTopBar(OledScreen &s) {
 
     // page name on the left
     const char *name = "PERFORM";
-    if (page == OLED_PAGE_STATUS) name = "STATUS";
+    if (page == OLED_PAGE_SETTINGS) name = "SETTINGS";
     else if (page == OLED_PAGE_MIDI) name = "MIDI";
-    else if (page == OLED_PAGE_MOD) name = "MOD";
+    else if (page == OLED_PAGE_STATUS) name = "STATUS";
     else if (page == OLED_PAGE_STREAM) name = "LIVE";
-    else if (page == OLED_PAGE_HELP) name = "CONTROLS";
+    // "CONTROLS 1/2" would be twelve characters, running to x 74 and straight
+    // through the status letters. CTRL says the same in eight.
+    else if (page == OLED_PAGE_HELP) name = "CTRL 1/2";
+    else if (page == OLED_PAGE_HELP2) name = "CTRL 2/2";
     s.println(name, 2, 0, 8, 1);
 
     // status letters in the middle, right aligned against the wifi icon
@@ -276,9 +301,6 @@ void OledPages::renderTopBar(OledScreen &s) {
 
     // a dot by the page number means the encoder press does something here
     if (toggleAction()) s.fill_area(112, 2, 3, 3, 1);
-
-    // separator
-    s.draw_line(0, 8, 127, 8, 1);
 }
 
 void OledPages::renderPerform(OledScreen &s) {
@@ -290,7 +312,8 @@ void OledPages::renderPerform(OledScreen &s) {
     // of their lines. Which half is worth scrolling is not a close call: the
     // numbers are read at a glance, the names are what run off the end.
     snprintf(prefix, sizeof(prefix), "%d/%d ", st.modeIndex + 1, st.modeCount);
-    marqueeLine(marquee[MARQUEE_MODE], buf, sizeof(buf), prefix, st.mode);
+    marqueeLine(marquee[MARQUEE_MODE], buf, sizeof(buf), MAXCHARS,
+                prefix, st.mode);
     s.setLine(1, buf);
 
     if (st.sceneIndex >= 0)
@@ -298,7 +321,8 @@ void OledPages::renderPerform(OledScreen &s) {
                  st.sceneIndex + 1, st.sceneCount);
     else
         snprintf(prefix, sizeof(prefix), "S -/%d ", st.sceneCount);
-    marqueeLine(marquee[MARQUEE_SCENE], buf, sizeof(buf), prefix, sceneName());
+    marqueeLine(marquee[MARQUEE_SCENE], buf, sizeof(buf), MAXCHARS,
+                prefix, sceneName());
     s.setLine(2, buf);
 
     // Knob faders, left to right same as the panel: knob 1-4 then volume. A
@@ -323,7 +347,7 @@ void OledPages::renderPerform(OledScreen &s) {
     if (st.flags & OLED_FLAG_TRIG) s.fill_area(78, 61, 49, 3, 1);
 }
 
-void OledPages::renderStatus(OledScreen &s) {
+void OledPages::renderSettings(OledScreen &s) {
     char buf[64];
 
     snprintf(buf, sizeof(buf), "Wifi %s", st.ssid);
@@ -339,68 +363,80 @@ void OledPages::renderStatus(OledScreen &s) {
     s.setLine(5, buf);
 }
 
+// A CC of -1 means nothing is mapped. Written as a dash so an unmapped slot
+// reads as empty rather than as a number somebody chose.
+static const char *ccText(char *buf, int n, int cc) {
+    if (cc < 0) snprintf(buf, n, "-");
+    else snprintf(buf, n, "%d", cc);
+    return buf;
+}
+
 void OledPages::renderMidi(OledScreen &s) {
-    char buf[64];
+    char buf[64], a[8], b[8], c[8], d[8], e[8];
 
     snprintf(buf, sizeof(buf), "Channel %d", st.midiChannel);
     s.setLine(1, buf);
-    snprintf(buf, sizeof(buf), "CC %d %d %d %d %d",
-             st.knobCC[0], st.knobCC[1], st.knobCC[2], st.knobCC[3], st.knobCC[4]);
+
+    // Two lines of CC, in the order the settings screen lists them: the five
+    // knobs, then clear, foreground, background, mode. The second line carries
+    // no label and lines its columns up under the first, because four tags
+    // plus four three digit numbers do not fit across twenty one characters.
+    snprintf(buf, sizeof(buf), "CC %s %s %s %s %s",
+             ccText(a, sizeof(a), st.knobCC[0]), ccText(b, sizeof(b), st.knobCC[1]),
+             ccText(c, sizeof(c), st.knobCC[2]), ccText(d, sizeof(d), st.knobCC[3]),
+             ccText(e, sizeof(e), st.knobCC[4]));
     s.setLine(2, buf);
-    snprintf(buf, sizeof(buf), "Trig %s", st.trigSrc);
+    snprintf(buf, sizeof(buf), "   %s %s %s %s",
+             ccText(a, sizeof(a), st.extraCC[0]), ccText(b, sizeof(b), st.extraCC[1]),
+             ccText(c, sizeof(c), st.extraCC[2]), ccText(d, sizeof(d), st.extraCC[3]));
     s.setLine(3, buf);
-    // the engine composes this: it says the clock is muted, or which Link
-    // session is being followed, depending on where the beat comes from
-    s.setLine(4, st.clockLine);
+
+    snprintf(buf, sizeof(buf), "Notes Select Mode %s",
+             (st.flags & OLED_FLAG_NOTES_MODE) ? "Yes" : "No");
+    s.setLine(4, buf);
+
     snprintf(buf, sizeof(buf), "In %s", st.midiDev);
     s.setLine(5, buf);
 
-    // note activity indicator
-    if (st.flags & OLED_FLAG_MIDI_ACT) s.fill_area(120, 43, 6, 6, 1);
+    // Note activity, on the channel line now. It used to sit on the clock
+    // line, and that row has gone: the trigger source moved to the status
+    // page, and the Link readout it shared the row with went with it.
+    if (st.flags & OLED_FLAG_MIDI_ACT) s.fill_area(118, 11, 6, 6, 1);
 }
 
-// The upper octave, split the way the keyboard is: the five black keys drive
-// knob modulation across the top, the seven white keys recall modes below.
-// Everything the upper octave does, on one page. The five black keys wobble
-// the knob above them, and three of the white keys took over from Mode Keys.
-// The lamp is the same filled circle throughout, so on and off read the same
-// way whatever the row is about.
-void OledPages::renderMod(OledScreen &s) {
-    char buf[24];
+// What the instrument is set to right now, and lamps for the things moving on
+// their own. The knob row keeps the shape it had when this page was MOD, and
+// the palettes took the same shape underneath so the lamps read as one column
+// rather than three unrelated rows.
+void OledPages::renderStatus(OledScreen &s) {
+    char buf[64];
 
-    // one lamp per knob, filled while that knob is being wobbled
-    s.println("KNOB", 2, 11, 8, 1);
-    for (int i = 0; i < 5; i++) {
-        int cx = 32 + (i * 18);
-        if (st.flags & OLED_FLAG_KNOB_MOD(i)) s.draw_filled_circle(cx, 15, 4, 1);
-        else s.draw_circle(cx, 15, 4, 1);
-    }
+    // The gap before the lamps is what separates the label from the row it
+    // labels. At the old 32 the first lamp sat right against the B of KNOB.
+    s.println("KNOB", 2, 10, 8, 1);
+    for (int i = 0; i < 5; i++)
+        lampFor(s, 48 + (i * 16), 14, st.flags & OLED_FLAG_KNOB_MOD(i));
 
-    s.draw_line(0, 21, 127, 21, 1);
+    // Palette names run to twenty nine characters, so they slide the way the
+    // mode name does rather than being cut off. The tag is two letters and not
+    // "FG Palette:" for the same reason: the label was eating the name, and
+    // seven characters of a name is no name at all.
+    const int textX = 14;
+    const int columns = (128 - textX) / 6;
 
-    // The key each row belongs to is reversed out of a filled block, the same
-    // as it was for the mode slots, so a row reads as "this key does this".
-    // Ten to a row rather than the nine the mode slots used. These lamps are
-    // stacked where those were side by side, and at nine the two circles touch
-    // and read as one figure of eight.
-    const char *rows[3] = { "C", "D", "E" };
-    const char *what[3] = { "FG Palette", "BG Palette", "MIDI Ch" };
-    for (int i = 0; i < 3; i++) {
-        int y = 24 + (i * 10);
-        int after = 2 + drawKey(s, 2, y, rows[i]);
-        s.println(what[i], after + 4, y, 8, 1);
-    }
+    lampFor(s, 6, 26, st.flags & OLED_FLAG_PAL_MOD_FG);
+    marqueeLine(marquee[MARQUEE_FG], buf, sizeof(buf), columns, "FG  ", st.fgPal);
+    s.println(buf, textX, 22, 8, 1);
 
-    // the two palettes get a lamp each, the channel gets its number, all three
-    // centred on the same column so the right hand edge reads as one thing
-    const int rightCx = 110;
-    if (st.flags & OLED_FLAG_PAL_MOD_FG) s.draw_filled_circle(rightCx, 28, 4, 1);
-    else s.draw_circle(rightCx, 28, 4, 1);
-    if (st.flags & OLED_FLAG_PAL_MOD_BG) s.draw_filled_circle(rightCx, 38, 4, 1);
-    else s.draw_circle(rightCx, 38, 4, 1);
+    lampFor(s, 6, 37, st.flags & OLED_FLAG_PAL_MOD_BG);
+    marqueeLine(marquee[MARQUEE_BG], buf, sizeof(buf), columns, "BG  ", st.bgPal);
+    s.println(buf, textX, 33, 8, 1);
 
-    snprintf(buf, sizeof(buf), "%d", st.midiChannel);
-    s.println(buf, rightCx - (int)(strlen(buf) * 3), 44, 8, 1);
+    snprintf(buf, sizeof(buf), "MIDI Ch  %d", st.midiChannel);
+    s.println(buf, 2, 44, 8, 1);
+
+    snprintf(buf, sizeof(buf), "Trig Src  %s", st.trigSrc);
+    s.println(buf, 2, 55, 8, 1);
 }
 
 // the only page where the encoder press does something other than page home
@@ -477,6 +513,43 @@ void OledPages::renderHelp(OledScreen &s) {
 //
 // Drawn over the page rather than instead of it, so a second of message does
 // not cost you your place.
+// The upper octave. Four pairs on the left, the two single keys on the right,
+// and the one thing about this octave that is not a key along the bottom: it
+// acts when a key comes up, which is what lets two of a pair mean a third
+// thing without either of them firing first.
+void OledPages::renderHelp2(OledScreen &s) {
+    static const HelpEntry ENTRIES[] = {
+        { "C",  "D",  false, "Fg Pal" },
+        { "C",  "D",  true,  "Fg Mod" },
+        { "E",  "F",  false, "Bg Pal" },
+        { "E",  "F",  true,  "Bg Mod" },
+        { "G",  0,    false, "Midi Ch" },
+        { "C#", "A#", false, "Knob" },
+    };
+    const int count = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
+
+    for (int i = 0; i < count; i++) {
+        const HelpEntry &e = ENTRIES[i];
+        // four down the left, the rest on the right, so the bottom row stays
+        // clear for the note
+        int cx = (i < 4) ? HELP_COL_LEFT : HELP_COL_RIGHT;
+        int y = 10 + ((i < 4 ? i : i - 4) * 9);
+
+        cx += drawKey(s, cx, y, e.key);
+        if (e.second) {
+            if (e.held) {
+                s.println("+", cx, y, 8, 1);
+                cx += 6;
+            }
+            cx += drawKey(s, cx, y, e.second);
+        }
+        s.println(e.label, cx + 3, y, 8, 1);
+    }
+
+    s.draw_line(0, 51, 127, 51, 1);
+    s.println("Acts on key release", 2, 55, 8, 1);
+}
+
 void OledPages::renderNotify(OledScreen &s) {
     const bool twoLines = notifyLine2[0] != 0;
     const int top = twoLines ? 19 : 24;
@@ -500,13 +573,19 @@ void OledPages::render(OledScreen &s) {
     {
         renderTopBar(s);
         switch (page) {
-            case OLED_PAGE_STATUS: renderStatus(s); break;
-            case OLED_PAGE_MIDI:   renderMidi(s);   break;
-            case OLED_PAGE_MOD:    renderMod(s);    break;
-            case OLED_PAGE_STREAM: renderStream(s); break;
-            case OLED_PAGE_HELP:   renderHelp(s);   break;
+            case OLED_PAGE_SETTINGS: renderSettings(s); break;
+            case OLED_PAGE_MIDI:     renderMidi(s);     break;
+            case OLED_PAGE_STATUS:   renderStatus(s);   break;
+            case OLED_PAGE_STREAM:   renderStream(s);   break;
+            case OLED_PAGE_HELP:     renderHelp(s);     break;
+            case OLED_PAGE_HELP2:    renderHelp2(s);    break;
             default:               renderPerform(s); break;
         }
+
+        // The rule under the title goes on last. setLine() clears the row
+        // above the line it writes, which is this one, so three pages used to
+        // rub it out again and only the pages that avoid setLine had it.
+        s.draw_line(0, 8, 127, 8, 1);
     }
 
     if (notifyTimeLeft > 0) renderNotify(s);

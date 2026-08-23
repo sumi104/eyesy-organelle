@@ -11,7 +11,7 @@ carrier boards are near identical — so only the control surface differs.
 | ADC order | `adcRead(4,2,0,1,3)` | `adcRead(0..5)` = knob 1-4, volume, expression |
 | Keys sent | lowest 10, reordered by a lookup table | all 25 raw, `0` = AUX, `1-24` = keyboard from low C |
 | Encoder | simplified edge detect | Organelle quadrature table, 2 detents per pulse |
-| OLED | not driven | 6 pages, encoder switches them |
+| OLED | not driven | 7 pages, encoder switches them |
 | Foot switch | polled, unused | sent as key `25`, saves a scene or fires the trigger |
 
 The knob that plays the fifth mode parameter is the **volume knob**. The
@@ -95,9 +95,12 @@ Hold **C#** for the shifted layer.
 | F# | Audio input mute | Freeze the picture |
 | G# | MIDI clock mute | MIDI note mute |
 | A# | Auto random: off, then modes, then scenes, then off | — |
-| Upper octave `C` / `D` | Wobble the foreground / background palette, tap again to stop | — |
-| Upper octave `E` | MIDI channel +1, wrapping at 16 | — |
-| Upper octave `F` `G` `A` `B` | — | — |
+| Upper octave `C` / `D` | Foreground palette − / + | — |
+| Upper octave `C`+`D` | Wobble the foreground palette, again to stop | — |
+| Upper octave `E` / `F` | Background palette − / + | — |
+| Upper octave `E`+`F` | Wobble the background palette, again to stop | — |
+| Upper octave `G` | MIDI channel +1, wrapping at 16 | — |
+| Upper octave `A` `B` | — | — |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Save scene, or the same as `B` — Settings > System picks which | Knob sequence arm / disarm, when set to Trigger |
 
@@ -125,10 +128,33 @@ Which of the two jobs the pedal has gets latched when it goes down, and the
 on screen. Letting the setting move under a press already in flight is how the
 test tone ends up playing with no way back.
 
+## The upper octave
+
+**The lower octave acts when you press a key, the upper octave when you let
+go.** That is not a quirk, it is what makes a pair of keys able to mean a third
+thing: on the way down there is no telling a single key from the first half of
+a chord. The black keys already worked this way — each doubles as its knob's
+depth modifier, so it only acts when tapped rather than held — so the chord is
+an instance of a rule that was already here.
+
+A key that gets used as half of a chord is marked, and does nothing on its way
+up. Pressing `C`, letting go, then pressing `D` is two separate steps; holding
+`C` and then pressing `D` is the wobble.
+
+`C` and `D` step the foreground palette down and up, `E` and `F` the
+background. There is no key repeat: holding one does nothing, and stepping says
+nothing on the display — it is visible in the picture, and 43 palettes tapped
+through would be 43 messages over it.
+
+Shift and the lower octave `C` `D` `E` `F` still move the palettes too. That
+path is shared with EYESY hardware, which has no upper octave and would
+otherwise have no way to change a palette at all.
+
 ## Palette wobble
 
-Upper octave `C` picks a new foreground palette every so often, `D` does the
-same for the background, and pressing the key again stops it. Each switches on
+Upper octave `C`+`D` together start the foreground palette picking a new one
+every so often, `E`+`F` do the same for the background, and the same chord
+again stops it. Each switches on
 with a change rather than waiting out a cycle first, so the key has something
 to show for itself, and neither ever picks the palette already showing.
 
@@ -147,13 +173,13 @@ the palette numbers that were showing, and recalling one with the wobble on
 will move off them within a cycle — which is exactly what the knobs do too. A
 scene saved before this existed loads with both off.
 
-The `MOD` page of the OLED has a lamp for each, and switching one says on
+The `STATUS` page of the OLED has a lamp for each, and switching one says on
 screen how often it will move. There is deliberately no letter for it in the
 top bar; see [OLED](#oled).
 
 ## MIDI channel
 
-Upper octave `E` steps the MIDI channel by one, wrapping from 16 back to 1, and
+Upper octave `G` steps the MIDI channel by one, wrapping from 16 back to 1, and
 says the new number on screen. It is also on **Settings → Audio MIDI Settings**,
 which is where it was before it had a key.
 
@@ -330,15 +356,37 @@ dot next to the page number marks the ones that respond.
 | | Page | Press |
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
-| 2 | **STATUS** — wifi network, IP address, resolution, frame rate, version | — |
-| 3 | **MIDI** — channel, knob CCs, trigger source, input device, and whichever clock is driving: MIDI, or the Link tempo and peer count | — |
-| 4 | **MOD** — knob modulation lamps, the two palette wobble lamps, and the MIDI channel | — |
+| 2 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | — |
+| 3 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
+| 4 | **STATUS** — knob and palette wobble lamps, both palette names, MIDI channel, trigger source | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
-| 6 | **CONTROLS** — the key map above, in short form | — |
+| 6 | **CTRL 1/2** — the lower octave, in short form | — |
+| 7 | **CTRL 2/2** — the upper octave | — |
 
 Pages declare their setting by name in `OledPages::toggleAction()`, and
 `osc.py` maps the name to the action, so wiring a switch to another page is
 two lines.
+
+`SETTINGS` and `STATUS` swapped names when the second one grew: the wifi and
+resolution page says how the instrument is set up, and the page that gained
+palettes, channel and trigger source says what it is doing.
+
+`CTRL 1/2` is not spelled `CONTROLS 1/2` because twelve characters run to x 74
+and straight through the status letters, which start at x 52.
+
+**The rule under the title is drawn after the page, not with the title.**
+`setLine()` clears the row above whatever line it writes, and that row is this
+one, so the three pages that use it — PERFORM, SETTINGS, MIDI — used to rub the
+rule out again and only the pages avoiding `setLine` had one.
+
+The MIDI page lost its clock row, which was the only place the Link tempo and
+peer count appeared. A Link session is still visible as the selected trigger
+source on `STATUS`, and `K` in the top bar still says the clock is muted, but
+the tempo is no longer displayed anywhere. `link.py` still tracks it.
+
+Palette names run to twenty nine characters, so on `STATUS` they slide the way
+the mode name does on `PERFORM`, on their own clocks. With the two letter tag,
+27 of the 43 names fit and sit still; only the other 16 move.
 
 **A mode or scene name too long for its line slides through it** rather than
 being cut off at the right hand edge. It holds at the start for a second and a
@@ -372,7 +420,7 @@ eighth slot came from retiring `MODE KEYS`: at nine characters it was the
 longest page name and it cost a letter.
 
 **The palette wobble has no letter here on purpose.** It follows the knob
-wobble instead — a lamp on the `MOD` page and a message when it is switched —
+wobble instead — a lamp on the `STATUS` page and a message when it is switched —
 which is what keeps this row from growing every time something new can be
 switched on.
 
@@ -382,7 +430,7 @@ things is worse than a letter that has to be learned.
 
 On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
 volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar
-means that knob is being wobbled — the same filled circle the MOD page uses, and
+means that knob is being wobbled — the same filled circle the STATUS page uses, and
 drawn only for the knobs it applies to, so the usual case stays quiet.
 
 The thin bar blinking under the meters is the trigger, the same thing the

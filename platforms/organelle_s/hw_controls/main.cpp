@@ -177,8 +177,8 @@ void flashLED(OSCMessage &msg) {
 // one packed message with everything that changes while performing,
 // the field order has to match send_state() in engines/python/oled.py
 void oledState(OSCMessage &msg) {
-    int v[21];
-    unsigned n = msg.size() < 21 ? msg.size() : 21;
+    int v[25];
+    unsigned n = msg.size() < 25 ? msg.size() : 25;
     for (unsigned i = 0; i < n; i++) v[i] = msg.isInt(i) ? msg.getInt(i) : 0;
     if (n < 15) return;   // not the message we expect
 
@@ -197,6 +197,10 @@ void oledState(OSCMessage &msg) {
     if (n >= 21) {
         st.midiChannel = v[15];
         for (int i = 0; i < 5; i++) st.knobCC[i] = v[16 + i];
+    }
+    if (n >= 25) {
+        // clear, fg palette, bg palette, mode
+        for (int i = 0; i < 4; i++) st.extraCC[i] = v[21 + i];
     }
     oledPages.touch();
 }

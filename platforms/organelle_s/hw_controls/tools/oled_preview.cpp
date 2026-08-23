@@ -58,6 +58,10 @@ int main(int argc, char *argv[]) {
     st.midiChannel = 16;   // two digits, the wider case to lay out
     int cc[5] = { 20, 21, 22, 23, 24 };
     for (int i = 0; i < 5; i++) st.knobCC[i] = cc[i];
+    // clear mapped, the other three not, which is the mix the midi page has
+    // to lay out without the dashes collapsing the columns
+    int extra[4] = { 25, -1, -1, -1 };
+    for (int i = 0; i < 4; i++) st.extraCC[i] = extra[i];
 
     pages.setText("mode", "S - Bounce Bounce");
     pages.setText("scene", "scene-0002");
@@ -69,6 +73,10 @@ int main(int argc, char *argv[]) {
     pages.setText("ver", "3.1");
     pages.setText("url", "192.168.1.42/live");
     pages.setText("sinfo", "480x270 12fps");
+    // one palette name that fits and one that does not, so the status page
+    // shows both the still case and the sliding one
+    pages.setText("fgpal", "Red : White");
+    pages.setText("bgpal", "Deep Myrtle : Electric Purple");
 
     for (int p = 0; p < OLED_NUM_PAGES; p++) {
         pages.setPage(p);
@@ -128,9 +136,22 @@ int main(int argc, char *argv[]) {
 
     pages.setText("mode", "S - Bounce Bounce");
 
+    // A palette name doing the same thing on the status page, where the line
+    // starts after a lamp rather than at the edge. The held end has to reach
+    // the last character of the name here too.
+    pages.setPage(OLED_PAGE_STATUS);
+    pages.tickScroll(500.f);
+    for (int t = 0; t < 7; t++) pages.tickScroll(500.f);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 12);
+
+    for (int t = 0; t < 11; t++) pages.tickScroll(500.f);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 13);
+
     // the sequencer armed rather than recording, worst case top bar
     pages.tickNotify(10000);
-    pages.setPage(OLED_PAGE_MOD);
+    pages.setPage(OLED_PAGE_STATUS);
     st.flags = OLED_FLAG_AUDIO_MUTE | OLED_FLAG_CLOCK_MUTE | OLED_FLAG_NOTE_MUTE
              | OLED_FLAG_FREEZE | OLED_FLAG_PERSIST | OLED_FLAG_SHIFT
              | OLED_FLAG_AUTO_MODES | OLED_FLAG_SEQ_ARM;

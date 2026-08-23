@@ -14,7 +14,6 @@ import threading
 import time
 
 import helpers
-import link
 import streamer
 
 # osc needs liblo, which the instrument has and a desktop may not. Nothing
@@ -49,6 +48,34 @@ FLAG_SEQ_ARM     = 1 << 22
 # the palette wobble, one per palette, on the upper octave C and D keys
 FLAG_PAL_MOD_FG  = 1 << 23
 FLAG_PAL_MOD_BG  = 1 << 24
+# midi notes pick the mode, the notes_change_mode setting
+FLAG_NOTES_MODE  = 1 << 25
+
+# The trigger sources spelled short enough for the status page, which has ten
+# characters for one after its label. Indexed like eyesy.TRIGGER_SOURCES, so
+# adding a source there means adding one here.
+TRIG_SHORT = [
+    "Audio", "MIDI Note", "Audio+Note",
+    "Clock 1/16", "Clock 1/8", "Clock 1/4", "Clock 1/1",
+    "Link 1/16", "Link 1/8", "Link 1/4", "Link 1/1",
+]
+
+
+def trig_text(eyesy):
+    i = eyesy.config["trigger_source"]
+    if 0 <= i < len(TRIG_SHORT):
+        return TRIG_SHORT[i]
+    return eyesy.TRIGGER_SOURCES[i]
+
+
+def palette_name(eyesy, index):
+    """Whatever the palette calls itself, or its number if it has no name."""
+    try:
+        name = eyesy.palettes[index].get("name")
+    except (IndexError, AttributeError, TypeError):
+        name = None
+    return str(name) if name else str(index + 1)
+
 
 # how often the packed state message goes out, the display refreshes at 20hz
 STATE_INTERVAL = 0.05
@@ -78,7 +105,7 @@ def init(eyesy):
 
     send_text("ver", eyesy.VERSION)
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
-    send_text("trig", eyesy.TRIGGER_SOURCES[eyesy.config["trigger_source"]])
+    send_text("trig", trig_text(eyesy))
     send_stream_info(eyesy)
 
     threading.Thread(target=_net_loop, daemon=True).start()
@@ -171,9 +198,10 @@ def update(eyesy):
     send_text("ssid", _net["ssid"])
     send_text("ip", _net["ip"])
     send_text("midi", eyesy.usb_midi_name if eyesy.usb_midi_name else "none")
-    send_text("trig", eyesy.TRIGGER_SOURCES[eyesy.config["trigger_source"]])
+    send_text("trig", trig_text(eyesy))
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
-    send_text("clock", _clock_line(eyesy))
+    send_text("fgpal", palette_name(eyesy, eyesy.fg_palette))
+    send_text("bgpal", palette_name(eyesy, eyesy.bg_palette))
     send_stream_info(eyesy)
 
     flags = 0
@@ -201,6 +229,7 @@ def update(eyesy):
     if eyesy.auto_random == eyesy.AUTO_RANDOM_SCENES: flags |= FLAG_AUTO_SCENES
     if eyesy.palette_mod[eyesy.PALETTE_FG]: flags |= FLAG_PAL_MOD_FG
     if eyesy.palette_mod[eyesy.PALETTE_BG]: flags |= FLAG_PAL_MOD_BG
+    if eyesy.config.get("notes_change_mode"): flags |= FLAG_NOTES_MODE
     _trig_seen = False
 
     osc.send(
@@ -218,17 +247,10 @@ def update(eyesy):
         eyesy.config["knob1_cc"], eyesy.config["knob2_cc"],
         eyesy.config["knob3_cc"], eyesy.config["knob4_cc"],
         eyesy.config["knob5_cc"],
+        # the four the midi page lists under the knobs
+        eyesy.config["auto_clear_cc"], eyesy.config["fg_palette_cc"],
+        eyesy.config["bg_palette_cc"], eyesy.config["mode_cc"],
     )
-
-
-def _clock_line(eyesy):
-    """Line four of the MIDI page. Whichever clock is driving the visuals is
-    what belongs there, and whether it is muted comes first either way."""
-    if eyesy.midi_clock_muted:
-        return "Link MUTED" if link.is_link_source(eyesy) else "Clock MUTED"
-    if link.is_link_source(eyesy):
-        return link.describe()
-    return "Clock on"
 
 
 def _knob(v):

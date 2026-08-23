@@ -94,35 +94,36 @@ class LinkTest(unittest.TestCase):
 
     # --- what the display says -----------------------------------------
 
-    def test_describe_fits_an_oled_line(self):
-        for running, peers, tempo in [(False, 0, 0.0), (True, 0, 120.0),
-                                      (True, 1, 128.5), (True, 12, 174.0),
-                                      (True, 99, 999.9)]:
-            link.running, link.peers, link.tempo = running, peers, tempo
-            self.assertLessEqual(len(link.describe()), 21, link.describe())
-
-    def test_describe_says_whether_anyone_else_is_there(self):
-        link.status(1, 0, 120.0)
-        self.assertIn("alone", link.describe())
-        link.status(1, 1, 120.0)
-        self.assertIn("1 peer", link.describe())
-        link.status(1, 3, 120.0)
-        self.assertIn("3 peers", link.describe())
+    def test_the_session_is_still_tracked_with_nowhere_to_show_it(self):
+        # describe() went with the clock row. peers and tempo are still kept
+        # up to date because the trigger reads them, and because a readout
+        # would need them again if one is ever wanted.
+        link.status(1, 3, 128.5)
+        self.assertTrue(link.running)
+        self.assertEqual(link.peers, 3)
+        self.assertEqual(link.tempo, 128.5)
         link.status(0, 0, 0.0)
-        self.assertEqual(link.describe(), "Link off")
+        self.assertFalse(link.running)
 
-    def test_the_midi_page_shows_whichever_clock_is_driving(self):
-        self.e.config["trigger_source"] = self.source("MIDI Clock 1/4 Note")
-        self.assertEqual(oled._clock_line(self.e), "Clock on")
-        self.e.midi_clock_muted = True
-        self.assertEqual(oled._clock_line(self.e), "Clock MUTED")
+    # The MIDI page used to carry a clock row saying which clock was driving
+    # and, for Link, its tempo and peer count. That row is gone. What is left
+    # on the display is the trigger source, on the status page, and the mute
+    # letter in the top bar - so a Link session is still visible as the thing
+    # selected, just not as a tempo.
+    def test_the_display_still_says_a_link_source_is_selected(self):
+        for name in ("Link 16th Note", "Link 8th Note",
+                     "Link 1/4 Note", "Link Whole Note"):
+            self.e.config["trigger_source"] = self.source(name)
+            short = oled.trig_text(self.e)
+            self.assertTrue(short.startswith("Link"), short)
+            self.assertLessEqual(len(short), 10, f"{short} will not fit")
 
-        self.e.midi_clock_muted = False
-        self.e.config["trigger_source"] = self.source("Link 1/4 Note")
-        link.status(1, 2, 120.0)
-        self.assertIn("120.0", oled._clock_line(self.e))
-        self.e.midi_clock_muted = True
-        self.assertEqual(oled._clock_line(self.e), "Link MUTED")
+    def test_every_trigger_source_has_a_short_name_that_fits(self):
+        # ten characters is what the status page leaves after "Trig Src  "
+        self.assertEqual(len(oled.TRIG_SHORT), len(self.e.TRIGGER_SOURCES))
+        for i in range(len(self.e.TRIGGER_SOURCES)):
+            self.e.config["trigger_source"] = i
+            self.assertLessEqual(len(oled.trig_text(self.e)), 10)
 
     # --- lifecycle ------------------------------------------------------
 
@@ -141,7 +142,6 @@ class LinkTest(unittest.TestCase):
         link.apply(self.e)
         self.assertFalse(link.running)
         self.assertEqual(link.peers, 0)
-        self.assertEqual(link.describe(), "Link off")
 
 
 if __name__ == "__main__":
