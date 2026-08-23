@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""The upper octave white keys, after Mode Keys was taken off them.
+"""The upper octave white keys.
 
-C and D wobble a palette, E steps the MIDI channel. The wobble runs on the
-Auto Random Cycle clock rather than the trigger, which is the one thing about
-it that is not like the knob wobble and the thing most likely to get wired up
-the other way by mistake.
+C and D step the foreground palette, E and F the background, and a pair
+pressed together switches that palette's wobble. G steps the MIDI channel.
+
+Two things here are easy to get wrong and are what most of this file is
+about. The keys act on the way up, because on the way down a single key and
+the first half of a chord look identical; and the wobble runs on the Auto
+Random Cycle clock rather than on the trigger, unlike the knob wobble it
+otherwise resembles.
 
     python3 tests/test_palette_mod.py
 """
@@ -67,11 +71,27 @@ class Base(unittest.TestCase):
         self.saved = []
         self.e.save_config_file = lambda: self.saved.append(dict(self.e.config))
         # enough palettes that "not the one showing" is a real choice
-        self.e.palettes = [f"p{i}" for i in range(8)]
+        self.e.palettes = [{"name": f"Palette {i}"} for i in range(8)]
+
+    def press(self, k):
+        organelle.dispatch_key(self.e, k, 100)
+
+    def release(self, k):
+        organelle.dispatch_key(self.e, k, 0)
 
     def tap(self, k):
-        organelle.dispatch_key(self.e, k, 100)
-        organelle.dispatch_key(self.e, k, 0)
+        self.press(k)
+        self.release(k)
+
+    def chord(self, a, b):
+        """Both down, then both up, which is how a hand does it."""
+        self.press(a)
+        self.press(b)
+        self.release(b)
+        self.release(a)
+
+    FG_DOWN, FG_UP = organelle.UPPER_C, organelle.UPPER_D
+    BG_DOWN, BG_UP = organelle.UPPER_E, organelle.UPPER_F
 
 
 class PaletteModTest(Base):
@@ -79,44 +99,44 @@ class PaletteModTest(Base):
     def test_it_starts_off(self):
         self.assertEqual(self.e.palette_mod, [False, False])
 
-    def test_c_and_d_toggle_their_own_palette(self):
-        self.tap(organelle.UPPER_C)
+    def test_each_pair_toggles_its_own_palette(self):
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertEqual(self.e.palette_mod,
-                         [True, False], "C is the foreground")
-        self.tap(organelle.UPPER_D)
+                         [True, False], "C and D are the foreground")
+        self.chord(self.BG_DOWN, self.BG_UP)
         self.assertEqual(self.e.palette_mod, [True, True])
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertEqual(self.e.palette_mod, [False, True])
-        self.tap(organelle.UPPER_D)
+        self.chord(self.BG_DOWN, self.BG_UP)
         self.assertEqual(self.e.palette_mod, [False, False])
 
     def test_switching_on_moves_straight_away(self):
         # a key that does nothing visible for half a minute looks broken
         self.e.fg_palette = 3
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertNotEqual(self.e.fg_palette, 3)
 
     def test_switching_off_leaves_the_palette_where_it_is(self):
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         landed = self.e.fg_palette
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertEqual(self.e.fg_palette, landed)
 
     def test_one_palette_does_not_disturb_the_other(self):
         self.e.bg_palette = 5
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertEqual(self.e.bg_palette, 5)
 
     # --- the clock --------------------------------------------------------
 
     def test_nothing_moves_before_the_cycle_is_up(self):
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         landed = self.e.fg_palette
         self.e.update_palette_mod()
         self.assertEqual(self.e.fg_palette, landed)
 
     def test_it_moves_once_the_cycle_is_up(self):
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         landed = self.e.fg_palette
         self.e.palette_mod_next[self.e.PALETTE_FG] = 0    # long past
         self.e.update_palette_mod()
@@ -142,8 +162,8 @@ class PaletteModTest(Base):
             self.assertLessEqual(due, self.e.AUTO_RANDOM_MAX + 1)
 
     def test_the_two_palettes_keep_their_own_clocks(self):
-        self.tap(organelle.UPPER_C)
-        self.tap(organelle.UPPER_D)
+        self.chord(self.FG_DOWN, self.FG_UP)
+        self.chord(self.BG_DOWN, self.BG_UP)
         self.e.palette_mod_next[self.e.PALETTE_FG] = 0
         bg_was = self.e.bg_palette
         fg_was = self.e.fg_palette
@@ -154,24 +174,36 @@ class PaletteModTest(Base):
     def test_it_does_not_need_the_mode_picker_switched_on(self):
         # it borrows the interval, not the feature
         self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_OFF)
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.e.palette_mod_next[self.e.PALETTE_FG] = 0
         was = self.e.fg_palette
         self.e.update_palette_mod()
         self.assertNotEqual(self.e.fg_palette, was)
 
     def test_it_holds_still_in_a_menu(self):
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         was = self.e.fg_palette
         self.e.palette_mod_next[self.e.PALETTE_FG] = 0
         self.e.menu_mode = True
         self.e.update_palette_mod()
         self.assertEqual(self.e.fg_palette, was)
 
-    def test_the_key_does_nothing_in_a_menu(self):
+    def test_the_chord_does_nothing_in_a_menu(self):
         self.e.menu_mode = True
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertEqual(self.e.palette_mod, [False, False])
+
+    def test_a_chord_let_go_inside_a_menu_leaves_no_key_armed(self):
+        # pressed while performing, released after something opened a menu.
+        # the used flags have to be cleared or the next tap steps twice.
+        self.press(self.FG_DOWN)
+        self.press(self.FG_UP)
+        self.e.menu_mode = True
+        self.release(self.FG_UP)
+        self.release(self.FG_DOWN)
+        self.e.menu_mode = False
+        self.assertEqual(self.e.palette_key_used, [False] * 4)
+        self.assertEqual(self.e.palette_key_held, [False] * 4)
 
     # --- picking ----------------------------------------------------------
 
@@ -183,7 +215,7 @@ class PaletteModTest(Base):
             self.assertNotEqual(self.e.fg_palette, before)
 
     def test_one_palette_in_the_file_is_not_an_infinite_loop(self):
-        self.e.palettes = ["only"]
+        self.e.palettes = [{"name": "only"}]
         self.e.fg_palette = 0
         self.assertFalse(self.e.pick_random_palette(self.e.PALETTE_FG))
         self.assertEqual(self.e.fg_palette, 0)
@@ -196,7 +228,7 @@ class PaletteModTest(Base):
     # --- scenes -----------------------------------------------------------
 
     def test_a_scene_carries_the_wobble(self):
-        self.tap(organelle.UPPER_D)
+        self.chord(self.BG_DOWN, self.BG_UP)
         fields = self.e._scene_fields()
         self.assertEqual(fields["palette_mod"], {"fg": False, "bg": True})
 
@@ -220,43 +252,168 @@ class PaletteModTest(Base):
             self.assertGreater(self.e.palette_mod_next[which], time.time() + 1)
 
 
+class PaletteStepTest(Base):
+    """A key on its own steps its palette."""
+
+    def test_each_key_steps_its_own_palette_its_own_way(self):
+        self.e.fg_palette = self.e.bg_palette = 3
+        self.tap(self.FG_DOWN)
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette), (2, 3))
+        self.tap(self.FG_UP)
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette), (3, 3))
+        self.tap(self.BG_DOWN)
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette), (3, 2))
+        self.tap(self.BG_UP)
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette), (3, 3))
+
+    def test_it_steps_on_the_way_up_not_the_way_down(self):
+        # the whole chord scheme rests on this
+        self.e.fg_palette = 3
+        self.press(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 3, "nothing on the way down")
+        self.release(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 4)
+
+    def test_it_wraps_at_both_ends(self):
+        last = len(self.e.palettes) - 1
+        self.e.fg_palette = last
+        self.tap(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 0)
+        self.tap(self.FG_DOWN)
+        self.assertEqual(self.e.fg_palette, last)
+
+    def test_holding_a_key_does_not_repeat(self):
+        self.e.fg_palette = 3
+        self.press(self.FG_UP)
+        for _ in range(120):
+            self.e.update_key_repeater()
+        self.release(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 4, "one press, one step")
+
+    def test_nothing_steps_in_a_menu(self):
+        self.e.fg_palette = 3
+        self.e.menu_mode = True
+        self.tap(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 3)
+
+    def test_the_spare_keys_do_nothing(self):
+        before = (self.e.fg_palette, self.e.bg_palette,
+                  self.e.config["midi_channel"], list(self.e.palette_mod))
+        for k in (organelle.UPPER_A, organelle.UPPER_B):
+            self.tap(k)
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette,
+                          self.e.config["midi_channel"],
+                          list(self.e.palette_mod)), before)
+
+
+class PaletteChordTest(Base):
+    """Two of a pair held together, instead of either of them alone."""
+
+    def test_the_chord_does_not_also_step_the_palette(self):
+        # the wobble picks a palette when it starts, so compare against what
+        # the same chord does with the wobble already on and settling
+        self.e.fg_palette = 3
+        self.press(self.FG_DOWN)
+        self.press(self.FG_UP)
+        self.release(self.FG_UP)
+        self.release(self.FG_DOWN)
+        self.assertTrue(self.e.palette_mod[self.e.PALETTE_FG])
+        # switching it off must leave the palette alone, not step it twice
+        landed = self.e.fg_palette
+        self.chord(self.FG_DOWN, self.FG_UP)
+        self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG])
+        self.assertEqual(self.e.fg_palette, landed)
+
+    def test_the_order_the_keys_go_down_does_not_matter(self):
+        self.chord(self.FG_UP, self.FG_DOWN)
+        self.assertTrue(self.e.palette_mod[self.e.PALETTE_FG])
+
+    def test_the_order_the_keys_come_up_does_not_matter(self):
+        self.e.fg_palette = 3
+        self.press(self.FG_DOWN)
+        self.press(self.FG_UP)
+        self.release(self.FG_DOWN)      # the first one down comes up first
+        self.release(self.FG_UP)
+        self.assertTrue(self.e.palette_mod[self.e.PALETTE_FG])
+        landed = self.e.fg_palette
+        self.chord(self.FG_DOWN, self.FG_UP)
+        self.assertEqual(self.e.fg_palette, landed, "neither key stepped")
+
+    def test_one_after_the_other_is_two_steps_not_a_chord(self):
+        self.e.fg_palette = 3
+        self.tap(self.FG_DOWN)
+        self.tap(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 3, "down then up, back where it was")
+        self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG])
+
+    def test_a_key_from_each_pair_is_not_a_chord(self):
+        # C and E are adjacent white keys but belong to different palettes
+        self.e.fg_palette = self.e.bg_palette = 3
+        self.press(self.FG_DOWN)
+        self.press(self.BG_DOWN)
+        self.release(self.BG_DOWN)
+        self.release(self.FG_DOWN)
+        self.assertEqual(self.e.palette_mod, [False, False])
+        self.assertEqual((self.e.fg_palette, self.e.bg_palette), (2, 2))
+
+    def test_holding_one_and_tapping_the_other_twice_toggles_twice(self):
+        self.press(self.FG_DOWN)
+        self.press(self.FG_UP)
+        self.release(self.FG_UP)
+        self.assertTrue(self.e.palette_mod[self.e.PALETTE_FG])
+        self.press(self.FG_UP)
+        self.release(self.FG_UP)
+        self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG])
+        self.release(self.FG_DOWN)
+        self.assertEqual(self.e.palette_key_used, [False] * 4)
+
+    def test_a_chord_leaves_nothing_armed_behind_it(self):
+        self.chord(self.FG_DOWN, self.FG_UP)
+        self.assertEqual(self.e.palette_key_held, [False] * 4)
+        self.assertEqual(self.e.palette_key_used, [False] * 4)
+        # and the next single tap steps exactly once
+        self.e.fg_palette = 3
+        self.tap(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 4)
+
+
 class MidiChannelKeyTest(Base):
 
     def test_it_steps_on_the_way_up_not_the_way_down(self):
-        organelle.dispatch_key(self.e, organelle.UPPER_E, 100)
+        organelle.dispatch_key(self.e, organelle.UPPER_G, 100)
         self.assertEqual(self.e.config["midi_channel"], 1, "not on press")
-        organelle.dispatch_key(self.e, organelle.UPPER_E, 0)
+        organelle.dispatch_key(self.e, organelle.UPPER_G, 0)
         self.assertEqual(self.e.config["midi_channel"], 2)
 
     def test_holding_it_does_not_run_away(self):
-        organelle.dispatch_key(self.e, organelle.UPPER_E, 100)
+        organelle.dispatch_key(self.e, organelle.UPPER_G, 100)
         for _ in range(120):
             self.e.update_key_repeater()
         self.assertEqual(self.e.config["midi_channel"], 1)
-        organelle.dispatch_key(self.e, organelle.UPPER_E, 0)
+        organelle.dispatch_key(self.e, organelle.UPPER_G, 0)
         self.assertEqual(self.e.config["midi_channel"], 2, "one press, one step")
 
     def test_it_wraps_at_sixteen(self):
         self.e.config["midi_channel"] = 16
-        self.tap(organelle.UPPER_E)
+        self.tap(organelle.UPPER_G)
         self.assertEqual(self.e.config["midi_channel"], 1)
 
     def test_it_walks_the_whole_range(self):
         seen = []
         for _ in range(16):
-            self.tap(organelle.UPPER_E)
+            self.tap(organelle.UPPER_G)
             seen.append(self.e.config["midi_channel"])
         self.assertEqual(sorted(seen), list(range(1, 17)))
 
     def test_each_step_is_saved(self):
-        self.tap(organelle.UPPER_E)
+        self.tap(organelle.UPPER_G)
         self.assertEqual(len(self.saved), 1)
         self.assertEqual(self.saved[-1]["midi_channel"], 2)
 
     def test_it_works_in_a_menu_too(self):
         # it is a setting, and the MIDI page is where you would be looking
         self.e.menu_mode = True
-        self.tap(organelle.UPPER_E)
+        self.tap(organelle.UPPER_G)
         self.assertEqual(self.e.config["midi_channel"], 2)
 
 
@@ -279,11 +436,11 @@ class OledFlagsTest(Base):
         self.assertFalse(self.flags() & oled.FLAG_PAL_MOD_FG)
         self.assertFalse(self.flags() & oled.FLAG_PAL_MOD_BG)
 
-        self.tap(organelle.UPPER_C)
+        self.chord(self.FG_DOWN, self.FG_UP)
         self.assertTrue(self.flags() & oled.FLAG_PAL_MOD_FG)
         self.assertFalse(self.flags() & oled.FLAG_PAL_MOD_BG)
 
-        self.tap(organelle.UPPER_D)
+        self.chord(self.BG_DOWN, self.BG_UP)
         self.assertTrue(self.flags() & oled.FLAG_PAL_MOD_BG)
 
     def test_the_new_bits_do_not_land_on_an_old_one(self):

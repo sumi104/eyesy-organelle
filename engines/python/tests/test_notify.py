@@ -52,8 +52,9 @@ import eyesy as eyesy_module        # noqa: E402
 import oled                         # noqa: E402
 import organelle                    # noqa: E402
 
-# the upper octave keys these tests press
-PALETTE_KEY_FG = organelle.UPPER_C
+# the upper octave keys these tests press. the foreground wobble is the two
+# of a pair held together, not a key of its own
+PALETTE_PAIR_FG = organelle.PALETTE_PAIRS[0]
 MOD_KEY_KNOB2 = next(k for k, i in organelle.KNOB_MOD_KEYS.items() if i == 1)
 
 # what the small font fits, from the x each line starts at in renderNotify()
@@ -133,8 +134,14 @@ class NotifyTest(unittest.TestCase):
 
     # --- which call sites are warnings ------------------------------------
 
+    def chord(self, pair):
+        organelle.dispatch_key(self.e, pair[0], 100)
+        organelle.dispatch_key(self.e, pair[1], 100)
+        organelle.dispatch_key(self.e, pair[1], 0)
+        organelle.dispatch_key(self.e, pair[0], 0)
+
     def test_switching_a_palette_wobble_on_does_not_warn(self):
-        self.tap(PALETTE_KEY_FG)
+        self.chord(PALETTE_PAIR_FG)
         heading, detail, warn = self.last()
         self.assertEqual(heading, "FG Palette")
         # it says how often it will move, which is the thing you cannot see
@@ -142,9 +149,15 @@ class NotifyTest(unittest.TestCase):
         self.assertEqual(warn, 0)
 
     def test_switching_a_palette_wobble_off_does_not_warn(self):
-        self.tap(PALETTE_KEY_FG)
-        self.tap(PALETTE_KEY_FG)
+        self.chord(PALETTE_PAIR_FG)
+        self.chord(PALETTE_PAIR_FG)
         self.assertEqual(self.last(), ("FG Palette", "steady", 0))
+
+    def test_stepping_a_palette_says_nothing_at_all(self):
+        # 43 palettes tapped through would be 43 messages over the picture
+        self.osc.sent.clear()
+        self.tap(PALETTE_PAIR_FG[1])
+        self.assertEqual(self.osc.sent, [])
 
     def test_modulation_refused_by_the_sequencer_warns(self):
         self.e.knob_seq_state = "playing"

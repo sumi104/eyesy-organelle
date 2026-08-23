@@ -293,6 +293,12 @@ class Eyesy:
         self.palette_mod = [False, False]
         self.palette_mod_next = [0.0, 0.0]
 
+        # The four upper octave keys that own the palettes, as fg down, fg up,
+        # bg down, bg up. A key that was half of a chord is marked used so its
+        # release does not also step the palette. See organelle.dispatch_key.
+        self.palette_key_held = [False] * 4
+        self.palette_key_used = [False] * 4
+
         # knob sequencer stuff
         self.knob_seq = []
         self.knob_seq_last_values = [-1] * 5

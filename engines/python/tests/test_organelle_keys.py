@@ -187,13 +187,13 @@ class OrganelleKeyTest(unittest.TestCase):
                      "F#", "G", "G#", "A", "A#", "B"]
         return organelle.UPPER_OCTAVE_FIRST + chromatic.index(name)
 
-    # Mode Keys is gone. C, D and E took its white keys and the rest are
-    # unassigned, so pressing one has to do nothing at all rather than fall
-    # through to whatever the lower octave key of that index does.
-    def test_the_leftover_white_keys_do_nothing(self):
+    # Mode Keys is gone. C to G took its white keys, A and B are spare, so
+    # pressing one of those has to do nothing at all rather than fall through
+    # to whatever the lower octave key of that index does.
+    def test_the_spare_white_keys_do_nothing(self):
         before = (self.e.mode, self.e.fg_palette, self.e.bg_palette,
                   self.e.config["midi_channel"])
-        for name in ("F", "G", "A", "B"):
+        for name in ("A", "B"):
             self.tap(self.upper(name))
         self.assertEqual((self.e.mode, self.e.fg_palette, self.e.bg_palette,
                           self.e.config["midi_channel"]), before)
@@ -204,12 +204,17 @@ class OrganelleKeyTest(unittest.TestCase):
             self.tap(self.upper(name))
             self.assertEqual(self.e.mode, "Alpha")
 
-    def test_c_and_d_own_the_palettes_and_nothing_else_does(self):
+    def test_the_white_keys_pair_up_by_palette(self):
+        # (palette, side): side 0 steps down, side 1 steps up
         self.assertEqual(organelle.palette_for_key(self.upper("C")),
-                         self.e.PALETTE_FG)
+                         (self.e.PALETTE_FG, 0))
         self.assertEqual(organelle.palette_for_key(self.upper("D")),
-                         self.e.PALETTE_BG)
-        for n in ["C#", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]:
+                         (self.e.PALETTE_FG, 1))
+        self.assertEqual(organelle.palette_for_key(self.upper("E")),
+                         (self.e.PALETTE_BG, 0))
+        self.assertEqual(organelle.palette_for_key(self.upper("F")),
+                         (self.e.PALETTE_BG, 1))
+        for n in ["C#", "D#", "F#", "G", "G#", "A", "A#", "B"]:
             self.assertIsNone(organelle.palette_for_key(self.upper(n)))
         # the lower octave keys share no indices with the upper ones, and the
         # pedal is not a keyboard key at all

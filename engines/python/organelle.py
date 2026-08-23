@@ -22,20 +22,32 @@ KEY_C, KEY_CS, KEY_D, KEY_DS, KEY_E, KEY_F = 1, 2, 3, 4, 5, 6
 KEY_FS, KEY_G, KEY_GS, KEY_A, KEY_AS, KEY_B = 7, 8, 9, 10, 11, 12
 
 # Upper octave. The black keys switch random modulation on and off for the
-# knob above them, left to right. Three of the white keys took over what used
-# to be Mode Keys: C and D wobble a palette, E steps the MIDI channel. F, G, A
-# and B are unassigned.
+# knob above them, left to right. The white keys are the colours: C and D step
+# the foreground palette, E and F the background, and either pair pressed
+# together switches that palette's wobble. G is the MIDI channel. A and B are
+# spare.
+#
+# Everything up here acts on the way up rather than the way down. It has to:
+# on the way down there is no telling a single key from the first half of a
+# chord. The black keys already worked this way - they double as their knob's
+# depth modifier - so the whole octave now reads as one rule, and the lower
+# octave keeps acting the moment it is pressed.
 UPPER_OCTAVE_FIRST = 13
 
-UPPER_C = 13    # foreground palette wobble on / off
-UPPER_D = 15    # background palette wobble on / off
-UPPER_E = 17    # midi channel +1 per press, wrapping at 16
+UPPER_C, UPPER_D, UPPER_E = 13, 15, 17
+UPPER_F, UPPER_G         = 18, 20
+UPPER_A, UPPER_B         = 22, 24    # spare
 
 # raw key index -> knob 0-4, the five black keys of the upper octave
 KNOB_MOD_KEYS = {14: 0, 16: 1, 19: 2, 21: 3, 23: 4}
 
-# raw key index -> which palette, see eyesy.PALETTE_FG / PALETTE_BG
-PALETTE_MOD_KEYS = {UPPER_C: 0, UPPER_D: 1}
+# The two palette pairs, in eyesy.PALETTE_FG / PALETTE_BG order. Within a pair
+# the first key steps down and the second steps up, and a key only ever looks
+# at its own partner - C and F are not a chord.
+PALETTE_PAIRS = (
+    (UPPER_C, UPPER_D),
+    (UPPER_E, UPPER_F),
+)
 
 # the panel button the pedal borrows when it is set to Trigger
 EYESY_TRIGGER_BUTTON = 10
@@ -65,8 +77,57 @@ def knob_for_key(k):
 
 
 def palette_for_key(k):
-    """Palette 0 or 1 for upper C or D, or None."""
-    return PALETTE_MOD_KEYS.get(k)
+    """(palette, side) for a palette key, or None.
+
+    palette is 0 for the foreground pair and 1 for the background, side is 0
+    for the key that steps down and 1 for the one that steps up.
+    """
+    for palette, pair in enumerate(PALETTE_PAIRS):
+        if k in pair:
+            return palette, pair.index(k)
+    return None
+
+
+def _step_palette(eyesy, palette, side):
+    if palette == eyesy.PALETTE_FG:
+        if side: eyesy.next_fg_palette()
+        else:    eyesy.prev_fg_palette()
+    else:
+        if side: eyesy.next_bg_palette()
+        else:    eyesy.prev_bg_palette()
+
+
+def _palette_key(eyesy, palette, side, pressed):
+    """One of the four palette keys, going down or coming up.
+
+    A key on its own steps its palette when it is let go. The two of a pair
+    held together switch that palette's wobble instead, and mark each other so
+    neither steps on the way up - the same "used as a modifier, so its release
+    does nothing" bookkeeping the black keys up here use.
+    """
+    i = (palette * 2) + side
+    partner = (palette * 2) + (1 - side)
+
+    if pressed:
+        eyesy.palette_key_held[i] = True
+        eyesy.palette_key_used[i] = False
+        if eyesy.palette_key_held[partner]:
+            eyesy.palette_key_used[i] = True
+            eyesy.palette_key_used[partner] = True
+            # marked either way, so a chord started outside a menu and let go
+            # inside one does not leave a key stepping later
+            if not eyesy.menu_mode:
+                on = eyesy.toggle_palette_mod(palette)
+                oled.notify(eyesy.PALETTE_NAMES[palette],
+                            eyesy.cycle_text() if on else "steady")
+        return
+
+    eyesy.palette_key_held[i] = False
+    if not eyesy.palette_key_used[i] and not eyesy.menu_mode:
+        # no notification: stepping is visible in the picture and on the
+        # status page, and 43 palettes tapped through would be 43 messages
+        _step_palette(eyesy, palette, side)
+    eyesy.palette_key_used[i] = False
 
 
 def dispatch_key(eyesy, k, v):
@@ -74,21 +135,19 @@ def dispatch_key(eyesy, k, v):
     pressed = v > 0
     shift = eyesy.key2_status
 
-    # Upper C and D wobble a palette. Unlike the knob wobble this runs on the
-    # Auto Random Cycle clock rather than the trigger - a palette that changed
-    # on every kick drum would be a strobe.
-    palette = palette_for_key(k)
-    if palette is not None:
-        if pressed and not eyesy.menu_mode:
-            on = eyesy.toggle_palette_mod(palette)
-            oled.notify(eyesy.PALETTE_NAMES[palette],
-                        eyesy.cycle_text() if on else "steady")
+    # The upper octave white keys are the colours. A pair together switches
+    # that palette's wobble, which unlike the knob wobble runs on the Auto
+    # Random Cycle clock rather than the trigger - a palette that changed on
+    # every kick drum would be a strobe.
+    found = palette_for_key(k)
+    if found is not None:
+        _palette_key(eyesy, found[0], found[1], pressed)
         return
 
-    # Upper E steps the MIDI channel, one per press. It works in a menu too:
+    # Upper G steps the MIDI channel, one per press. It works in a menu too:
     # it is a setting, and the MIDI page is where you would be looking while
     # you set it.
-    if k == UPPER_E:
+    if k == UPPER_G:
         eyesy.midi_channel_key(pressed)
         return
 
