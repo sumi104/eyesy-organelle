@@ -105,6 +105,11 @@ panel and an editor in a browser.
 | `web` | the browser based mode editor, file manager and video stream |
 | `Tools` | remount the read only root filesystem read/write and back |
 
+## Releases
+
+The card image is built and published by hand; how, and what has to be taken
+out of it first, is in [RELEASING.md](RELEASING.md).
+
 ## Licence and credit
 
 EYESY OS is by Owen Osborn and Critter & Guitari, under the BSD 3-Clause
