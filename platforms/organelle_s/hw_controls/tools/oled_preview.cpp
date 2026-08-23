@@ -177,9 +177,18 @@ int main(int argc, char *argv[]) {
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 15);
 
-    pages.renderShutdown(screen, "Low Battery");
+    pages.renderBigMessage(screen, "Low Battery", "Auto Shutdown");
     dump(screen, prefix, OLED_NUM_PAGES + 16);
     st.batteryOn = false;
+
+    // the encoder held on the settings page, part way and full
+    pages.setPage(OLED_PAGE_SETTINGS);
+    pages.notifyHold("Restart Video", 0.45f);
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 17);
+    pages.renderBigMessage(screen, "Restart Video", "Restarting...");
+    dump(screen, prefix, OLED_NUM_PAGES + 18);
+    pages.tickNotify(10000);
 
     // the live page again with the stream stopped
     pages.tickNotify(10000);

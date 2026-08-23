@@ -118,13 +118,32 @@ void OledPages::tickNotify(float elapsedMs) {
     }
 }
 
-// The last thing on the screen before the power goes. Full width and nothing
-// else on it, because there is no next frame to correct a misreading.
-void OledPages::renderShutdown(OledScreen &s, const char *reason) {
+// Full width and nothing else on it, because there is no next frame to correct
+// a misreading of it.
+void OledPages::renderBigMessage(OledScreen &s, const char *line1,
+                                 const char *line2) {
     s.clear();
     s.draw_box(0, 8, 128, 48, 1);
-    s.println(reason, 8, 20, 8, 1);
-    s.println("Auto Shutdown", 8, 36, 8, 1);
+    s.println(line1, 8, 20, 8, 1);
+    s.println(line2, 8, 36, 8, 1);
+}
+
+// A bar under the label, the same shape the knob wobble uses for depth and
+// rate, so a filling bar means the same thing everywhere on this display.
+void OledPages::notifyHold(const char *label, float fraction) {
+    char bar[24];
+    if (fraction < 0) fraction = 0;
+    if (fraction > 1) fraction = 1;
+    int filled = (int) (fraction * 14 + 0.5f);
+    for (int i = 0; i < 14; i++) bar[i] = i < filled ? '=' : '-';
+    bar[14] = 0;
+    notify(label, bar, false);
+}
+
+bool OledPages::encoderActs() {
+    if (toggleAction()) return true;
+    // a hold restarts the engine here, see main.cpp
+    return page == OLED_PAGE_SETTINGS;
 }
 
 const char *OledPages::sceneName() {
@@ -323,8 +342,8 @@ void OledPages::renderTopBar(OledScreen &s) {
     snprintf(buf, sizeof(buf), "%d", page + 1);
     s.println(buf, 118, 0, 8, 1);
 
-    // a dot by the page number means the encoder press does something here
-    if (toggleAction()) s.fill_area(112, 2, 3, 3, 1);
+    // a dot by the page number means the encoder does something here
+    if (encoderActs()) s.fill_area(112, 2, 3, 3, 1);
 }
 
 void OledPages::renderPerform(OledScreen &s) {

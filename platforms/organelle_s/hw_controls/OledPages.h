@@ -125,9 +125,19 @@ class OledPages
         // little longer on screen than the ones that just report.
         void notify(const char *line1, const char *line2, bool warn);
 
-        // Takes the whole screen rather than overlaying a page: it is the last
-        // thing drawn before the power goes.
-        void renderShutdown(OledScreen &s, const char *reason);
+        // Takes the whole screen rather than overlaying a page. For the two
+        // things that end the session it is drawn on: nothing else is coming,
+        // so nothing else should be competing for the reader's eye.
+        void renderBigMessage(OledScreen &s, const char *line1,
+                              const char *line2);
+
+        // Held on a page that acts on a hold. Shows how far along it is, so
+        // the gesture teaches itself and can be abandoned.
+        void notifyHold(const char *label, float fraction);
+
+        // true when the encoder does anything at all on this page, press or
+        // hold. What puts the dot by the page number.
+        bool encoderActs();
         void tickNotify(float elapsedMs);
 
         // Slides the mode and scene names, when they are too long for their

@@ -28,7 +28,9 @@ does not have to.
   the knob for how fast, hold the key and turn it for how far.
 - **Seven OLED pages**: what is playing, what the instrument is set to, MIDI,
   the live video stream, and the key map itself on the last two, so the panel
-  explains itself.
+  explains itself. Holding the encoder on the settings page **restarts the
+  video engine** — which works with no monitor plugged in, and when the engine
+  is the thing that has stopped.
 - **Audio in goes straight to audio out**, through the codec's own analogue
   path. It costs no CPU at all — see [the platform
   notes](platforms/organelle_s/README.md#audio-thru).

@@ -424,13 +424,27 @@ pushes it state over OSC; see `engines/python/oled.py` and `OledPages.cpp`.
 
 Turn the encoder to page. Pressing it switches whatever on/off setting the
 page in front of you owns, and does nothing on the pages that have none — a
-dot next to the page number marks the ones that respond.
+dot next to the page number marks the ones the encoder does anything on.
+
+**Hold the encoder for three seconds on `SETTINGS` to restart the video
+engine.** There is a Restart Video in the settings menu already, but that menu
+is drawn by the engine, on the video output — which makes it no use for the two
+occasions you want it: when nothing is plugged into the video output to read it
+on, and when the engine itself is what has stopped. The encoder and this
+display are the only controls that outlive the engine, so the restart is one of
+them, and it runs `systemctl restart eyesypy` from the hardware process rather
+than asking the engine to exit. Asking only works while it is well enough to be
+asked.
+
+A bar fills while it is held and letting go abandons it. Three seconds and a
+bar because a restart cannot be taken back, unlike the stream switch that the
+same button toggles one page along.
 
 | | Page | Press |
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
-| 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | — |
+| 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | Restart Video, held |
 | 4 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CTRL 1/2** — the lower octave, in short form | — |

@@ -72,6 +72,20 @@ bool batteryEnabled = false;
 // said once as the last bar goes, rather than every second from then on
 bool batteryWarned = false;
 
+// Hold the encoder on the SETTINGS page to restart the video engine.
+//
+// The engine draws the settings menu that has a Restart Video in it, which
+// means that menu is no use for the two times you want it: when there is no
+// monitor plugged in to read it on, and when the engine is the thing that has
+// stopped. The encoder and this display are the only controls that outlive it
+// - turning it already pages locally - so the restart lives here too.
+//
+// Long rather than a press because it cannot be taken back. The bar while it
+// is held is what makes that discoverable and what lets go of it mean no.
+#define RESTART_HOLD_MS 3000.f
+Timer encHoldTimer;
+bool encHoldDone = false;
+
 int main(int argc, char* argv[]) {
     printf("build date " __DATE__ "   " __TIME__ "\n");
     char udpPacketIn[2048];
@@ -161,7 +175,8 @@ int main(int argc, char* argv[]) {
                 // still the thing running this.
                 if (controls.lowBatteryShutdown && controls.pwrStatus) {
                     printf("low battery, shutting down\n");
-                    oledPages.renderShutdown(oledScreen, "Low Battery");
+                    oledPages.renderBigMessage(oledScreen, "Low Battery",
+                                               "Auto Shutdown");
                     controls.updateOLED(oledScreen);
                     // no grace period. Organelle_OS does not give one either,
                     // and the threshold already has the margin in it - waiting
@@ -196,6 +211,29 @@ int main(int argc, char* argv[]) {
             oledTimer.reset();
             oledPages.tickNotify(elapsed);
             oledPages.tickScroll(elapsed);
+
+            // Held on the settings page: fill a bar, and at the end of it
+            // restart the engine. Anywhere else the hold means nothing, so
+            // paging away mid hold abandons it.
+            if (controls.encBut && !encHoldDone
+                    && oledPages.getPage() == OLED_PAGE_SETTINGS) {
+                float held = encHoldTimer.getElapsed();
+                if (held >= RESTART_HOLD_MS) {
+                    encHoldDone = true;
+                    printf("restart requested from the encoder\n");
+                    oledPages.renderBigMessage(oledScreen, "Restart Video",
+                                               "Restarting...");
+                    controls.updateOLED(oledScreen);
+                    // systemctl rather than asking the engine to exit: asking
+                    // only works while it is well enough to be asked, and a
+                    // hung engine is one of the two reasons this exists.
+                    system("sudo systemctl restart eyesypy");
+                    // nothing more this pass, or the refresh below paints a
+                    // page over the message
+                    continue;
+                }
+                oledPages.notifyHold("Restart Video", held / RESTART_HOLD_MS);
+            }
             if (oledPages.isDirty()) {
                 oledPages.render(oledScreen);
                 controls.updateOLED(oledScreen);
@@ -375,6 +413,11 @@ void encoderInput(void) {
 }
 
 void encoderButton(void) {
+    if (controls.encBut) {
+        encHoldTimer.reset();
+        encHoldDone = false;
+    }
+
     // the press switches whatever on/off setting the current page owns, and
     // does nothing at all on the pages that have none
     if (controls.encBut) {
