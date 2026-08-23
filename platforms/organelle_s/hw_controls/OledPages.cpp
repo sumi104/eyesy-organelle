@@ -520,10 +520,10 @@ void OledPages::renderHelp(OledScreen &s) {
 //
 // Drawn over the page rather than instead of it, so a second of message does
 // not cost you your place.
-// The upper octave. Four pairs on the left, the two single keys on the right,
-// and the one thing about this octave that is not a key along the bottom: it
-// acts when a key comes up, which is what lets two of a pair mean a third
-// thing without either of them firing first.
+// The upper octave: four pairs down the left, the MIDI channel beside the
+// first of them, and the knob range across the bottom row. That the keys here
+// act on release rather than on press - which is what lets two of a pair mean
+// a third thing - is in the README rather than on the page.
 void OledPages::renderHelp2(OledScreen &s) {
     static const HelpEntry ENTRIES[] = {
         { "C",  "D",  0,   "Fg Pal" },
@@ -556,10 +556,6 @@ void OledPages::renderHelp2(OledScreen &s) {
         }
         s.println(e.label, cx + 3, y, 8, 1);
     }
-
-    // No rule above the note: the knob range took the fifth row, whose key
-    // blocks run to y 53, and a line at 51 lands inside them.
-    s.println("Acts on key release", 2, 55, 8, 1);
 }
 
 void OledPages::renderNotify(OledScreen &s) {
