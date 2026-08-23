@@ -166,6 +166,16 @@ class AutoRandomTest(unittest.TestCase):
             self.e.config["auto_random_interval"] = seconds
             self.assertLessEqual(len(self.e.auto_random_text()), 21)
 
+    def test_the_status_page_says_the_cycle_without_a_sentence(self):
+        # oled.cycle_text() reads "every 30s", which suits a message and not a
+        # row that already has "Auto Cycle" printed down its left
+        import oled
+        for seconds, want in ((15, "15 sec"), (60, "60 sec"), (-1, "Random")):
+            self.e.config["auto_random_interval"] = seconds
+            self.assertEqual(oled.cycle_short(self.e), want)
+            # and the row it lands in has to fit across the display
+            self.assertLessEqual(len("Auto Cycle  " + want), 21)
+
     # --- the settings screen --------------------------------------------
     #
     # The cycle used to live on a Mode Keys screen that no longer exists. It

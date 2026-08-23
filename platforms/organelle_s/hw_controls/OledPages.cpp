@@ -31,6 +31,7 @@ OledPages::OledPages() {
     copyText(st.trigSrc, "Audio");
     copyText(st.fgPal, "-");
     copyText(st.bgPal, "-");
+    copyText(st.cycle, "30 sec");
     copyText(st.res, "-");
     copyText(st.ver, "3.1");
     copyText(st.url, "no network");
@@ -86,6 +87,7 @@ void OledPages::setText(const char *key, const char *val) {
     else if (!strcmp(key, "trig"))  copyText(st.trigSrc, val);
     else if (!strcmp(key, "fgpal")) copyText(st.fgPal, val);
     else if (!strcmp(key, "bgpal")) copyText(st.bgPal, val);
+    else if (!strcmp(key, "cycle")) copyText(st.cycle, val);
     else if (!strcmp(key, "res"))   copyText(st.res, val);
     else if (!strcmp(key, "ver"))   copyText(st.ver, val);
     else if (!strcmp(key, "url"))   copyText(st.url, val);
@@ -411,11 +413,12 @@ void OledPages::renderMidi(OledScreen &s) {
 void OledPages::renderStatus(OledScreen &s) {
     char buf[64];
 
-    // The gap before the lamps is what separates the label from the row it
-    // labels. At the old 32 the first lamp sat right against the B of KNOB.
-    s.println("KNOB", 2, 10, 8, 1);
+    // "Knob Mod" ends at x 50, so the lamps start at 60 and are spaced 15 to
+    // keep the last one inside 128. Tighter than the gap "KNOB" left, but the
+    // label says what the row is rather than what it is about.
+    s.println("Knob Mod", 2, 10, 8, 1);
     for (int i = 0; i < 5; i++)
-        lampFor(s, 48 + (i * 16), 14, st.flags & OLED_FLAG_KNOB_MOD(i));
+        lampFor(s, 60 + (i * 15), 14, st.flags & OLED_FLAG_KNOB_MOD(i));
 
     // Palette names run to twenty nine characters, so they slide the way the
     // mode name does rather than being cut off. The tag is two letters and not
@@ -432,7 +435,11 @@ void OledPages::renderStatus(OledScreen &s) {
     marqueeLine(marquee[MARQUEE_BG], buf, sizeof(buf), columns, "BG  ", st.bgPal);
     s.println(buf, textX, 33, 8, 1);
 
-    snprintf(buf, sizeof(buf), "MIDI Ch  %d", st.midiChannel);
+    // The channel is on the MIDI page, one turn away, and this row is better
+    // spent on the cycle: it times the two lamps above it as well as the A#
+    // picker, and it has no key of its own to show it. "Auto Random Cycle" is
+    // seventeen characters before the value, so the name is shortened here.
+    snprintf(buf, sizeof(buf), "Auto Cycle  %s", st.cycle);
     s.println(buf, 2, 44, 8, 1);
 
     snprintf(buf, sizeof(buf), "Trig Src  %s", st.trigSrc);
@@ -456,11 +463,11 @@ void OledPages::renderStream(OledScreen &s) {
 
 // Keys reversed out the same way as on the MOD page, so the whole instrument
 // reads one way. Two keys next to each other are the pair that steps a thing
-// down and up, two with a + between them are held together.
+// down and up, a + between them means held together and a - means a range.
 struct HelpEntry {
     const char *key;
     const char *second;   // null for a single key
-    bool held;            // draw a + between them rather than butting them up
+    const char *sep;      // null butts them up, "+" is held together, "-" a range
     const char *label;
 };
 
@@ -474,19 +481,19 @@ struct HelpEntry {
 void OledPages::renderHelp(OledScreen &s) {
     static const HelpEntry ENTRIES[] = {
         // left column, up to 61 pixels
-        { "AUX", 0,    false, "Osd"     },
-        { "C#",  0,    false, "Shift"   },
-        { "D#",  0,    false, "Persist" },
-        { "C#",  "K1", true,  "Gain"    },
-        { "C#",  "D#", true,  "Seq"     },
-        { "C",   "D",  false, "Mode"    },
+        { "AUX", 0,    0,     "Osd"     },
+        { "C#",  0,    0,     "Shift"   },
+        { "D#",  0,    0,     "Persist" },
+        { "C#",  "K1", "+",   "Gain"    },
+        { "C#",  "D#", "+",   "Seq"     },
+        { "C",   "D",  0,     "Mode"    },
         // right column, up to 49
-        { "E",   "F",  false, "Scene"   },
-        { "G",   0,    false, "Save"    },
-        { "A",   0,    false, "Grab"    },
-        { "B",   0,    false, "Trig"    },
-        { "F#",  0,    false, "Mute"    },
-        { "G#",  0,    false, "Clock"   },
+        { "E",   "F",  0,     "Scene"   },
+        { "G",   0,    0,     "Save"    },
+        { "A",   0,    0,     "Grab"    },
+        { "B",   0,    0,     "Trig"    },
+        { "F#",  0,    0,     "Mute"    },
+        { "G#",  0,    0,     "Clock"   },
     };
     const int count = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
 
@@ -497,8 +504,8 @@ void OledPages::renderHelp(OledScreen &s) {
 
         cx += drawKey(s, cx, y, e.key);
         if (e.second) {
-            if (e.held) {
-                s.println("+", cx, y, 8, 1);
+            if (e.sep) {
+                s.println(e.sep, cx, y, 8, 1);
                 cx += 6;
             }
             cx += drawKey(s, cx, y, e.second);
@@ -519,26 +526,30 @@ void OledPages::renderHelp(OledScreen &s) {
 // thing without either of them firing first.
 void OledPages::renderHelp2(OledScreen &s) {
     static const HelpEntry ENTRIES[] = {
-        { "C",  "D",  false, "Fg Pal" },
-        { "C",  "D",  true,  "Fg Mod" },
-        { "E",  "F",  false, "Bg Pal" },
-        { "E",  "F",  true,  "Bg Mod" },
-        { "G",  0,    false, "Midi Ch" },
-        { "C#", "A#", false, "Knob" },
+        { "C",  "D",  0,   "Fg Pal" },
+        { "C",  "D",  "+", "Fg Mod" },
+        { "E",  "F",  0,   "Bg Pal" },
+        { "E",  "F",  "+", "Bg Mod" },
+        { "G",  0,    0,   "Midi Ch" },
+        // Butted up, C# and A# read as one key with a stray sharp. The dash
+        // says it is the run from one to the other, and that needs the width
+        // of a whole row rather than half of one.
+        { "C#", "A#", "-", "Knob Mod" },
     };
     const int count = sizeof(ENTRIES) / sizeof(ENTRIES[0]);
 
     for (int i = 0; i < count; i++) {
         const HelpEntry &e = ENTRIES[i];
-        // four down the left, the rest on the right, so the bottom row stays
-        // clear for the note
-        int cx = (i < 4) ? HELP_COL_LEFT : HELP_COL_RIGHT;
-        int y = 10 + ((i < 4 ? i : i - 4) * 9);
+        // Four pairs down the left and the single key beside the first of
+        // them; the knob range is last and takes a row to itself.
+        bool wide = (i == count - 1);
+        int cx = (i < 4 || wide) ? HELP_COL_LEFT : HELP_COL_RIGHT;
+        int y = wide ? 10 + (4 * 9) : 10 + ((i < 4 ? i : i - 4) * 9);
 
         cx += drawKey(s, cx, y, e.key);
         if (e.second) {
-            if (e.held) {
-                s.println("+", cx, y, 8, 1);
+            if (e.sep) {
+                s.println(e.sep, cx, y, 8, 1);
                 cx += 6;
             }
             cx += drawKey(s, cx, y, e.second);
@@ -546,7 +557,8 @@ void OledPages::renderHelp2(OledScreen &s) {
         s.println(e.label, cx + 3, y, 8, 1);
     }
 
-    s.draw_line(0, 51, 127, 51, 1);
+    // No rule above the note: the knob range took the fifth row, whose key
+    // blocks run to y 53, and a line at 51 lands inside them.
     s.println("Acts on key release", 2, 55, 8, 1);
 }
 

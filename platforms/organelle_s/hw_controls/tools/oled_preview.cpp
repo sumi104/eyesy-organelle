@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
     // shows both the still case and the sliding one
     pages.setText("fgpal", "Red : White");
     pages.setText("bgpal", "Deep Myrtle : Electric Purple");
+    pages.setText("cycle", "30 sec");
 
     for (int p = 0; p < OLED_NUM_PAGES; p++) {
         pages.setPage(p);

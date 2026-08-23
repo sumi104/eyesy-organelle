@@ -68,6 +68,16 @@ def trig_text(eyesy):
     return eyesy.TRIGGER_SOURCES[i]
 
 
+def cycle_short(eyesy):
+    """The Auto Random Cycle value, for the status page rather than a sentence.
+
+    eyesy.cycle_text() says "every 30s", which reads well in a message and
+    badly in a row that already has a label on the left.
+    """
+    seconds = eyesy.config["auto_random_interval"]
+    return "Random" if seconds < 0 else f"{seconds} sec"
+
+
 def palette_name(eyesy, index):
     """Whatever the palette calls itself, or its number if it has no name."""
     try:
@@ -200,6 +210,7 @@ def update(eyesy):
     send_text("midi", eyesy.usb_midi_name if eyesy.usb_midi_name else "none")
     send_text("trig", trig_text(eyesy))
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
+    send_text("cycle", cycle_short(eyesy))
     send_text("fgpal", palette_name(eyesy, eyesy.fg_palette))
     send_text("bgpal", palette_name(eyesy, eyesy.bg_palette))
     send_stream_info(eyesy)

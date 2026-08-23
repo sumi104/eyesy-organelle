@@ -358,7 +358,7 @@ dot next to the page number marks the ones that respond.
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | — |
 | 3 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
-| 4 | **STATUS** — knob and palette wobble lamps, both palette names, MIDI channel, trigger source | — |
+| 4 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
 | 6 | **CTRL 1/2** — the lower octave, in short form | — |
 | 7 | **CTRL 2/2** — the upper octave | — |
@@ -387,6 +387,15 @@ the tempo is no longer displayed anywhere. `link.py` still tracks it.
 Palette names run to twenty nine characters, so on `STATUS` they slide the way
 the mode name does on `PERFORM`, on their own clocks. With the two letter tag,
 27 of the 43 names fit and sit still; only the other 16 move.
+
+`STATUS` shows the **Auto Random Cycle** rather than the MIDI channel, which is
+one turn away on `MIDI`. The cycle times the two palette lamps above it as well
+as the `A#` picker and has no key of its own, so this is the only place it
+shows. It is labelled `Auto Cycle`: the full name is seventeen characters
+before the value.
+
+On `CTRL 2/2` the knob range is written `C# - A# Knob Mod` across a whole row.
+Butted up the way the pairs are, `C#A#` reads as one key with a stray sharp.
 
 **A mode or scene name too long for its line slides through it** rather than
 being cut off at the right hand edge. It holds at the start for a second and a
