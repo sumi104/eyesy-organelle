@@ -3,66 +3,27 @@ import subprocess
 import os
 import shutil
 import pygame
-import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
-
-FOOTER_PLAIN = (chr(0x2680) + "     = Cancel     " + chr(0x2682)
-                + "   = Up/Down     " + chr(0x2683) + "  = Enter")
-FOOTER_ADJUST = (chr(0x2680) + "     = Cancel     " + chr(0x2681)
-                 + "   = Adjust     " + chr(0x2682) + "   = Up/Down     "
-                 + chr(0x2683) + "  = Save")
-
-BLOCKED_MESSAGE = "Trigger is on. Let go of the foot switch or B to change this."
 
 class ScreenFlashDrive(Screen):
     def __init__(self, eyesy):
         super().__init__(eyesy)
         self.state = "idle"  # "idle" or "running"
         self.title = "System Stuff"
-        self.footer = FOOTER_PLAIN
+        self.footer = chr(0x2680) + "     = Cancel     " + chr(0x2682) + "   = Up/Down     " + chr(0x2683) + "  = Enter"
 
-        items = [
+        self.menu = WidgetMenu(eyesy, [
             MenuItem('Backup SD card to USB drive', self.start_backup),
             MenuItem('Eject USB drive', self.eject),
             MenuItem('Forget all WiFi networks', self.forgetnets),
             MenuItem('Restart Video', self.restart),
             MenuItem('◀  Exit', self.goto_home)
-        ]
-
-        # Both of these belong to keys and a jack that only the organelle has.
-        # The cycle drives the A# mode and scene picker and the palette wobble
-        # on upper C and D; nothing on EYESY hardware can switch either on, so
-        # the row would be a setting with nothing to set.
-        self.footswitch_item = None
-        self.interval_item = None
-        if organelle.is_organelle():
-            self.footswitch_item = MenuItem("", self.save_footswitch)
-            self.footswitch_item.adjustable = True
-            self.footswitch_item.name = "footswitch"
-            self.footswitch_item.min_value = 0
-            self.footswitch_item.max_value = len(eyesy.FOOTSWITCH_ACTIONS) - 1
-            items.insert(0, self.footswitch_item)
-
-            self.interval_item = MenuItem("", self.save_interval)
-            self.interval_item.adjustable = True
-            self.interval_item.name = "auto_random_interval"
-            self.interval_item.min_value = 0
-            self.interval_item.max_value = len(eyesy.AUTO_RANDOM_INTERVALS) - 1
-            items.insert(1, self.interval_item)
-
-        self.menu = WidgetMenu(eyesy, items)
-        # every row at once, so Exit does not slide under a scrollbar the way
-        # it did when the pedal row arrived
-        self.menu.visible_items = len(items)
+        ])
         self.menu.off_y = 43
         self.font = pygame.font.Font("font.ttf", 16)
         self.font_small = pygame.font.Font("font.ttf", 12)
         self.logs = []
-
-        # key press timers for repeats while adjusting a value
-        self.key4_td = 0
-        self.key5_td = 0
 
     def before(self):
         # by index the menu would land somewhere else as soon as a row is
@@ -70,99 +31,15 @@ class ScreenFlashDrive(Screen):
         # cursor so nothing here goes off by accident
         self.menu.selected_index = len(self.menu.items) - 1
         self.logs = []
-        if self.footswitch_item is not None:
-            self.footswitch_item.value = self.eyesy.config["footswitch"]
-            self.relabel_footswitch()
-
-        if self.interval_item is not None:
-            seconds = self.eyesy.config["auto_random_interval"]
-            try:
-                self.interval_item.value = \
-                    self.eyesy.AUTO_RANDOM_INTERVALS.index(seconds)
-            except ValueError:
-                self.interval_item.value = 0
-            self.relabel_interval()
-
         self.ensure_usb_mounted()
+        pass
 
     def after(self):
         pass
 
-    def relabel_footswitch(self):
-        action = self.eyesy.FOOTSWITCH_ACTIONS[self.footswitch_item.value]
-        self.footswitch_item.text = f"Foot Switch: {action}"
-
-    def relabel_interval(self):
-        seconds = self.eyesy.AUTO_RANDOM_INTERVALS[self.interval_item.value]
-        every = "Random" if seconds < 0 else f"{seconds} sec"
-        self.interval_item.text = f"Auto Random Cycle: {every}"
-
-    def relabel(self, item):
-        if item is self.interval_item:
-            self.relabel_interval()
-        elif item is self.footswitch_item:
-            self.relabel_footswitch()
-
-    def menu_dec_value(self, item):
-        item.value = max(item.value - item.value_delta, item.min_value)
-        self.relabel(item)
-
-    def menu_inc_value(self, item):
-        item.value = min(item.value + item.value_delta, item.max_value)
-        self.relabel(item)
-
-    def trigger_held(self):
-        """The pedal or the B key is down right now.
-
-        Both drive the same trigger, and the pedal latches which of its two
-        jobs it has when it goes down. Letting the setting move underneath a
-        press that is already in flight is how the test tone gets stranded on,
-        so the row stops responding until whatever is held is let go.
-        """
-        return bool(self.eyesy.key10_status or self.eyesy.footswitch_status)
-
-    def footswitch_blocked(self):
-        """True when the row is under the cursor and cannot be moved."""
-        if self.footswitch_item is None:
-            return False
-        selected = self.menu.items[self.menu.selected_index]
-        return selected is self.footswitch_item and self.trigger_held()
-
-    def save_footswitch(self):
-        if self.trigger_held():
-            return
-        self.eyesy.config["footswitch"] = self.footswitch_item.value
-        self.eyesy.save_config_file()
-
-    def save_interval(self):
-        self.eyesy.config["auto_random_interval"] = \
-            self.eyesy.AUTO_RANDOM_INTERVALS[self.interval_item.value]
-        self.eyesy.save_config_file()
-
     def handle_events(self):
-        if self.state != "idle":
-            return
-
-        self.menu.handle_events()
-
-        item = self.menu.items[self.menu.selected_index]
-        self.footer = FOOTER_ADJUST if item.adjustable else FOOTER_PLAIN
-        if not item.adjustable or self.footswitch_blocked():
-            return
-
-        if self.eyesy.key4_press:
-            self.menu_dec_value(item)
-            self.key4_td = 0
-        if self.eyesy.key4_status:
-            self.key4_td += 1
-            if self.key4_td > 10: self.menu_dec_value(item)
-
-        if self.eyesy.key5_press:
-            self.menu_inc_value(item)
-            self.key5_td = 0
-        if self.eyesy.key5_status:
-            self.key5_td += 1
-            if self.key5_td > 10: self.menu_inc_value(item)
+        if self.state == "idle":
+            self.menu.handle_events()
 
     def render(self, surface):     
 
@@ -175,13 +52,6 @@ class ScreenFlashDrive(Screen):
 
         line_height = self.font_small.get_linesize()
         top = self.log_top()
-
-        # say why the row is not moving rather than looking broken
-        if self.footswitch_blocked():
-            notice = self.font_small.render(BLOCKED_MESSAGE, True, (255, 200, 80))
-            surface.blit(notice, (32, top))
-            top += line_height
-
         for i, log in enumerate(self.logs[-10:]):  # Show last 10 log entries
             text_surface = self.font_small.render(log, True, (200, 200, 200))  # White text
             surface.blit(text_surface, (32, top + i * line_height))
@@ -189,9 +59,9 @@ class ScreenFlashDrive(Screen):
     def log_top(self):
         """First log line, kept below the last menu row.
 
-        This used to be a fixed 200, which the pedal row pushed Exit into.
-        Measuring the menu instead means another row can be added without
-        landing on top of whatever the backup is saying.
+        This used to be a fixed 200, close enough to where the rows ended that
+        one more of them wrote over it. Measuring the menu costs nothing and
+        means the next row added here cannot repeat that.
         """
         rows = min(len(self.menu.items), self.menu.visible_items)
         # the row geometry WidgetMenu.render() lays out, plus a gap

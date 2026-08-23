@@ -63,44 +63,43 @@ class MidiSettingsScreenTest(unittest.TestCase):
         self.assertGreaterEqual(i, 0, f"no row for {name}")
         return self.screen.menu.items[i]
 
-    def test_the_sync_setting_is_on_the_screen(self):
-        item = self.item("knob_mod_sync")
-        self.assertTrue(item.adjustable)
-        self.assertEqual((item.min_value, item.max_value), (0, 1))
-
-    def test_it_says_which_way_round_it_is(self):
-        item = self.item("knob_mod_sync")
-        item.value = 1
-        self.screen.text_for_menu_item(item)
-        self.assertIn("Synced", item.text)
-        item.value = 0
-        self.screen.text_for_menu_item(item)
-        self.assertIn("Free", item.text)
+    def test_the_knob_wobble_setting_is_not_here_any_more(self):
+        # it has nothing to do with MIDI, and it belongs beside Auto Random
+        # Cycle, which times the other thing that wobbles
+        self.assertEqual(self.screen.get_item_index("knob_mod_sync"), -1)
 
     def test_booleans_come_back_as_booleans(self):
         # the menu holds every value as an int, and a setting validated with
         # isinstance(x, bool) would be thrown away for arriving as 0 or 1
         self.screen.before()
-        for name in ("knob_mod_sync", "notes_change_mode"):
+        for name in ("notes_change_mode",):
             self.item(name).value = 1
         self.screen.save_config()
 
-        for name in ("knob_mod_sync", "notes_change_mode"):
+        for name in ("notes_change_mode",):
             self.assertIsInstance(self.e.config[name], bool, name)
 
         # and now survive the check that runs at startup
         wanted = dict(self.e.config)
         self.e.validate_config()
-        for name in ("knob_mod_sync", "notes_change_mode"):
+        for name in ("notes_change_mode",):
             self.assertEqual(self.e.config[name], wanted[name],
                              f"{name} did not survive validation")
 
-    def test_turning_it_off_survives_too(self):
-        self.e.config["knob_mod_sync"] = True
+    def test_turning_a_boolean_off_survives_too(self):
+        self.e.config["notes_change_mode"] = True
         self.screen.before()
-        self.item("knob_mod_sync").value = 0
+        self.item("notes_change_mode").value = 0
         self.screen.save_config()
         self.e.validate_config()
+        self.assertIs(self.e.config["notes_change_mode"], False)
+
+    def test_saving_here_leaves_the_settings_that_moved_away_alone(self):
+        # save_config() writes every row it owns; a setting that is no longer
+        # one of them must not be reset on the way past
+        self.e.config["knob_mod_sync"] = False
+        self.screen.before()
+        self.screen.save_config()
         self.assertIs(self.e.config["knob_mod_sync"], False)
 
     def test_the_numbers_are_still_numbers(self):

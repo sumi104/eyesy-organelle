@@ -1,6 +1,5 @@
 import pygame
 import link
-import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -30,9 +29,6 @@ class ScreenMIDISettings(Screen):
         self.menu.items.append(self.create_adjustable_menu_item("bg_palette_cc", -1, 127,  "BG Palette CC: {value}"))
         self.menu.items.append(self.create_adjustable_menu_item("mode_cc", -1, 127,  "Mode Select CC: {value}"))
         self.menu.items.append(self.create_adjustable_menu_item("notes_change_mode", 0, 1, ""))
-        # knob modulation only exists on the organelle keyboard
-        if organelle.is_organelle():
-            self.menu.items.append(self.create_adjustable_menu_item("knob_mod_sync", 0, 1, ""))
 
         self.menu.items.append(MenuItem('◀  Exit', self.exit_menu))
         self.menu.visible_items = 8
@@ -64,9 +60,6 @@ class ScreenMIDISettings(Screen):
         elif item.name == "notes_change_mode" :
             if item.value == 1: item.text = "MIDI Notes Select Mode: Yes"
             else : item.text = "MIDI Notes Select Mode: No"
-        elif item.name == "knob_mod_sync" :
-            if item.value == 1: item.text = "Knob Modulation: Synced to Trigger"
-            else : item.text = "Knob Modulation: Free Running"
         else:
             if item.value < 0: item.text = item.format_string.format(value="None")
             else: item.text = item.format_string.format(value=item.value)

@@ -1,5 +1,6 @@
 # main_menu.py
 
+import organelle
 from screen import Screen
 from widget_menu import WidgetMenu, MenuItem
 
@@ -19,6 +20,10 @@ class ScreenMainMenu(Screen):
             MenuItem('Logs  ▶', self.goto_applogs),
             MenuItem('◀  Exit', self.exit_menu)
         ]
+        # Every row on that screen belongs to a key or the pedal jack, none of
+        # which EYESY hardware has, so the whole screen is organelle only.
+        if organelle.is_organelle():
+            items.insert(2, MenuItem('Controls  ▶', self.goto_controls))
         self.menu = WidgetMenu(eyesy, items)
         self.menu.visible_items = 9
         self.menu.off_y = 43
@@ -50,6 +55,9 @@ class ScreenMainMenu(Screen):
 
     def goto_wifi(self):
         self.eyesy.switch_menu_screen("wifi")
+
+    def goto_controls(self):
+        self.eyesy.switch_menu_screen("controls")
 
     def exit_menu(self):
         self.eyesy.exit_menu()

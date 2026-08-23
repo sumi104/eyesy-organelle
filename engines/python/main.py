@@ -28,6 +28,7 @@ from screen_applogs import ScreenApplogs
 from screen_midi_settings import ScreenMIDISettings
 from screen_midi_pc_mapping import ScreenMIDIPCMapping
 from screen_flash_drive import ScreenFlashDrive
+from screen_controls import ScreenControls
 
 def exitexit(code):
     print("EXIT exiting\n")
@@ -203,6 +204,7 @@ try :
     eyesy.menu_screens["midi_settings"] = ScreenMIDISettings(eyesy)
     eyesy.menu_screens["midi_pc_mapping"] = ScreenMIDIPCMapping(eyesy)
     eyesy.menu_screens["flashdrive"] = ScreenFlashDrive(eyesy)
+    eyesy.menu_screens["controls"] = ScreenControls(eyesy)
     eyesy.switch_menu_screen("home")
 
     # organelle s oled, no-op on eyesy hardware

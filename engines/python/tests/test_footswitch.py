@@ -32,7 +32,16 @@ def _install_stubs():
 
     class _Font:
         def __init__(self, *a, **k):
-            pass
+            # a[1] is the point size when the engine asks for one
+            self.size = a[1] if len(a) > 1 else 16
+
+        def get_linesize(self):
+            # near enough to what freetype gives for this face, and the tests
+            # here check that the layout adds up rather than the exact number
+            return int(self.size * 1.25)
+
+        def render(self, *a, **k):
+            return object()
 
     pygame.font = types.SimpleNamespace(Font=_Font)
     pygame.image = types.SimpleNamespace(save=lambda *a, **k: None,
@@ -50,6 +59,7 @@ _install_stubs()
 import eyesy as eyesy_module            # noqa: E402
 import oled                             # noqa: E402
 import organelle                        # noqa: E402
+from screen_controls import ScreenControls        # noqa: E402
 from screen_flash_drive import ScreenFlashDrive   # noqa: E402
 
 
@@ -287,7 +297,9 @@ class FootswitchKeyTest(unittest.TestCase):
         self.assertEqual(self.e.config["footswitch"], self.e.FOOTSWITCH_TRIGGER)
 
 
-class SystemScreenTest(unittest.TestCase):
+class ControlsScreenTest(unittest.TestCase):
+    """The pedal row, now on its own screen rather than under System Stuff."""
+
 
     def setUp(self):
         oled.enabled = False
@@ -303,8 +315,7 @@ class SystemScreenTest(unittest.TestCase):
         self.e.key10_status = False
         self.e.footswitch_status = False
 
-        self.screen = ScreenFlashDrive(self.e)
-        self.screen.ensure_usb_mounted = lambda: True   # no lsblk in a test
+        self.screen = ScreenControls(self.e)
         self.screen.before()
 
     def item(self):
@@ -334,12 +345,12 @@ class SystemScreenTest(unittest.TestCase):
         selected = self.screen.menu.items[self.screen.menu.selected_index]
         self.assertEqual(selected.text, "◀  Exit")
 
-    def test_the_other_rows_still_do_what_they_did(self):
-        labels = [i.text for i in self.screen.menu.items]
-        for expected in ("Backup SD card to USB drive", "Eject USB drive",
-                         "Forget all WiFi networks", "Restart Video",
-                         "◀  Exit"):
-            self.assertIn(expected, labels)
+    def test_the_screen_holds_the_three_settings_and_nothing_else(self):
+        names = [getattr(i, "name", None) for i in self.screen.menu.items]
+        self.assertEqual(names[:3],
+                         ["footswitch", "knob_mod_sync", "auto_random_interval"])
+        self.assertEqual(self.screen.menu.items[-1].text, "◀  Exit")
+        self.assertEqual(len(self.screen.menu.items), 4)
 
     # --- adjusting --------------------------------------------------------
 
@@ -381,13 +392,13 @@ class SystemScreenTest(unittest.TestCase):
         self.screen.before()
         self.assertEqual(self.item().value, self.e.FOOTSWITCH_SAVE)
 
-    def test_the_mode_keys_leave_the_action_rows_alone(self):
-        # they are what moves a value, and the action rows have none
-        self.screen.menu.selected_index = self.screen.menu.items.index(
-            next(i for i in self.screen.menu.items if i.text == "Restart Video"))
+    def test_the_mode_keys_leave_the_exit_row_alone(self):
+        # they are what moves a value, and Exit has none
+        self.screen.menu.selected_index = len(self.screen.menu.items) - 1
         self.frame(key5_press=True, key4_press=True)
-        self.assertFalse(getattr(self.e, "restart", False))
         self.assertEqual(self.item().value, self.e.FOOTSWITCH_SAVE)
+        self.assertEqual(self.screen.interval_item.value,
+                         self.e.AUTO_RANDOM_INTERVALS.index(30))
 
     def test_the_footer_says_what_the_keys_do_on_each_row(self):
         self.select_footswitch()
@@ -397,17 +408,53 @@ class SystemScreenTest(unittest.TestCase):
         self.frame()
         self.assertNotIn("Adjust", self.screen.footer)
 
-    def test_the_logs_start_below_the_last_menu_row(self):
-        # the pedal row pushed Exit onto the fixed y the logs used to start
-        # at, so "No USB device found." landed on top of it
-        rows = min(len(self.screen.menu.items), self.screen.menu.visible_items)
-        last_row = 30 + self.screen.menu.off_y + (rows - 1) * 25
-        row_height = 25
-        self.assertGreaterEqual(self.screen.log_top(), last_row + row_height)
+    # --- knob modulation, which moved here from MIDI Settings -------------
 
-    def test_the_logs_still_fit_on_the_screen(self):
-        # ten lines of the small font, inside the frame render_with_title draws
-        self.assertLess(self.screen.log_top() + 10 * 15, 430)
+    def test_the_knob_wobble_row_is_here_with_the_cycle(self):
+        rows = [i.text for i in self.screen.menu.items]
+        self.assertTrue(any("Knob Modulation" in t for t in rows), rows)
+        # and directly above the cycle, which times the palette wobble
+        names = [getattr(i, "name", "") for i in self.screen.menu.items]
+        self.assertEqual(names.index("auto_random_interval"),
+                         names.index("knob_mod_sync") + 1)
+        # with the pedal above both
+        self.assertEqual(names.index("knob_mod_sync"),
+                         names.index("footswitch") + 1)
+
+    def test_it_says_which_way_round_it_is(self):
+        self.screen.knob_mod_item.value = 1
+        self.screen.relabel(self.screen.knob_mod_item)
+        self.assertIn("Synced", self.screen.knob_mod_item.text)
+        self.screen.knob_mod_item.value = 0
+        self.screen.relabel(self.screen.knob_mod_item)
+        self.assertIn("Free", self.screen.knob_mod_item.text)
+
+    def test_saving_writes_all_three_rows(self):
+        # one Save on any row commits the screen, so a value adjusted on one
+        # row is not lost by pressing save while sitting on another
+        self.select_footswitch()
+        self.screen.knob_mod_item.value = 0
+        self.screen.interval_item.value = 0
+        self.frame(key8_press=True)
+        self.assertIs(self.e.config["knob_mod_sync"], False)
+        self.assertEqual(self.e.config["auto_random_interval"], 15)
+
+    def test_it_reads_and_writes_the_setting_as_a_bool(self):
+        # the menu holds every value as an int, and knob_mod_sync is validated
+        # with isinstance(x, bool) - saving 0 or 1 would throw it away
+        self.e.config["knob_mod_sync"] = False
+        self.screen.before()
+        self.assertEqual(self.screen.knob_mod_item.value, 0)
+
+        self.screen.knob_mod_item.value = 1
+        self.screen.save()
+        self.assertIsInstance(self.e.config["knob_mod_sync"], bool)
+        self.assertTrue(self.e.config["knob_mod_sync"])
+
+        wanted = dict(self.e.config)
+        self.e.validate_config()
+        self.assertEqual(self.e.config["knob_mod_sync"],
+                         wanted["knob_mod_sync"], "survives startup validation")
 
     # --- the row locks while something is holding the trigger -------------
 
@@ -456,15 +503,43 @@ class SystemScreenTest(unittest.TestCase):
     def test_the_other_rows_are_not_locked_by_a_held_pedal(self):
         self.hold_pedal()
         self.screen.menu.selected_index = self.screen.menu.items.index(
-            next(i for i in self.screen.menu.items if i.text == "Restart Video"))
+            self.screen.interval_item)
         self.assertFalse(self.screen.footswitch_blocked())
 
-    def test_nothing_responds_while_a_backup_is_running(self):
-        self.select_footswitch()
-        self.screen.state = "running"
-        self.frame(key5_press=True, key8_press=True)
-        self.assertEqual(self.item().value, self.e.FOOTSWITCH_SAVE)
-        self.assertEqual(self.written, [])
+
+class SystemScreenTest(unittest.TestCase):
+    """What is left on System Stuff once the settings moved off it."""
+
+    def setUp(self):
+        oled.enabled = False
+        self.e = eyesy_module.Eyesy()
+        self.e.config = dict(self.e.DEFAULT_CONFIG)
+        self.e.switch_menu_screen = lambda name: None
+        self.screen = ScreenFlashDrive(self.e)
+        self.screen.ensure_usb_mounted = lambda: True   # no lsblk in a test
+        self.screen.before()
+
+    def test_it_is_back_to_the_maintenance_actions(self):
+        labels = [i.text for i in self.screen.menu.items]
+        self.assertEqual(labels, ["Backup SD card to USB drive",
+                                  "Eject USB drive",
+                                  "Forget all WiFi networks",
+                                  "Restart Video",
+                                  "◀  Exit"])
+        self.assertFalse(any(getattr(i, "adjustable", False)
+                             for i in self.screen.menu.items))
+
+    def test_exit_is_under_the_cursor_on_the_way_in(self):
+        self.assertEqual(self.screen.menu.items[self.screen.menu.selected_index].text,
+                         "◀  Exit")
+
+    def test_the_logs_start_below_the_last_menu_row(self):
+        # a fixed 200 was close enough to where the rows end that one more of
+        # them wrote over it, which is what happened when a setting row landed
+        # here. Measuring costs nothing and cannot repeat it.
+        rows = min(len(self.screen.menu.items), self.screen.menu.visible_items)
+        last_row = 30 + self.screen.menu.off_y + (rows - 1) * 25
+        self.assertGreaterEqual(self.screen.log_top(), last_row + 25)
 
 
 if __name__ == "__main__":

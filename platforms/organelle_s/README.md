@@ -102,12 +102,12 @@ Hold **C#** for the shifted layer.
 | Upper octave `G` | MIDI channel +1, wrapping at 16 | — |
 | Upper octave `A` `B` | — | — |
 | Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
-| Foot switch | Save scene, or the same as `B` — Settings > System picks which | Knob sequence arm / disarm, when set to Trigger |
+| Foot switch | Save scene, or the same as `B` — Settings > Controls picks which | Knob sequence arm / disarm, when set to Trigger |
 
 Shift + knob 1 still sets the input gain, as on EYESY. Shift + knob 5 — the
 one the panel prints **Volume** on — sets the audio thru level, see below.
 
-**Foot Switch** in Settings > System says which of the two it does. It saves
+**Foot Switch** on Settings > Controls says which of the two it does. It saves
 by default, which is what it did before there was a choice.
 
 Saving goes straight to `save_scene()` rather than through the save key, which
@@ -198,6 +198,32 @@ It works with a menu open too, since it is a setting rather than a performance
 control, and the MIDI page is where you would be looking while you set it. Each
 press is written to `config.json`.
 
+## Settings > Controls
+
+Three settings share a screen because they share a reason to exist: each
+belongs to a key or the pedal jack rather than to a subsystem.
+
+| | |
+|---|---|
+| **Foot Switch** | what the pedal does, save a scene or fire the trigger |
+| **Knob Modulation** | what times the knob wobble: the trigger, or its own pace |
+| **Auto Random Cycle** | what times the palette wobble and the `A#` picker |
+
+The middle two are a pair — one times the knob wobble, the other the palette
+wobble — and that was invisible while Knob Modulation sat under Audio MIDI
+Settings, where it has nothing to do with MIDI, and the cycle sat under System
+Stuff next to backing up an SD card. Which of them drove what got misremembered
+more than once before they were put side by side.
+
+The whole screen is organelle only, and so is its row in Settings: EYESY
+hardware has no pedal, no upper octave and no key that switches the auto picker
+on, so all three would be settings with nothing to set. System Stuff went back
+to being the maintenance screen it was.
+
+The pedal row stops responding while the pedal or `B` is held and says why —
+letting the setting move under a press already in flight is how the test tone
+ends up playing with no way back.
+
 ## Auto random
 
 `A#` steps a picker through off, picking modes at random, picking scenes at
@@ -205,7 +231,7 @@ random, and off again. It moves the moment it is switched on rather than
 leaving you wondering whether the key did anything, and it never picks what is
 already playing, which would look the same as nothing happening.
 
-How long it waits is set on **Settings → System** as **Auto Random Cycle**: 15,
+How long it waits is set on **Settings → Controls** as **Auto Random Cycle**: 15,
 30, 50 or 60 seconds, or `Random`, which draws a fresh interval between 15 and
 60 seconds each time. The same setting times the palette wobble above, so it is
 the one dial for how restless the instrument is. `M` or `S` in the top bar of
@@ -398,9 +424,8 @@ the mode name does on `PERFORM`, on their own clocks. With the two letter tag,
 
 `STATUS` shows the **Auto Random Cycle** rather than the MIDI channel, which is
 one turn away on `MIDI`. The cycle times the two palette lamps above it as well
-as the `A#` picker and has no key of its own, so this is the only place it
-shows. It is labelled `Auto Cycle`: the full name is seventeen characters
-before the value.
+as the `A#` picker, and its only other home is Settings > Controls. It is
+labelled `Auto Cycle`: the full name is seventeen characters before the value.
 
 On `CTRL 2/2` the knob range is written `C# - A# Knob Mod` across a whole row.
 Butted up the way the pairs are, `C#A#` reads as one key with a stray sharp.
