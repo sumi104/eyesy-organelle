@@ -4,8 +4,8 @@
 synthesiser: audio and MIDI go in, generated video comes out, and the picture
 is made by small Python programs called **modes** that anyone can write.
 
-The Organelle M and S are their sampler and synthesiser — different instrument,
-near enough the same computer inside. This is EYESY OS made to run on one,
+The Organelle M/S are their Music Computer — different instrument, near enough
+the same computer inside. This is EYESY OS made to run on one,
 using the keyboard, the encoder and the OLED that the EYESY itself does not
 have.
 
@@ -86,14 +86,6 @@ before it will build.
   instead — by then the first key is scrolling.
 - The hardware process is built on the device rather than committed, so a fresh
   checkout needs `install.sh` before the panel works.
-
-## Writing modes
-
-Modes are the small Python programs that draw the picture. They can be written
-and fixed on a Mac, without an instrument on the desk, using
-**[EYESY_Simulator](https://github.com/sumi104/EYESY_Simulator)** — it runs
-this engine unmodified against a folder of modes and puts the picture, the
-panel and an editor in a browser.
 
 ## Layout
 
