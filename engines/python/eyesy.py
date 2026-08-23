@@ -65,6 +65,13 @@ class Eyesy:
         self.FOOTSWITCH_TRIGGER = 1
         self.AUTO_RANDOM_MIN, self.AUTO_RANDOM_MAX = 15, 60
 
+        # Frames to wait after A# comes up before the state it landed on
+        # actually picks anything. Long enough that a double tap on the way to
+        # off passes through without stopping, short enough that a single tap
+        # still looks immediate. Two hundred to three hundred milliseconds is
+        # a fast double tap; this is four hundred.
+        self.AUTO_RANDOM_SETTLE = 12
+
         # which palette a wobble is aimed at, the index into palette_mod
         self.PALETTE_FG, self.PALETTE_BG = 0, 1
         self.PALETTE_NAMES = ["FG Palette", "BG Palette"]
@@ -253,6 +260,9 @@ class Eyesy:
         # off, then random modes, then random scenes, back to off
         self.auto_random = 0
         self.auto_random_next = 0.0
+        # the key is down, or has just come up and the state has not acted yet
+        self.auto_random_key_held = False
+        self.auto_random_settle = 0
 
         # menu stuff
         self.current_screen = None
@@ -825,13 +835,27 @@ class Eyesy:
     # while it is on something new is picked every so often. The picking is
     # the same call the mode and scene keys make, so nothing downstream needs
     # to know this exists.
+    # A# steps the picker: off, modes, scenes, off. The state moves under the
+    # press and so does what the display says about it - only the picking
+    # waits, until the key has been up a moment.
+    #
+    # Picking used to happen here, on the press, so that switching it on did
+    # something rather than nothing for up to a minute. The cost was that
+    # getting from modes back to off meant passing through scenes, and passing
+    # through picked one: recall_scene() overwrites the mode, all five knobs,
+    # both palettes and the knob modulation, which is a lot to lose on the way
+    # to switching something off.
     def cycle_auto_random(self):
         self.auto_random = (self.auto_random + 1) % 3
-        if self.auto_random != self.AUTO_RANDOM_OFF:
-            self.arm_auto_random()
-            self.pick_random()      # act on the press rather than in a minute
+        self.auto_random_key_held = True
+        self.auto_random_settle = 0          # another press, so start again
         print(f"auto random {self.auto_random}")
         return self.auto_random
+
+    def release_auto_random(self):
+        self.auto_random_key_held = False
+        if self.auto_random != self.AUTO_RANDOM_OFF:
+            self.auto_random_settle = self.AUTO_RANDOM_SETTLE
 
     def cycle_text(self):
         """How often anything on the Auto Random Cycle changes."""
@@ -881,8 +905,20 @@ class Eyesy:
         return True
 
     def update_auto_random(self):
-        if self.auto_random == self.AUTO_RANDOM_OFF : return
         if self.menu_mode : return          # not while someone is in a menu
+
+        # Still settling, or still held. The interval below must not run yet
+        # either: nothing has armed it, so it would see a stale time and pick
+        # immediately, which is the whole thing being avoided.
+        if self.auto_random_key_held : return
+        if self.auto_random_settle > 0 :
+            self.auto_random_settle -= 1
+            if self.auto_random_settle == 0 and self.auto_random != self.AUTO_RANDOM_OFF :
+                self.arm_auto_random()
+                self.pick_random()
+            return
+
+        if self.auto_random == self.AUTO_RANDOM_OFF : return
         if time.time() < self.auto_random_next : return
         self.arm_auto_random()
         self.pick_random()

@@ -73,6 +73,17 @@ class AutoRandomTest(unittest.TestCase):
         organelle.dispatch_key(self.e, organelle.KEY_AS, 100)
         organelle.dispatch_key(self.e, organelle.KEY_AS, 0)
 
+    def press_a_sharp(self):
+        organelle.dispatch_key(self.e, organelle.KEY_AS, 100)
+
+    def release_a_sharp(self):
+        organelle.dispatch_key(self.e, organelle.KEY_AS, 0)
+
+    def settle(self):
+        """Enough frames for a released A# to act on where it landed."""
+        for _ in range(self.e.AUTO_RANDOM_SETTLE):
+            self.e.update_auto_random()
+
     # --- the key ---------------------------------------------------------
 
     def test_a_sharp_cycles_off_modes_scenes_off(self):
@@ -84,10 +95,69 @@ class AutoRandomTest(unittest.TestCase):
         self.tap_a_sharp()
         self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_OFF)
 
-    def test_switching_it_on_picks_something_straight_away(self):
+    def test_switching_it_on_picks_once_the_key_settles(self):
         # otherwise the key looks like it did nothing for up to a minute
         self.tap_a_sharp()
+        self.assertEqual(self.e.mode, "Alpha", "not on the press")
+        self.settle()
         self.assertNotEqual(self.e.mode, "Alpha")
+
+    # --- getting back to off without picking on the way -------------------
+
+    def test_two_taps_back_to_off_pick_nothing(self):
+        # this is the whole point. modes to off goes through scenes, and a
+        # scene recall takes the mode, all five knobs, both palettes and the
+        # knob modulation with it - a lot to lose on the way to switching
+        # something off.
+        self.tap_a_sharp()                      # modes
+        self.settle()
+        picked = self.e.mode
+        self.recalled.clear()
+
+        self.tap_a_sharp()                      # scenes
+        self.tap_a_sharp()                      # off
+        self.settle()
+
+        self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_OFF)
+        self.assertEqual(self.recalled, [], "no scene was recalled")
+        self.assertEqual(self.e.mode, picked, "and the mode was left alone")
+
+    def test_a_second_press_cancels_the_first_one_s_wait(self):
+        self.e.scenes = [{"name": "a"}, {"name": "b"}]
+        self.tap_a_sharp()                      # modes
+        for _ in range(self.e.AUTO_RANDOM_SETTLE - 1):
+            self.e.update_auto_random()         # nearly there
+        self.assertEqual(self.e.mode, "Alpha", "has not acted yet")
+        self.tap_a_sharp()                      # scenes, restarts the wait
+        self.assertEqual(self.recalled, [])
+        self.settle()
+        self.assertEqual(len(self.recalled), 1, "only the state it landed on")
+
+    def test_stopping_on_scenes_deliberately_still_picks_one(self):
+        self.e.scenes = [{"name": "a"}, {"name": "b"}]
+        self.tap_a_sharp()
+        self.settle()
+        self.tap_a_sharp()
+        self.settle()
+        self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_SCENES)
+        self.assertEqual(len(self.recalled), 1)
+
+    def test_holding_it_does_nothing_until_it_is_let_go(self):
+        self.press_a_sharp()
+        self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_MODES,
+                         "the state moves under the press")
+        for _ in range(120):
+            self.e.update_auto_random()
+        self.assertEqual(self.e.mode, "Alpha", "but nothing is picked")
+        self.release_a_sharp()
+        self.settle()
+        self.assertNotEqual(self.e.mode, "Alpha")
+
+    def test_the_state_and_the_message_do_not_wait(self):
+        # only the picking is deferred; what the display says is immediate
+        self.press_a_sharp()
+        self.assertEqual(self.e.auto_random, self.e.AUTO_RANDOM_MODES)
+        self.assertIn("modes", self.e.auto_random_text())
 
     def test_it_never_picks_what_is_already_playing(self):
         self.e.auto_random = self.e.AUTO_RANDOM_MODES
@@ -125,6 +195,7 @@ class AutoRandomTest(unittest.TestCase):
 
     def test_it_waits_for_the_interval(self):
         self.tap_a_sharp()
+        self.settle()
         settled = self.e.mode
         for _ in range(100):
             self.e.update_auto_random()
@@ -132,6 +203,7 @@ class AutoRandomTest(unittest.TestCase):
 
     def test_it_moves_once_the_interval_is_up(self):
         self.tap_a_sharp()
+        self.settle()
         settled = self.e.mode
         self.e.auto_random_next = 0
         self.e.update_auto_random()
@@ -139,6 +211,7 @@ class AutoRandomTest(unittest.TestCase):
 
     def test_it_holds_still_while_a_menu_is_open(self):
         self.tap_a_sharp()
+        self.settle()
         settled = self.e.mode
         self.e.menu_mode = True
         self.e.auto_random_next = 0

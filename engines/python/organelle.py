@@ -217,13 +217,20 @@ def dispatch_key(eyesy, k, v):
         return
 
     # A# steps the auto picker: off, random modes, random scenes, off again
+    # A# steps the picker. What it landed on is said straight away; the picking
+    # itself waits until the key has been up a moment, so a double tap on the
+    # way back to off passes through scenes without recalling one.
     if k == KEY_AS:
-        if pressed and not eyesy.menu_mode:
+        if eyesy.menu_mode:
+            return
+        if pressed:
             state = eyesy.cycle_auto_random()
             if state == eyesy.AUTO_RANDOM_SCENES and not eyesy.scenes:
                 oled.warn("Auto Random", "no scenes to pick")
             else:
                 oled.notify("Auto Random", eyesy.auto_random_text())
+        else:
+            eyesy.release_auto_random()
         return
 
     # controls that have no equivalent on the EYESY panel

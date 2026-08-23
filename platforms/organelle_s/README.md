@@ -227,9 +227,16 @@ ends up playing with no way back.
 ## Auto random
 
 `A#` steps a picker through off, picking modes at random, picking scenes at
-random, and off again. It moves the moment it is switched on rather than
-leaving you wondering whether the key did anything, and it never picks what is
-already playing, which would look the same as nothing happening.
+random, and off again. It never picks what is already playing, which would
+look the same as nothing happening.
+
+**The state moves under the press, the picking waits until the key has been up
+about half a second.** Getting from modes back to off means passing through
+scenes, and picking on the press meant passing through recalled one — which
+takes the mode, all five knobs, both palettes and the knob modulation with it,
+a lot to lose on the way to switching something off. Two taps now land on off
+having picked nothing. A single tap still reads as immediate: what the screen
+says changes on the press, and only the picture waits.
 
 How long it waits is set on **Settings → Controls** as **Auto Random Cycle**: 15,
 30, 50 or 60 seconds, or `Random`, which draws a fresh interval between 15 and
