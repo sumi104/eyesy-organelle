@@ -16,6 +16,16 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 
 def _install_stubs():
+    # osc.py reaches for liblo, which is a C library the instrument has and a
+    # laptop does not
+    liblo = types.ModuleType("liblo")
+    liblo.Address = lambda *a, **k: object()
+    liblo.Server = lambda *a, **k: object()
+    liblo.AddressError = type("AddressError", (Exception,), {})
+    liblo.ServerError = type("ServerError", (Exception,), {})
+    liblo.send = lambda *a, **k: None
+    sys.modules["liblo"] = liblo
+
     pygame = types.ModuleType("pygame")
     pygame.Surface = lambda *a, **k: object()
     pygame.image = types.SimpleNamespace(tobytes=lambda *a, **k: b"",
@@ -28,6 +38,9 @@ def _install_stubs():
             pass
 
     pygame.font = types.SimpleNamespace(Font=_Font)
+    pygame.image.save = lambda *a, **k: None
+    pygame.image.load = lambda *a, **k: None
+    pygame.draw = types.SimpleNamespace()
     sys.modules["pygame"] = pygame
 
 
@@ -35,6 +48,7 @@ _install_stubs()
 
 import screen_video_settings as svs  # noqa: E402
 import streamer  # noqa: E402
+import eyesy as eyesy_module  # noqa: E402
 
 
 class FakeEyesy:
@@ -207,5 +221,78 @@ class StreamMenuTest(unittest.TestCase):
         self.assertEqual(self.screen.footer, svs.FOOTER_ADJUST)
 
 
+class LivePageToggleTest(unittest.TestCase):
+    """Pressing the knob on the LIVE page, with and without a network.
+
+    Found on the instrument: with the page saying "no network" the press
+    started the stream anyway, and the page then said ON STREAMING with
+    nowhere to watch it.
+    """
+
+    def setUp(self):
+        import oled
+        self.oled = oled
+        oled.enabled = False
+        self.e = eyesy_module.Eyesy()
+        self.e.config = dict(self.e.DEFAULT_CONFIG)
+        self.e.save_config_file = lambda: None
+        self.applied = []
+        streamer.apply = lambda eyesy: self.applied.append(
+            eyesy.config["stream_enabled"])
+        self.said = []
+        oled.notify = lambda h, d="", warn=False: self.said.append((h, d, warn))
+        oled.warn = lambda h, d="": self.said.append((h, d, True))
+        self._net = dict(oled._net)
+
+    def tearDown(self):
+        import importlib
+        self.oled._net.clear()
+        self.oled._net.update(self._net)
+        importlib.reload(self.oled)
+
+    def press(self):
+        import osc
+        osc.eyesy = self.e
+        osc.oled_toggle_callback("/oled/toggle", ["stream"])
+
+    def with_network(self, ip):
+        self.oled._net["ip"] = ip
+
+    def test_it_starts_when_there_is_an_address(self):
+        self.with_network("192.168.1.42")
+        self.press()
+        self.assertIs(self.e.config["stream_enabled"], True)
+        self.assertEqual(self.said[-1], ("Live On", "", False))
+
+    def test_it_refuses_when_the_page_says_no_network(self):
+        self.with_network("-")
+        self.assertEqual(self.oled.network_address(), "",
+                         "the page would be saying no network")
+        self.press()
+        self.assertIs(self.e.config["stream_enabled"], False,
+                      "must not have started")
+        self.assertEqual(self.applied, [], "and must not have touched it")
+        heading, detail, warn = self.said[-1]
+        self.assertEqual(heading, "No Network")
+        self.assertTrue(warn, "a refusal, so it is a warning")
+
+    def test_stopping_is_allowed_with_no_network(self):
+        # a stream begun while there was one still has an encoder running
+        self.e.config["stream_enabled"] = True
+        self.with_network("-")
+        self.press()
+        self.assertIs(self.e.config["stream_enabled"], False)
+        self.assertEqual(self.said[-1], ("Live Off", "", False))
+
+    def test_the_page_and_the_press_read_the_same_thing(self):
+        # if they disagreed, a refusal would look like a fault
+        for ip, expect in (("192.168.1.42", "192.168.1.42"), ("-", ""),
+                           ("", ""), ("10.0.0.5", "10.0.0.5")):
+            self.with_network(ip)
+            self.assertEqual(self.oled.network_address(), expect)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+

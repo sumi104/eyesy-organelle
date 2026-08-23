@@ -95,6 +95,14 @@ def oled_toggle_callback(path, args) :
     global eyesy
     action = args[0]
     if action == "stream" :
+        # Starting with nowhere to watch it just spends a core on frames
+        # nobody can fetch, and the page is already saying "no network" while
+        # the knob claims it started. Stopping is always allowed - a stream
+        # begun on a network that has since gone still has an encoder running.
+        starting = not eyesy.config.get("stream_enabled")
+        if starting and not oled.network_address() :
+            oled.warn("No Network", "cannot stream")
+            return
         on = streamer.toggle(eyesy)
         oled.notify("Live On" if on else "Live Off")
     else :

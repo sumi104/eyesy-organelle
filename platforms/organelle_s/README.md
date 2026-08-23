@@ -446,9 +446,17 @@ same button toggles one page along.
 | 2 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
 | 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | Restart Video, held |
 | 4 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
-| 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off |
+| 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off, if there is a network |
 | 6 | **CTRL 1/2** — the lower octave, in short form | — |
 | 7 | **CTRL 2/2** — the upper octave | — |
+
+**The knob will not start the stream when the page says `no network`.** It says
+so and leaves it stopped, rather than reporting `ON STREAMING` with nowhere to
+watch it — which is what it used to do. Stopping is always allowed: a stream
+begun while there was a network still has an encoder running after it goes.
+
+The page and the press read the same address, deliberately. If they could
+disagree, a refusal would look like a fault.
 
 Pages declare their setting by name in `OledPages::toggleAction()`, and
 `osc.py` maps the name to the action, so wiring a switch to another page is

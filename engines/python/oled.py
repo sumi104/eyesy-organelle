@@ -122,13 +122,24 @@ def init(eyesy):
     threading.Thread(target=_net_loop, daemon=True).start()
 
 
+def network_address():
+    """The address the live page is showing, or "" when it says no network.
+
+    The same value either way on purpose: what the page says and what pressing
+    the knob on it does have to agree, or refusing to start looks like a fault
+    rather than an answer.
+    """
+    ip = _net["ip"]
+    return ip if ip and ip != "-" else ""
+
+
 def send_stream_info(eyesy):
     """Watch address and frame size for the live page."""
     if not enabled:
         return
     send_text("sinfo", streamer.describe(eyesy))
-    ip = _net["ip"]
-    send_text("url", f"{ip}/live" if ip and ip != "-" else "no network")
+    ip = network_address()
+    send_text("url", f"{ip}/live" if ip else "no network")
 
 
 def notify(heading, detail="", warn=False):
