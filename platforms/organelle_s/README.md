@@ -230,8 +230,13 @@ and it is **off by default**.
 
 Leaving it off matters on an S. The shutdown check reads GPIO 16 for "running
 on cells", and that pin is set up with its pull up and pull down disabled — on
-a machine with no battery circuit it floats and may read anything. Off means
-the engine never tells the hardware process to look at it.
+a machine with no battery circuit there is nothing driving it.
+
+Switched on and looked at on one S, that pin reads **mains**: the `~` appears
+beside the icon, and the halt cannot fire because it needs the pin to say
+cells. So an S with this switched on by mistake is protected twice over. One
+machine is not a guarantee, which is why the default stays off, but it does
+mean the setting is not a trap.
 
 Switched on, the SETTINGS page shows the charge out at the right of the `FPS`
 row, with a `~` beside it while the mains are supplying it. The top bar has no
