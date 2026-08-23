@@ -583,6 +583,19 @@ EYESY binary sitting where the Organelle binary belongs, and a stale one runs
 with the wrong ADC order and key map without complaining. If `eyesyhw.service`
 fails with "no such file", the build step below has not been run.
 
+**The root filesystem is normally read only**, so nothing can be pulled or
+built until it is remounted. `Tools/remount-rw.sh` does that, and
+`Tools/remount-ro.sh` puts it back:
+
+    sudo ~/EYESY_OS/Tools/remount-rw.sh
+
+`sudo` because the scripts call `mount` directly rather than reaching for it
+themselves, unlike `install.sh`. They remount `/boot/firmware` as well as `/`,
+which `install.sh` does not — it only needs `/`.
+
+Run it **before `git pull`**, not just before `install.sh`. `install.sh`
+remounts `/` on its own, but by then the pull has already had to write.
+
 **For Ableton Link, clone it first.** `install.sh` builds `linkd` only if the
 headers are already there, so doing this afterwards means running `install.sh`
 again. Skip it and everything else still works, Link included in the trigger
@@ -617,16 +630,22 @@ worse than stock, so move the whole tree.
 The device's `origin` is the upstream repo, which does not have this branch.
 Add your own fork as a second remote once:
 
-    sudo mount -o remount,rw /
+    sudo ~/EYESY_OS/Tools/remount-rw.sh
     cd ~/EYESY_OS
     git remote add s <your fork url>
     git fetch s
     git checkout -b organelle-s s/organelle-s
 
-After that each round trip is two lines:
+After that each round trip is three lines:
 
+    sudo ~/EYESY_OS/Tools/remount-rw.sh
     cd ~/EYESY_OS && git pull s organelle-s
     platforms/organelle_s/install.sh
+
+`install.sh` leaves `/` writable. Either reboot before pulling the plug, or put
+it back by hand:
+
+    sudo ~/EYESY_OS/Tools/remount-ro.sh
 
 ## Checking the mapping
 
