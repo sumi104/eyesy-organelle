@@ -25,7 +25,9 @@ does not have to.
   step the background, and either pair pressed together sets that palette
   wandering on its own. One more steps the MIDI channel.
 - **The black keys up there** each set one of the five knobs wandering — turn
-  the knob for how fast, hold the key and turn it for how far.
+  the knob for how fast, hold the key and turn it for how far. One knob serves
+  both, so each is picked up where its value already is rather than snapped to
+  where the knob happens to be.
 - **Seven OLED pages**: what is playing, what the instrument is set to, MIDI,
   the live video stream, and the key map itself on the last two, so the panel
   explains itself. Holding the encoder on the settings page **restarts the

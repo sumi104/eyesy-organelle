@@ -128,6 +128,11 @@ class ThruKnobTest(unittest.TestCase):
         self.assertEqual(self.e.config["audio_thru_volume"], 0.0)
 
     # --- the knob ---------------------------------------------------------
+    #
+    # The knob is shared: it is a mode parameter most of the time, the gain
+    # with shift on knob 1, the level with shift on knob 5. Whichever of them
+    # it is aimed at finds it wherever the last one left it, so it has to be
+    # picked up at the level rather than snapping the level to it.
 
     def test_nothing_happens_without_shift(self):
         self.turn(0.9)
@@ -137,98 +142,104 @@ class ThruKnobTest(unittest.TestCase):
     def test_pressing_shift_does_not_jump_the_level_to_the_knob(self):
         # the knob is parked at the top because it was setting a mode
         # parameter. taking the level from it straight away is a shout.
+        self.e.config["audio_thru_volume"] = 0.5
         self.e.knob_hardware[4] = 1.0
         self.shift(True)
         self.turn(1.0)
-        self.assertEqual(self.e.config["audio_thru_volume"], 0.0)
+        self.assertEqual(self.e.config["audio_thru_volume"], 0.5)
         self.assertEqual(self.written, [])
 
-    def test_a_nudge_is_not_enough_to_unlock_it(self):
-        self.e.knob_hardware[4] = 0.5
+    def test_it_does_not_follow_until_the_knob_reaches_the_level(self):
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.53)
-        self.assertEqual(self.written, [])
+        for v in (0.9, 0.8, 0.7, 0.6):
+            self.turn(v)
+        self.assertEqual(self.e.config["audio_thru_volume"], 0.5)
+        self.assertEqual(self.written, [], "nothing sent to the amp either")
 
-    def test_moving_it_takes_hold(self):
-        self.e.knob_hardware[4] = 0.5
+    def test_it_takes_over_where_the_level_is_and_follows_after(self):
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.8)
-        self.assertAlmostEqual(self.e.config["audio_thru_volume"], 0.8)
-        self.assertEqual(self.written, [0.8])
+        self.turn(0.5)                  # arrives at it
+        self.turn(0.35)
+        self.assertAlmostEqual(self.e.config["audio_thru_volume"], 0.35)
+        self.assertEqual(self.written[-1], 0.35)
 
-    def test_once_unlocked_small_moves_count_too(self):
-        self.e.knob_hardware[4] = 0.5
+    def test_once_picked_up_small_moves_count_too(self):
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.8)
-        self.turn(0.81)
-        self.assertEqual(self.written, [0.8, 0.81])
+        self.turn(0.5)
+        self.turn(0.49)
+        self.assertAlmostEqual(self.e.config["audio_thru_volume"], 0.49)
 
     def test_a_still_knob_is_not_written_every_frame(self):
-        self.e.knob_hardware[4] = 0.5
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.8)
+        self.turn(0.5)
+        self.turn(0.4)
+        sent, said = len(self.written), len(self.notified)
         for _ in range(60):
             self.e.check_thru_knob()
-        self.assertEqual(self.written, [0.8])
-        self.assertEqual(len(self.notified), 1)
+        self.assertEqual(len(self.written), sent)
+        self.assertEqual(len(self.notified), said)
 
     def test_it_can_be_taken_all_the_way_down_to_silence(self):
+        # the level starts at silence, so the knob is picked up at the bottom
         self.e.knob_hardware[4] = 0.5
         self.shift(True)
         self.turn(0.0)
         self.assertEqual(self.e.config["audio_thru_volume"], 0.0)
         self.assertEqual(audio_thru.raw_value(self.written[-1]), 0)
 
-    def test_releasing_shift_relocks_it(self):
-        self.e.knob_hardware[4] = 0.5
+    def test_releasing_shift_makes_it_pick_up_again(self):
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
+        self.shift(True)
+        self.turn(0.5)
+        self.turn(0.3)                  # level is 0.3, knob is at 0.3
+        self.shift(False)
+
+        self.e.knob_hardware[4] = 0.9   # off doing mode work
         self.shift(True)
         self.turn(0.8)
-        self.shift(False)
-        self.shift(True)
+        self.assertAlmostEqual(self.e.config["audio_thru_volume"], 0.3,
+                               msg="must not follow before reaching 0.3")
+        self.turn(0.3)
         self.turn(0.2)
-        # 0.2 is far enough from 0.8 to unlock again, but only after the move
-        self.assertEqual(self.written, [0.8, 0.2])
-
-    def test_the_lock_is_measured_from_where_shift_was_pressed(self):
-        self.e.knob_hardware[4] = 0.5
-        self.shift(True)
-        self.turn(0.8)
-        self.shift(False)
-        # shift again with the knob left at 0.8, it must not fire on its own
-        self.shift(True)
-        self.turn(0.8)
-        self.assertEqual(self.written, [0.8])
-
-    def test_returning_to_the_last_level_still_shows_its_bar(self):
-        self.e.knob_hardware[4] = 0.5
-        self.shift(True)
-        self.turn(0.8)
-        self.shift(False)
-        # the knob went off doing mode work and came back to the same place.
-        # the level is already right, but the bar has to be drawn or the knob
-        # looks dead for the rest of that press
-        self.e.knob_hardware[4] = 0.3
-        self.shift(True)
-        self.turn(0.8)
-        self.assertEqual(self.written, [0.8, 0.8])
-        self.assertEqual(len(self.notified), 2)
+        self.assertAlmostEqual(self.e.config["audio_thru_volume"], 0.2)
 
     # --- what shows on the oled -------------------------------------------
 
-    def test_turning_it_shows_a_bar_like_the_modulation_controls(self):
-        self.e.knob_hardware[4] = 0.5
+    def test_the_level_it_is_hunting_for_is_shown(self):
+        # otherwise there is no telling how far to turn before it takes over
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.75)
-        self.assertEqual(self.notified, [("Audio Thru", 0.75)])
+        self.turn(0.8)
+        self.assertEqual(self.notified[-1], ("Audio Thru", 0.5))
+
+    def test_once_picked_up_it_shows_where_the_knob_is(self):
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
+        self.shift(True)
+        self.turn(0.5)
+        self.turn(0.42)
+        self.assertEqual(self.notified[-1], ("Audio Thru", 0.42))
 
     # --- saving -----------------------------------------------------------
 
     def test_the_level_is_saved_when_shift_comes_up(self):
         saves = []
         self.e.save_config_file = lambda: saves.append(True)
-        self.e.knob_hardware[4] = 0.5
+        self.e.config["audio_thru_volume"] = 0.5
+        self.e.knob_hardware[4] = 1.0
         self.shift(True)
-        self.turn(0.8)
+        self.turn(0.5)
+        self.turn(0.4)
         self.shift(False)
         self.assertEqual(len(saves), 1)
 
@@ -245,8 +256,10 @@ class ThruKnobTest(unittest.TestCase):
         self.e.knob_hardware[0] = 0.5
         self.e.knob_hardware[4] = 0.5
         self.shift(True)
-        self.e.knob_hardware[0] = 0.9
-        self.e.check_gain_knob()
+        # sweep knob 1 down through the gain to pick it up, then past it
+        for v in (self.e.config["audio_gain"], 0.4):
+            self.e.knob_hardware[0] = v
+            self.e.check_gain_knob()
         self.shift(False)
         # the gain moved and the level did not, so one save, not two
         self.assertEqual(len(saves), 1)

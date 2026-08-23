@@ -356,7 +356,10 @@ class OrganelleKeyTest(unittest.TestCase):
 
     def test_the_rate_knob_covers_the_whole_range(self):
         self.tap(self.upper("C#"))
-        self.turn(0, 0.2)
+        self.turn(0, 0.2)                       # aims the knob at the rate
+        # the rate is already set to something, so the knob has to be brought
+        # to where that is before it takes over
+        self.turn(0, self.e.knob_mod_rate_position(0))
         self.turn(0, 0.0)
         self.assertAlmostEqual(self.e.knob_mod_rate[0],
                                self.e.KNOB_MOD_RATE_MIN, places=4)
@@ -371,7 +374,8 @@ class OrganelleKeyTest(unittest.TestCase):
         rate = self.e.knob_mod_rate[1]
 
         self.press(self.upper("D#"))            # held, not tapped
-        self.turn(1, 0.9)                       # re-picked up as depth
+        self.turn(1, 0.9)                       # now aimed at the depth
+        self.turn(1, self.e.knob_mod_depth[1])  # brought to where it already is
         self.turn(1, 0.4)
         self.assertAlmostEqual(self.e.knob_mod_depth[1], 0.4)
         self.assertEqual(self.e.knob_mod_rate[1], rate,

@@ -335,6 +335,7 @@ class Eyesy:
         # gain control shortcut
         self.gain_knob_unlocked = False
         self.gain_knob_capture = 0
+        self.gain_knob_last = -1
         self.gain_value_snapshot = 0
 
         # the same shortcut on the volume knob, for the analogue passthrough.
@@ -688,24 +689,65 @@ class Eyesy:
     KNOB_MOD_RATE_MIN = .02
     KNOB_MOD_RATE_MAX = .50
 
+    # How close the knob has to come to the value it is taking over before it
+    # gets it. Two hundredths of the travel is about twenty of the thousand odd
+    # steps the ADC reports, comfortably past the two counts of smoothing.
+    KNOB_PICKUP_TOLERANCE = 0.02
+
+    def knob_reaches(self, pos, capture, value) :
+        """True once the knob has arrived at the value it is taking over.
+
+        There is one knob and several settings share it, so whichever one it is
+        aimed at finds it wherever the last one left it. Following the knob
+        straight away throws the stored value away - set a rate at the far right
+        and the depth you reach for next is dragged to the far right with it.
+        Waiting until the knob is where the value already is means it is picked
+        up rather than replaced, and the value can be nudged instead of only
+        ever being overwritten.
+        """
+        if abs(pos - value) <= self.KNOB_PICKUP_TOLERANCE : return True
+        # or the knob has passed through it on the way somewhere else
+        return (capture > value) != (pos > value)
+
+    # Where the knob would be for the rate this one has. The rate is set
+    # through an exponential, so its knob position is the log going back.
+    def knob_mod_rate_position(self, i) :
+        span = self.KNOB_MOD_RATE_MAX / self.KNOB_MOD_RATE_MIN
+        ratio = self.knob_mod_rate[i] / self.KNOB_MOD_RATE_MIN
+        if ratio <= 0 : return 0.0
+        return max(0.0, min(1.0, math.log(ratio) / math.log(span)))
+
+    def knob_mod_label(self, i, editing) :
+        return f"{'Depth' if editing == 'depth' else 'Rate'} {i + 1}"
+
     # a modulating knob shapes the wobble instead of setting a value. a plain
     # turn sets the rate, turning it while its own black key is held sets the
     # depth.
     def update_knob_mod_control(self, i) :
         editing = "depth" if self.knob_mod_key_held[i] else "rate"
+        target = (self.knob_mod_depth[i] if editing == "depth"
+                  else self.knob_mod_rate_position(i))
 
         # changing what the knob is aimed at, or having just switched
-        # modulation on, means picking it up from wherever it physically is
+        # modulation on, means it has to be picked up again
         if self.knob_mod_editing[i] != editing :
             self.knob_mod_editing[i] = editing
             self.knob_mod_capture[i] = self.knob_hardware[i]
             self.knob_mod_unlocked[i] = False
+            # what it is aimed at and where it will be met
+            oled.notify_value(self.knob_mod_label(i, editing), target)
             return
 
         if not self.knob_mod_unlocked[i] :
-            if abs(self.knob_mod_capture[i] - self.knob_hardware[i]) > .05 :
+            if self.knob_reaches(self.knob_hardware[i],
+                                 self.knob_mod_capture[i], target) :
                 self.knob_mod_unlocked[i] = True
             else :
+                # hold the value it is hunting for on screen while it hunts
+                if self.knob_hardware[i] != self.knob_hardware_last[i] :
+                    self.knob_hardware_last[i] = self.knob_hardware[i]
+                    self.knob_mod_key_used[i] = editing == "depth"
+                    oled.notify_value(self.knob_mod_label(i, editing), target)
                 return
 
         if self.knob_hardware[i] == self.knob_hardware_last[i] : return
@@ -716,11 +758,10 @@ class Eyesy:
             self.knob_mod_depth[i] = v
             # the key was used as a modifier, so releasing it must not toggle
             self.knob_mod_key_used[i] = True
-            oled.notify_value(f"Depth {i + 1}", v)
         else :
             span = self.KNOB_MOD_RATE_MAX / self.KNOB_MOD_RATE_MIN
             self.knob_mod_rate[i] = self.KNOB_MOD_RATE_MIN * (span ** v)
-            oled.notify_value(f"Rate {i + 1}", v)
+        oled.notify_value(self.knob_mod_label(i, editing), v)
 
     def set_knobs(self) :
         # fill these for the modes, but only if shift isn't down
@@ -1510,6 +1551,10 @@ class Eyesy:
                 # grab gain knob value so we can check it for movement while shift is down
                 self.gain_knob_capture = self.knob_hardware[0]
                 self.gain_knob_unlocked = False
+                # where it already is, not -1: at -1 the first frame counts as
+                # movement and both this and the thru level below would put a
+                # message up before a finger had touched either knob
+                self.gain_knob_last = self.knob_hardware[0]
                 self.gain_value_snapshot = self.config["audio_gain"]
                 # same again for the passthrough level on knob 5. the last
                 # seen position is cleared as well, so the first move after
@@ -1517,7 +1562,7 @@ class Eyesy:
                 # have come back to where it was left last time
                 self.thru_knob_capture = self.knob_hardware[4]
                 self.thru_knob_unlocked = False
-                self.thru_knob_last = -1
+                self.thru_knob_last = self.knob_hardware[4]
                 self.thru_value_snapshot = self.config["audio_thru_volume"]
             else :
                 # save gain to config if changed
@@ -1641,10 +1686,25 @@ class Eyesy:
                     if (self.key10_td > 10) : self.trig = True
     
     def check_gain_knob(self):
-        if self.key2_status:
-            if abs(self.gain_knob_capture - self.knob_hardware[0]) > .05: self.gain_knob_unlocked = True
-            if self.gain_knob_unlocked:
-                self.config["audio_gain"] = self.knob_hardware[0]
+        if not self.key2_status : return
+
+        # a knob that has not moved needs neither a write nor a message, and
+        # at sixty frames a second there would be plenty of both
+        pos = self.knob_hardware[0]
+        if pos == self.gain_knob_last : return
+        self.gain_knob_last = pos
+
+        if not self.gain_knob_unlocked :
+            if self.knob_reaches(pos, self.gain_knob_capture,
+                                 self.config["audio_gain"]) :
+                self.gain_knob_unlocked = True
+            else :
+                # the value being hunted for, so there is something to aim at
+                oled.notify_value("Input Gain", self.config["audio_gain"])
+                return
+
+        self.config["audio_gain"] = pos
+        oled.notify_value("Input Gain", pos)
 
     # Shift and the volume knob set how loud the line input is passed straight
     # through to the line output. Knob 5 is the one the panel prints "Volume"
@@ -1658,21 +1718,26 @@ class Eyesy:
         if not self.key2_status:
             return
 
-        if abs(self.thru_knob_capture - self.knob_hardware[4]) > .05:
-            self.thru_knob_unlocked = True
-        if not self.thru_knob_unlocked:
-            return
-
         # a knob that has not moved needs neither an amp write nor a
         # notification, and at sixty frames a second there would be plenty
-        if self.knob_hardware[4] == self.thru_knob_last:
+        pos = self.knob_hardware[4]
+        if pos == self.thru_knob_last:
             return
-        self.thru_knob_last = self.knob_hardware[4]
+        self.thru_knob_last = pos
 
-        v = self.knob_hardware[4]
-        self.config["audio_thru_volume"] = v
-        audio_thru.set_volume(v)
-        oled.notify_value("Audio Thru", v)
+        if not self.thru_knob_unlocked:
+            if self.knob_reaches(pos, self.thru_knob_capture,
+                                 self.config["audio_thru_volume"]):
+                self.thru_knob_unlocked = True
+            else:
+                # the level being hunted for, so there is something to aim at
+                oled.notify_value("Audio Thru",
+                                  self.config["audio_thru_volume"])
+                return
+
+        self.config["audio_thru_volume"] = pos
+        audio_thru.set_volume(pos)
+        oled.notify_value("Audio Thru", pos)
 
     def set_led(self, val):
         self.led = val

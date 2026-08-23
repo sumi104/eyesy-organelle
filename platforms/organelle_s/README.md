@@ -325,11 +325,22 @@ Turned up, the wobble lands on the beat and waits there; turned down it is
 still travelling when the next one arrives. To move the centre position,
 switch modulation off, set it, and switch back on.
 
-Both take over smoothly: nothing changes until the knob has moved a little
-from where it was, so a knob left at one end does not slam the value across
-the moment it starts controlling something new. Switching modulation off
-leaves the value where it was rather than snapping it to wherever the knob
-ended up.
+**Both are picked up rather than grabbed.** The knob is one physical thing and
+several settings share it — the mode parameter, the rate, the depth, and with
+shift the input gain on knob 1 and the audio thru level on knob 5 — so whichever
+one it is aimed at finds the knob wherever the last one left it. Nothing moves
+until the knob is brought to where that value already is; from there it follows.
+
+Which is what makes them independent. Set a rate at the far right, hold the key
+for the depth, and the depth stays where it was until the knob is turned back
+down to it: a fast wobble that only moves a little is reachable. Without this
+the depth was dragged to the far right the moment the knob twitched, and
+neither could be nudged once set.
+
+The OLED shows the value being hunted for while it is being hunted for, so
+there is something to aim at, and starts following the knob once it has been
+picked up. Switching modulation off leaves the value where it was rather than
+snapping it to wherever the knob ended up.
 
 Scenes carry all of it: which knobs were wobbling and the rate and depth each
 one had. A scene saved before this existed simply has nothing wobbling.
