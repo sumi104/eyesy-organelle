@@ -78,6 +78,11 @@ Which half a change lands in decides what has to be run on the device:
 
 ## Control map
 
+![The Organelle M/S front panel, with the two octaves marked](panel.svg)
+
+Two octaves of twenty four keys, C to B twice, plus AUX. The lower octave is
+the EYESY's own panel; the upper one is what an Organelle has spare.
+
 Hold **C#** for the shifted layer.
 
 | Key | Plain | With C# held |

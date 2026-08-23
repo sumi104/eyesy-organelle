@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 400" width="980" role="img"
+     aria-label="Organelle M/S front panel: four mode knobs, the display, the encoder and the volume knob above an AUX button and a twenty four key keyboard of two octaves">
+  <title>Organelle M/S front panel, as EYESY uses it</title>
+  <style>
+    :root { color-scheme: light dark; }
+    .ink   { stroke: #3c3c3c; fill: none; stroke-width: 2; }
+    .thin  { stroke: #3c3c3c; fill: none; stroke-width: 1.2; }
+    .solid { fill: #3c3c3c; }
+    .label { fill: #3c3c3c; font-family: ui-sans-serif, "Helvetica Neue", Arial, sans-serif; }
+    .note  { font-size: 15px; text-anchor: middle; }
+    .cap   { font-size: 15px; text-anchor: middle; }
+    .small { font-size: 13px; text-anchor: middle; opacity: .75; }
+    .group { font-size: 15px; text-anchor: middle; font-weight: 600; }
+    .knob  { fill: #3c3c3c; }
+    .pointer { stroke: #ffffff; stroke-width: 2.5; stroke-linecap: round; }
+    @media (prefers-color-scheme: dark) {
+      .ink, .thin { stroke: #c8c8c8; }
+      .solid, .label { fill: #c8c8c8; }
+      .knob { fill: #c8c8c8; }
+      .pointer { stroke: #1c1c1c; }
+    }
+  </style>
+
+  <rect class="ink" x="8" y="8" width="964" height="384" rx="6"/>
+
+  <!-- knobs 1 to 4, the first four mode parameters -->
+  <g>
+    <circle class="knob" cx="90"  cy="82" r="28"/><line class="pointer" x1="90"  y1="82" x2="72"  y2="64"/>
+    <circle class="knob" cx="180" cy="82" r="28"/><line class="pointer" x1="180" y1="82" x2="162" y2="64"/>
+    <circle class="knob" cx="270" cy="82" r="28"/><line class="pointer" x1="270" y1="82" x2="252" y2="64"/>
+    <circle class="knob" cx="360" cy="82" r="28"/><line class="pointer" x1="360" y1="82" x2="342" y2="64"/>
+    <text class="label cap" x="123" y="48">1</text>
+    <text class="label cap" x="213" y="48">2</text>
+    <text class="label cap" x="303" y="48">3</text>
+    <text class="label cap" x="393" y="48">4</text>
+    <text class="label small" x="225" y="132">mode parameters 1 to 4</text>
+  </g>
+
+  <!-- the OLED -->
+  <rect class="ink" x="470" y="50" width="152" height="66" rx="3"/>
+  <text class="label small" x="546" y="132">OLED, seven pages</text>
+
+  <!-- encoder and volume -->
+  <g>
+    <circle class="knob" cx="720" cy="82" r="28"/><line class="pointer" x1="720" y1="82" x2="702" y2="64"/>
+    <circle class="knob" cx="852" cy="82" r="28"/><line class="pointer" x1="852" y1="82" x2="834" y2="64"/>
+    <text class="label cap" x="806" y="48">Vol</text>
+    <text class="label small" x="720" y="132">encoder</text>
+    <text class="label small" x="852" y="132">mode parameter 5</text>
+  </g>
+
+  <!-- the six LEDs -->
+  <g class="solid">
+    <circle cx="112" cy="176" r="3"/><circle cx="128" cy="176" r="3"/><circle cx="144" cy="176" r="3"/>
+    <circle cx="112" cy="190" r="3"/><circle cx="128" cy="190" r="3"/><circle cx="144" cy="190" r="3"/>
+  </g>
+
+  <!-- AUX -->
+  <circle class="ink" cx="72" cy="300" r="25"/>
+  <text class="label note" x="72" y="305">AUX</text>
+  <text class="label small" x="72" y="348">OSD</text>
+
+  <!-- black keys, ten of them: the five that wobble a knob, twice over -->
+  <g>
+    <circle class="ink" cx="188" cy="232" r="23"/><text class="label note" x="188" y="237">C#</text>
+    <circle class="ink" cx="245" cy="232" r="23"/><text class="label note" x="245" y="237">D#</text>
+    <circle class="ink" cx="359" cy="232" r="23"/><text class="label note" x="359" y="237">F#</text>
+    <circle class="ink" cx="416" cy="232" r="23"/><text class="label note" x="416" y="237">G#</text>
+    <circle class="ink" cx="473" cy="232" r="23"/><text class="label note" x="473" y="237">A#</text>
+
+    <circle class="ink" cx="587" cy="232" r="23"/><text class="label note" x="587" y="237">C#</text>
+    <circle class="ink" cx="644" cy="232" r="23"/><text class="label note" x="644" y="237">D#</text>
+    <circle class="ink" cx="758" cy="232" r="23"/><text class="label note" x="758" y="237">F#</text>
+    <circle class="ink" cx="815" cy="232" r="23"/><text class="label note" x="815" y="237">G#</text>
+    <circle class="ink" cx="872" cy="232" r="23"/><text class="label note" x="872" y="237">A#</text>
+  </g>
+
+  <!-- white keys, fourteen: two octaves of C to B -->
+  <g>
+    <circle class="ink" cx="160" cy="300" r="25"/><text class="label note" x="160" y="305">C</text>
+    <circle class="ink" cx="217" cy="300" r="25"/><text class="label note" x="217" y="305">D</text>
+    <circle class="ink" cx="274" cy="300" r="25"/><text class="label note" x="274" y="305">E</text>
+    <circle class="ink" cx="331" cy="300" r="25"/><text class="label note" x="331" y="305">F</text>
+    <circle class="ink" cx="388" cy="300" r="25"/><text class="label note" x="388" y="305">G</text>
+    <circle class="ink" cx="445" cy="300" r="25"/><text class="label note" x="445" y="305">A</text>
+    <circle class="ink" cx="502" cy="300" r="25"/><text class="label note" x="502" y="305">B</text>
+
+    <circle class="ink" cx="559" cy="300" r="25"/><text class="label note" x="559" y="305">C</text>
+    <circle class="ink" cx="616" cy="300" r="25"/><text class="label note" x="616" y="305">D</text>
+    <circle class="ink" cx="673" cy="300" r="25"/><text class="label note" x="673" y="305">E</text>
+    <circle class="ink" cx="730" cy="300" r="25"/><text class="label note" x="730" y="305">F</text>
+    <circle class="ink" cx="787" cy="300" r="25"/><text class="label note" x="787" y="305">G</text>
+    <circle class="ink" cx="844" cy="300" r="25"/><text class="label note" x="844" y="305">A</text>
+    <circle class="ink" cx="901" cy="300" r="25"/><text class="label note" x="901" y="305">B</text>
+  </g>
+
+  <!-- which octave is which -->
+  <g>
+    <path class="thin" d="M 133 340 v 8 H 529 v -8"/>
+    <text class="label group" x="331" y="368">Lower octave</text>
+    <text class="label small" x="331" y="385">the EYESY panel buttons, and three of its own</text>
+
+    <path class="thin" d="M 532 340 v 8 H 928 v -8"/>
+    <text class="label group" x="730" y="368">Upper octave</text>
+    <text class="label small" x="730" y="385">white: colour and MIDI channel &#183; black: knob wobble</text>
+  </g>
+</svg>
