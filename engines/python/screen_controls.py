@@ -23,8 +23,8 @@ class ScreenControls(Screen):
     that was invisible with one on each screen.
 
     Every row here is organelle only, which is why the whole screen is: on
-    EYESY hardware there is no pedal, no upper octave and no key that switches
-    the auto picker on, so all three would be settings with nothing to set.
+    EYESY hardware there is no pedal, no upper octave, no key that switches the
+    auto picker on and no battery, so none of them would have anything to set.
     """
 
     def __init__(self, eyesy):
@@ -37,9 +37,10 @@ class ScreenControls(Screen):
         self.knob_mod_item = self._setting("knob_mod_sync", 0, 1)
         self.interval_item = self._setting(
             "auto_random_interval", 0, len(eyesy.AUTO_RANDOM_INTERVALS) - 1)
+        self.battery_item = self._setting("battery", 0, 1)
 
         items = [self.footswitch_item, self.knob_mod_item, self.interval_item,
-                 MenuItem("◀  Exit", self.goto_home)]
+                 self.battery_item, MenuItem("◀  Exit", self.goto_home)]
         self.menu = WidgetMenu(eyesy, items)
         self.menu.visible_items = len(items)
         self.menu.off_y = 43
@@ -63,6 +64,8 @@ class ScreenControls(Screen):
 
         self.footswitch_item.value = self.eyesy.config["footswitch"]
         self.knob_mod_item.value = 1 if self.eyesy.config["knob_mod_sync"] else 0
+
+        self.battery_item.value = 1 if self.eyesy.config["battery"] else 0
 
         seconds = self.eyesy.config["auto_random_interval"]
         try:
@@ -90,6 +93,9 @@ class ScreenControls(Screen):
             seconds = self.eyesy.AUTO_RANDOM_INTERVALS[item.value]
             every = "Random" if seconds < 0 else f"{seconds} sec"
             item.text = f"Auto Random Cycle: {every}"
+        elif item is self.battery_item:
+            item.text = ("Battery: On  (Organelle M)" if item.value
+                         else "Battery: Off  (Organelle S)")
 
     # --- the pedal row locks while something is holding the trigger --------
 
@@ -127,6 +133,7 @@ class ScreenControls(Screen):
         self.eyesy.config["knob_mod_sync"] = self.knob_mod_item.value == 1
         self.eyesy.config["auto_random_interval"] = \
             self.eyesy.AUTO_RANDOM_INTERVALS[self.interval_item.value]
+        self.eyesy.config["battery"] = self.battery_item.value == 1
         self.eyesy.save_config_file()
 
     def handle_events(self):

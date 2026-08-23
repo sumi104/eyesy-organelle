@@ -84,10 +84,19 @@ struct OledState {
     char fgPal[OLED_TEXT_LEN];     // palette names, which run long
     char bgPal[OLED_TEXT_LEN];
     char cycle[OLED_TEXT_LEN];     // auto random cycle, "30 sec" or "Random"
+
     char res[OLED_TEXT_LEN];
     char ver[OLED_TEXT_LEN];
     char url[OLED_TEXT_LEN];       // where to watch the live stream
     char streamInfo[OLED_TEXT_LEN]; // size and frame rate of the stream
+
+    // Organelle M only, and only once the engine has said the setting is on.
+    // batteryBars is 0 to 5; onBattery is the power pin, 1 while it is running
+    // off the cells. See main.cpp - the S has neither, and reads a pin that is
+    // not connected to anything.
+    bool batteryOn;
+    bool onBattery;
+    int batteryBars;
 };
 
 class OledPages
@@ -115,6 +124,10 @@ class OledPages
         // say an action did not happen, which get a different mark and a
         // little longer on screen than the ones that just report.
         void notify(const char *line1, const char *line2, bool warn);
+
+        // Takes the whole screen rather than overlaying a page: it is the last
+        // thing drawn before the power goes.
+        void renderShutdown(OledScreen &s, const char *reason);
         void tickNotify(float elapsedMs);
 
         // Slides the mode and scene names, when they are too long for their
@@ -184,6 +197,7 @@ class OledPages
         void drawKnobBar(OledScreen &s, int x, int y, int h, int val);
         void drawMeter(OledScreen &s, int x, int y, int w, int h, int val);
         void drawWifi(OledScreen &s, int x, int y, int level);
+        void drawBattery(OledScreen &s, int x, int y, int bars);
 };
 
 #endif

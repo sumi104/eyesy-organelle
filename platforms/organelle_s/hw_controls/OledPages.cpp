@@ -39,6 +39,9 @@ OledPages::OledPages() {
     for (int i = 0; i < 5; i++) st.knobCC[i] = -1;
     for (int i = 0; i < 4; i++) st.extraCC[i] = -1;
     st.midiChannel = 1;
+    st.batteryOn = false;
+    st.onBattery = false;
+    st.batteryBars = 5;
     page = OLED_PAGE_PERFORM;
     dirty = true;
     notifyLine1[0] = 0;
@@ -113,6 +116,15 @@ void OledPages::tickNotify(float elapsedMs) {
         notifyLine2[0] = 0;
         dirty = true;
     }
+}
+
+// The last thing on the screen before the power goes. Full width and nothing
+// else on it, because there is no next frame to correct a misreading.
+void OledPages::renderShutdown(OledScreen &s, const char *reason) {
+    s.clear();
+    s.draw_box(0, 8, 128, 48, 1);
+    s.println(reason, 8, 20, 8, 1);
+    s.println("Auto Shutdown", 8, 36, 8, 1);
 }
 
 const char *OledPages::sceneName() {
@@ -222,6 +234,16 @@ void OledPages::drawMeter(OledScreen &s, int x, int y, int w, int h, int val) {
     s.draw_box(x, y, w, h, 1);
     int fill = (val * (w - 2)) / 100;
     if (fill > 0) s.fill_area(x + 1, y + 1, fill, h - 2, 1);
+}
+
+// Small battery, five segments and a nub on the right. Drawn only where the
+// engine has said there is a battery to draw - see renderSettings.
+void OledPages::drawBattery(OledScreen &s, int x, int y, int bars) {
+    if (bars < 0) bars = 0;
+    if (bars > 5) bars = 5;
+    s.draw_box(x, y, 14, 7, 1);
+    s.fill_area(x + 14, y + 2, 2, 3, 1);        // the nub
+    for (int i = 0; i < bars; i++) s.fill_area(x + 2 + (i * 2), y + 2, 1, 3, 1);
 }
 
 // small 3 bar wifi indicator, level 0 draws a crossed out base
@@ -361,6 +383,15 @@ void OledPages::renderSettings(OledScreen &s) {
     snprintf(buf, sizeof(buf), "FPS  %d   %s", st.fps,
              (st.flags & OLED_FLAG_USB) ? "USB" : "SD");
     s.setLine(4, buf);
+    // The row has room to spare and this is the only page with any. The top
+    // bar has none, so a low battery says so through a notification instead of
+    // living up there - see main.cpp.
+    if (st.batteryOn) {
+        // setLine(4) puts its text at y 43; the icon sits on the same row,
+        // out at the right where "FPS 30 SD" leaves the width unused
+        drawBattery(s, 96, 45, st.batteryBars);
+        if (!st.onBattery) s.println("~", 88, 43, 8, 1);
+    }
     snprintf(buf, sizeof(buf), "EYESY v%s  OG-S", st.ver);
     s.setLine(5, buf);
 }

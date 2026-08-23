@@ -345,12 +345,54 @@ class ControlsScreenTest(unittest.TestCase):
         selected = self.screen.menu.items[self.screen.menu.selected_index]
         self.assertEqual(selected.text, "◀  Exit")
 
-    def test_the_screen_holds_the_three_settings_and_nothing_else(self):
+    def test_the_screen_holds_the_settings_and_nothing_else(self):
         names = [getattr(i, "name", None) for i in self.screen.menu.items]
-        self.assertEqual(names[:3],
-                         ["footswitch", "knob_mod_sync", "auto_random_interval"])
+        self.assertEqual(names[:-1], ["footswitch", "knob_mod_sync",
+                                      "auto_random_interval", "battery"])
         self.assertEqual(self.screen.menu.items[-1].text, "◀  Exit")
-        self.assertEqual(len(self.screen.menu.items), 4)
+
+    # --- battery, which only the Organelle M has --------------------------
+
+    def test_battery_starts_off_so_an_s_never_reads_a_floating_pin(self):
+        self.assertIs(self.e.DEFAULT_CONFIG["battery"], False)
+        self.assertIn("Off", self.screen.battery_item.text)
+        self.assertIn("Organelle S", self.screen.battery_item.text)
+
+    def test_battery_says_which_machine_each_setting_is_for(self):
+        self.screen.battery_item.value = 1
+        self.screen.relabel(self.screen.battery_item)
+        self.assertIn("On", self.screen.battery_item.text)
+        self.assertIn("Organelle M", self.screen.battery_item.text)
+
+    def test_the_hardware_process_is_told_and_only_when_it_changes(self):
+        # it owns the reading and the shutdown, so it has to be told what the
+        # config says - and told again at startup, since either side restarts
+        import types
+        sent = []
+        oled.enabled = True
+        oled.osc = types.SimpleNamespace(send=lambda *a: sent.append(a))
+        oled._texts.pop("battery", None)
+        try:
+            oled.send_battery(self.e)
+            self.assertEqual(sent, [("/battery", 0)], "off by default")
+            oled.send_battery(self.e)
+            self.assertEqual(len(sent), 1, "unchanged, so not sent again")
+
+            self.e.config["battery"] = True
+            oled.send_battery(self.e)
+            self.assertEqual(sent[-1], ("/battery", 1))
+        finally:
+            oled.enabled = False
+            oled._texts.pop("battery", None)
+
+    def test_battery_is_saved_as_a_bool(self):
+        # validate_config checks it with isinstance, and the menu holds ints
+        self.screen.battery_item.value = 1
+        self.screen.save()
+        self.assertIs(self.e.config["battery"], True)
+        wanted = dict(self.e.config)
+        self.e.validate_config()
+        self.assertEqual(self.e.config["battery"], wanted["battery"])
 
     # --- adjusting --------------------------------------------------------
 

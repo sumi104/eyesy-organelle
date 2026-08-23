@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sched.h>
 #include <sys/stat.h>
@@ -41,6 +42,7 @@ void oledState(OSCMessage &msg);
 void oledText(OSCMessage &msg);
 void oledNotify(OSCMessage &msg);
 void oledPage(OSCMessage &msg);
+void batteryEnable(OSCMessage &msg);
 
 // buffer for sending OSC messages
 SimpleWriter oscBuf;
@@ -57,6 +59,18 @@ UdpSocket udpSock(OSC_IN_PORT);
 
 // exit flag
 int quit = 0;
+
+// Whether the battery hardware is there to read. The engine sends it, because
+// the setting lives in the config file; it starts off, so an Organelle S that
+// never enables it can never act on a pin it has nothing connected to.
+//
+// It is kept here rather than asked for again because the point of doing this
+// on this side is that it still works when the engine is not running - a card
+// being written to does not care which process noticed the battery.
+bool batteryEnabled = false;
+
+// said once as the last bar goes, rather than every second from then on
+bool batteryWarned = false;
 
 int main(int argc, char* argv[]) {
     printf("build date " __DATE__ "   " __TIME__ "\n");
@@ -100,6 +114,7 @@ int main(int argc, char* argv[]) {
                     || msgIn.dispatch("/oled/text", oledText, 0)
                     || msgIn.dispatch("/oled/notify", oledNotify, 0)
                     || msgIn.dispatch("/oled/page", oledPage, 0)
+                    || msgIn.dispatch("/battery", batteryEnable, 0)
                     ;
                 if (!processed) {
                     char buf[128];
@@ -131,6 +146,42 @@ int main(int argc, char* argv[]) {
             pingTimer.reset();
             controls.ping();
             sendKnobs();
+
+            if (batteryEnabled) {
+                OledState &st = oledPages.st;
+                if (st.batteryBars != (int) controls.batteryBars
+                        || st.onBattery != (bool) controls.pwrStatus) {
+                    st.batteryBars = controls.batteryBars;
+                    st.onBattery = controls.pwrStatus;
+                    oledPages.touch();
+                }
+
+                // Both halves, the way Organelle_OS does it: the flag latches
+                // once it is set, so the power pin is what says the battery is
+                // still the thing running this.
+                if (controls.lowBatteryShutdown && controls.pwrStatus) {
+                    printf("low battery, shutting down\n");
+                    oledPages.renderShutdown(oledScreen, "Low Battery");
+                    controls.updateOLED(oledScreen);
+                    // no grace period. Organelle_OS does not give one either,
+                    // and the threshold already has the margin in it - waiting
+                    // spends exactly the charge the shutdown is there to save.
+                    system("sudo shutdown -h now");
+                    // straight out rather than through the quit flag: the
+                    // refresh further down this same pass would render a page
+                    // over the message if anything had marked it dirty, and
+                    // the display keeps whatever was last written to it.
+                    // Restart=on-failure, so leaving with 0 stays left.
+                    return 0;
+                }
+                else if (controls.pwrStatus && controls.batteryBars <= 1) {
+                    if (!batteryWarned) {
+                        batteryWarned = true;
+                        oledPages.notify("Low Battery", "charge or plug in", true);
+                    }
+                }
+                else batteryWarned = false;
+            }
         }
 
         // poll knobs every 20 ms
@@ -227,6 +278,18 @@ void oledNotify(OSCMessage &msg) {
 
 void oledPage(OSCMessage &msg) {
     if (msg.isInt(0)) oledPages.setPage(msg.getInt(0));
+}
+
+// The Battery row on Settings > Controls. Off on an Organelle S, which has no
+// cells and no power pin worth reading.
+void batteryEnable(OSCMessage &msg) {
+    if (!msg.isInt(0)) return;
+    bool on = msg.getInt(0) != 0;
+    if (on == batteryEnabled) return;
+    batteryEnabled = on;
+    batteryWarned = false;
+    oledPages.st.batteryOn = on;
+    oledPages.touch();
 }
 
 /* functions to handle input from the organelle hardware controls */

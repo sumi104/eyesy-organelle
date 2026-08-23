@@ -126,6 +126,11 @@ class Eyesy:
             # what off means here - there is no separate switch. Shift and the
             # volume knob set it. See audio_thru.py
             "audio_thru_volume": 0.0,
+            # Organelle M has a battery, the S does not. Off means the engine
+            # never tells the hardware process to look, which matters: the
+            # power pin the shutdown check reads is not connected on an S and
+            # floats. See platforms/organelle_s/hw_controls/main.cpp
+            "battery": False,
             # live video stream to a browser on the network
             "stream_enabled": False,
             "stream_width": 640,
@@ -462,6 +467,7 @@ class Eyesy:
         self._validate_config_int("auto_random_interval", -1, 3600)
         self._validate_config_int("footswitch", 0, len(self.FOOTSWITCH_ACTIONS) - 1)
         self._validate_config_float("audio_thru_volume", 0.0, 1.0)
+        self._validate_config_bool("battery")
         self._validate_config_float("knob_mod_depth", 0.0, 1.0)
         self._validate_config_float("knob_mod_rate", 0.005, 1.0)
         # the config holds the starting point, each knob keeps its own after

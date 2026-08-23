@@ -117,6 +117,7 @@ def init(eyesy):
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
     send_text("trig", trig_text(eyesy))
     send_stream_info(eyesy)
+    send_battery(eyesy)
 
     threading.Thread(target=_net_loop, daemon=True).start()
 
@@ -172,6 +173,17 @@ def send_text(key, value):
     osc.send("/oled/text", key, value)
 
 
+def send_battery(eyesy):
+    """Tell the hardware process whether there is a battery to watch."""
+    if not enabled:
+        return
+    on = 1 if eyesy.config.get("battery") else 0
+    if _texts.get("battery") == on:
+        return
+    _texts["battery"] = on
+    osc.send("/battery", on)
+
+
 def set_page(page):
     if not enabled:
         return
@@ -210,6 +222,7 @@ def update(eyesy):
     send_text("midi", eyesy.usb_midi_name if eyesy.usb_midi_name else "none")
     send_text("trig", trig_text(eyesy))
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
+    send_battery(eyesy)
     send_text("cycle", cycle_short(eyesy))
     send_text("fgpal", palette_name(eyesy, eyesy.fg_palette))
     send_text("bgpal", palette_name(eyesy, eyesy.bg_palette))

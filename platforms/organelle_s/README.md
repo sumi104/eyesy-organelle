@@ -208,6 +208,7 @@ belongs to a key or the pedal jack rather than to a subsystem.
 | **Foot Switch** | what the pedal does, save a scene or fire the trigger |
 | **Knob Modulation** | what times the knob wobble: the trigger, or its own pace |
 | **Auto Random Cycle** | what times the palette wobble and the `A#` picker |
+| **Battery** | off for an Organelle S, on for an M |
 
 The middle two are a pair — one times the knob wobble, the other the palette
 wobble — and that was invisible while Knob Modulation sat under Audio MIDI
@@ -219,6 +220,34 @@ The whole screen is organelle only, and so is its row in Settings: EYESY
 hardware has no pedal, no upper octave and no key that switches the auto picker
 on, so all three would be settings with nothing to set. System Stuff went back
 to being the maintenance screen it was.
+
+## Battery, on the Organelle M
+
+The M is an S with a speaker and a battery, so one build covers both — which
+means the battery cannot be a compile time choice the way it is in
+`Organelle_OS`. **Settings > Controls > Battery** is that choice at run time,
+and it is **off by default**.
+
+Leaving it off matters on an S. The shutdown check reads GPIO 16 for "running
+on cells", and that pin is set up with its pull up and pull down disabled — on
+a machine with no battery circuit it floats and may read anything. Off means
+the engine never tells the hardware process to look at it.
+
+Switched on, the SETTINGS page shows the charge out at the right of the `FPS`
+row, with a `~` beside it while the mains are supplying it. The top bar has no
+room, so a battery down to its last bar says so through a message instead.
+
+At the shutdown threshold the display is given over to `Low Battery / Auto
+Shutdown` and the machine halts. **There is no grace period**, which is what
+`Organelle_OS` does with the same cells and the same thresholds: the margin is
+already in the threshold, and waiting spends exactly the charge the shutdown is
+there to save. Plugging in stops it — the check reads the power pin as well as
+the latched flag, so a flag that never clears cannot halt a machine on mains.
+
+It lives in the hardware process rather than the engine, so a card mid-write is
+still protected when the engine is not running. **None of it is tested**: this
+was built against `Organelle_OS` on an Organelle S, which has no battery to
+read. The thresholds are theirs, unchanged.
 
 The pedal row stops responding while the pedal or `B` is held and says why —
 letting the setting move under a press already in flight is how the test tone

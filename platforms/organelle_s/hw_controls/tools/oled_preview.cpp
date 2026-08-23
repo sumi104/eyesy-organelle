@@ -162,6 +162,25 @@ int main(int argc, char *argv[]) {
     pages.render(screen);
     dump(screen, prefix, OLED_NUM_PAGES + 6);
 
+    // The battery, which only an Organelle M has: on mains at full, then on
+    // cells and nearly out, then the screen that is the last thing drawn.
+    pages.tickNotify(10000);
+    pages.setPage(OLED_PAGE_SETTINGS);
+    st.batteryOn = true;
+    st.onBattery = false;
+    st.batteryBars = 5;
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 14);
+
+    st.onBattery = true;
+    st.batteryBars = 1;
+    pages.render(screen);
+    dump(screen, prefix, OLED_NUM_PAGES + 15);
+
+    pages.renderShutdown(screen, "Low Battery");
+    dump(screen, prefix, OLED_NUM_PAGES + 16);
+    st.batteryOn = false;
+
     // the live page again with the stream stopped
     pages.tickNotify(10000);
     pages.setPage(OLED_PAGE_STREAM);
