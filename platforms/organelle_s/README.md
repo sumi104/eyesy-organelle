@@ -142,9 +142,15 @@ up. Pressing `C`, letting go, then pressing `D` is two separate steps; holding
 `C` and then pressing `D` is the wobble.
 
 `C` and `D` step the foreground palette down and up, `E` and `F` the
-background. There is no key repeat: holding one does nothing, and stepping says
-nothing on the display — it is visible in the picture, and 43 palettes tapped
-through would be 43 messages over it.
+background. Held, a key keeps stepping — there are 43 palettes and tapping to
+the far end of them is 42 presses. Stepping says nothing on the display: it is
+visible in the picture, and 43 palettes gone past would be 43 messages over it.
+
+The repeat starts after about **0.4 seconds**, and that same wait is the window
+the chord has to arrive in. A key that has begun repeating is somebody
+scrolling, so pressing its partner then steps back the other way rather than
+switching the wobble — which means the two keys of a chord have to go down
+together rather than one being held and the other added later.
 
 Shift and the lower octave `C` `D` `E` `F` still move the palettes too. That
 path is shared with EYESY hardware, which has no upper octave and would

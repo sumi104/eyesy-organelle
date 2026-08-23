@@ -88,22 +88,18 @@ def palette_for_key(k):
     return None
 
 
-def _step_palette(eyesy, palette, side):
-    if palette == eyesy.PALETTE_FG:
-        if side: eyesy.next_fg_palette()
-        else:    eyesy.prev_fg_palette()
-    else:
-        if side: eyesy.next_bg_palette()
-        else:    eyesy.prev_bg_palette()
-
-
 def _palette_key(eyesy, palette, side, pressed):
     """One of the four palette keys, going down or coming up.
 
-    A key on its own steps its palette when it is let go. The two of a pair
-    held together switch that palette's wobble instead, and mark each other so
-    neither steps on the way up - the same "used as a modifier, so its release
-    does nothing" bookkeeping the black keys up here use.
+    A tap steps its palette when it is let go, a hold steps it over and over,
+    and the two of a pair pressed together switch that palette's wobble instead
+    and mark each other so neither steps on the way up - the same "used as a
+    modifier, so its release does nothing" bookkeeping the black keys up here
+    use.
+
+    The chord is only read while neither key has begun repeating. Once one has,
+    pressing the other is somebody scrolling who wants to go back the other
+    way, and reading it as a chord would put them on the wobble switch instead.
     """
     i = (palette * 2) + side
     partner = (palette * 2) + (1 - side)
@@ -111,7 +107,9 @@ def _palette_key(eyesy, palette, side, pressed):
     if pressed:
         eyesy.palette_key_held[i] = True
         eyesy.palette_key_used[i] = False
-        if eyesy.palette_key_held[partner]:
+        eyesy.palette_key_td[i] = 0
+        if eyesy.palette_key_held[partner] \
+                and eyesy.palette_key_td[partner] < eyesy.PALETTE_REPEAT_DELAY:
             eyesy.palette_key_used[i] = True
             eyesy.palette_key_used[partner] = True
             # marked either way, so a chord started outside a menu and let go
@@ -126,7 +124,7 @@ def _palette_key(eyesy, palette, side, pressed):
     if not eyesy.palette_key_used[i] and not eyesy.menu_mode:
         # no notification: stepping is visible in the picture and on the
         # status page, and 43 palettes tapped through would be 43 messages
-        _step_palette(eyesy, palette, side)
+        eyesy.step_palette(palette, side)
     eyesy.palette_key_used[i] = False
 
 

@@ -83,6 +83,11 @@ class Base(unittest.TestCase):
         self.press(k)
         self.release(k)
 
+    def tick(self, n=1):
+        """n frames of the main loop, as far as the keys are concerned."""
+        for _ in range(n):
+            self.e.update_key_repeater()
+
     def chord(self, a, b):
         """Both down, then both up, which is how a hand does it."""
         self.press(a)
@@ -282,13 +287,54 @@ class PaletteStepTest(Base):
         self.tap(self.FG_DOWN)
         self.assertEqual(self.e.fg_palette, last)
 
-    def test_holding_a_key_does_not_repeat(self):
+    def test_a_tap_is_still_one_step(self):
         self.e.fg_palette = 3
         self.press(self.FG_UP)
-        for _ in range(120):
-            self.e.update_key_repeater()
+        self.tick(self.e.PALETTE_REPEAT_DELAY - 1)   # let go before it starts
         self.release(self.FG_UP)
-        self.assertEqual(self.e.fg_palette, 4, "one press, one step")
+        self.assertEqual(self.e.fg_palette, 4)
+
+    def test_holding_starts_stepping_after_the_delay(self):
+        self.e.fg_palette = 3
+        self.press(self.FG_UP)
+        self.tick(self.e.PALETTE_REPEAT_DELAY - 1)
+        self.assertEqual(self.e.fg_palette, 3, "nothing yet")
+        self.tick(1)
+        self.assertEqual(self.e.fg_palette, 4, "the first of the run")
+
+    def test_it_keeps_going_at_the_rate_it_is_set_to(self):
+        self.e.fg_palette = 0
+        self.press(self.FG_UP)
+        self.tick(self.e.PALETTE_REPEAT_DELAY
+                  + (self.e.PALETTE_REPEAT_EVERY * 5))
+        self.assertEqual(self.e.fg_palette, 6, "one on the delay, five since")
+
+    def test_letting_go_after_a_run_does_not_add_one_more(self):
+        self.e.fg_palette = 0
+        self.press(self.FG_UP)
+        self.tick(self.e.PALETTE_REPEAT_DELAY)
+        self.assertEqual(self.e.fg_palette, 1)
+        self.release(self.FG_UP)
+        self.assertEqual(self.e.fg_palette, 1)
+
+    def test_the_other_direction_repeats_too(self):
+        self.e.bg_palette = 5
+        self.press(self.BG_DOWN)
+        self.tick(self.e.PALETTE_REPEAT_DELAY + self.e.PALETTE_REPEAT_EVERY)
+        self.release(self.BG_DOWN)
+        self.assertEqual(self.e.bg_palette, 3)
+
+    def test_it_does_not_repeat_in_a_menu(self):
+        self.e.fg_palette = 3
+        self.press(self.FG_UP)
+        self.e.menu_mode = True
+        self.tick(120)
+        self.assertEqual(self.e.fg_palette, 3)
+
+    def test_a_key_that_is_not_held_does_not_tick(self):
+        self.e.fg_palette = 3
+        self.tick(120)
+        self.assertEqual(self.e.fg_palette, 3)
 
     def test_nothing_steps_in_a_menu(self):
         self.e.fg_palette = 3
@@ -366,6 +412,36 @@ class PaletteChordTest(Base):
         self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG])
         self.release(self.FG_DOWN)
         self.assertEqual(self.e.palette_key_used, [False] * 4)
+
+    def test_the_chord_still_reads_with_a_frame_or_two_between_presses(self):
+        # two fingers are never exactly simultaneous
+        self.press(self.FG_DOWN)
+        self.tick(2)
+        self.press(self.FG_UP)
+        self.assertTrue(self.e.palette_mod[self.e.PALETTE_FG])
+
+    def test_the_partner_of_a_repeating_key_is_not_a_chord(self):
+        # somebody scrolling who presses the other key wants to go back the
+        # other way, not to land on the wobble switch
+        self.e.fg_palette = 0
+        self.press(self.FG_UP)
+        self.tick(self.e.PALETTE_REPEAT_DELAY)
+        self.assertEqual(self.e.fg_palette, 1, "it is running")
+        self.press(self.FG_DOWN)
+        self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG],
+                         "must not have switched the wobble on")
+        self.release(self.FG_DOWN)
+        self.assertEqual(self.e.fg_palette, 0, "it stepped back instead")
+
+    def test_a_held_chord_does_not_repeat(self):
+        # a toggle that repeated would flip on and off many times a second
+        self.press(self.FG_DOWN)
+        self.press(self.FG_UP)
+        on = self.e.palette_mod[self.e.PALETTE_FG]
+        landed = self.e.fg_palette
+        self.tick(120)
+        self.assertEqual(self.e.palette_mod[self.e.PALETTE_FG], on)
+        self.assertEqual(self.e.fg_palette, landed)
 
     def test_a_chord_leaves_nothing_armed_behind_it(self):
         self.chord(self.FG_DOWN, self.FG_UP)

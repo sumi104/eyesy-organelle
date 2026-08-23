@@ -69,6 +69,17 @@ class Eyesy:
         self.PALETTE_FG, self.PALETTE_BG = 0, 1
         self.PALETTE_NAMES = ["FG Palette", "BG Palette"]
 
+        # Held, a palette key steps over and over. Frames, at the video
+        # engine's rate. The delay is also the window the chord has to arrive
+        # in: once a key starts repeating, its partner is somebody scrolling
+        # rather than somebody reaching for the wobble.
+        #
+        # Every frame, which is what the mode and scene keys do, would run all
+        # 43 palettes past in under a second and a half - too fast to see what
+        # went by. Every fourth is about seven a second.
+        self.PALETTE_REPEAT_DELAY = 12
+        self.PALETTE_REPEAT_EVERY = 4
+
         self.DEFAULT_CONFIG = {
             "video_resolution": 3,
             "audio_gain": .25,
@@ -298,6 +309,7 @@ class Eyesy:
         # release does not also step the palette. See organelle.dispatch_key.
         self.palette_key_held = [False] * 4
         self.palette_key_used = [False] * 4
+        self.palette_key_td = [0] * 4
 
         # knob sequencer stuff
         self.knob_seq = []
@@ -893,6 +905,34 @@ class Eyesy:
             self.pick_random_palette(which)
         print(f"{self.PALETTE_NAMES[which]} modulation {self.palette_mod[which]}")
         return self.palette_mod[which]
+
+    # side 0 steps down, 1 steps up
+    def step_palette(self, which, side):
+        if which == self.PALETTE_FG:
+            if side : self.next_fg_palette()
+            else    : self.prev_fg_palette()
+        else:
+            if side : self.next_bg_palette()
+            else    : self.prev_bg_palette()
+
+    # Called once a frame for the four upper octave palette keys. A key held
+    # past the delay starts stepping and is marked used, so letting go of it
+    # does not add one more on top of everything it already sent past.
+    def update_palette_keys(self):
+        for i in range(0, 4):
+            if not self.palette_key_held[i] : continue
+
+            # both down is the chord, which is not a thing that repeats
+            partner = (i - 1) if (i % 2) else (i + 1)
+            if self.palette_key_held[partner] : continue
+
+            self.palette_key_td[i] += 1
+            since = self.palette_key_td[i] - self.PALETTE_REPEAT_DELAY
+            if since < 0 : continue
+            if since % self.PALETTE_REPEAT_EVERY : continue
+
+            self.palette_key_used[i] = True
+            self.step_palette(i // 2, i % 2)
 
     def arm_palette_mod(self, which):
         self.palette_mod_next[which] = time.time() + self.random_interval()
@@ -1525,6 +1565,9 @@ class Eyesy:
        # if self.key10_status :
        #     self.trig = True
         if not self.menu_mode :
+            # the palette keys do not care about shift, so they sit outside
+            # the branch below
+            self.update_palette_keys()
             if self.key2_status : 
                 if self.key4_status :
                     self.key4_td += 1
