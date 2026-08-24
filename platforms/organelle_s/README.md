@@ -149,6 +149,8 @@ A key that gets used as half of a chord is marked, and does nothing on its way
 up. Pressing `C`, letting go, then pressing `D` is two separate steps; holding
 `C` and then pressing `D` is the modulation.
 
+### Palettes
+
 `C` and `D` step the foreground palette down and up, `E` and `F` the
 background. Held, a key keeps stepping — there are 43 palettes and tapping to
 the far end of them is 42 presses. Stepping says nothing on the display: it is
@@ -164,13 +166,13 @@ Shift and the lower octave `C` `D` `E` `F` still move the palettes too. That
 path is shared with EYESY hardware, which has no upper octave and would
 otherwise have no way to change a palette at all.
 
-## Palette modulation
+### Palette modulation
 
-Upper octave `C`+`D` together start the foreground palette picking a new one
-every so often, `E`+`F` do the same for the background, and the same chord
-again stops it. Each switches on
-with a change rather than waiting out a cycle first, so the key has something
-to show for itself, and neither ever picks the palette already showing.
+`C`+`D` together start the foreground palette picking a new one every so often,
+`E`+`F` do the same for the background, and the same chord again stops it. Each
+switches on with a change rather than waiting out a cycle first, so the key has
+something to show for itself, and neither ever picks the palette already
+showing.
 
 **It runs on the Auto Random Cycle clock, not on the trigger.** This is the one
 way it is unlike the knob modulation, and the difference is the point: a
@@ -191,11 +193,11 @@ The `STATUS` page of the OLED has a lamp for each, and switching one says on
 screen how often it will move. There is deliberately no letter for it in the
 top bar; see [OLED](#oled).
 
-## MIDI channel
+### MIDI channel
 
-Upper octave `G` steps the MIDI channel by one, wrapping from 16 back to 1, and
-says the new number on screen. It is also on **Settings → Audio MIDI Settings**,
-which is where it was before it had a key.
+`G` steps the MIDI channel by one, wrapping from 16 back to 1, and says the new
+number on screen. It is also on **Settings → Audio MIDI Settings**, which is
+where it was before it had a key.
 
 **It steps on the way up, not the way down, and holding it does nothing.** The
 other repeating keys here fire every frame once they start, which would run 1
@@ -205,6 +207,71 @@ key leaned on cannot walk the channel away from you.
 It works with a menu open too, since it is a setting rather than a performance
 control, and the MIDI page is where you would be looking while you set it. Each
 press is written to `config.json`.
+
+### Knob modulation
+
+Each black key modulates the knob above it — C# is knob 1 through to A# for
+knob 5. Tap it to start, tap again to stop.
+
+**The movement is timed by whatever is driving the visuals.** Each trigger
+picks somewhere new for the offset to head for and it glides there, and since
+audio, MIDI notes, MIDI clock and Ableton Link all arrive as the same trigger,
+the modulation follows whichever one is selected under Trigger Source. With
+nothing triggering it settles on its last target and stays there, so muting
+the audio with `F#` or the clock with `G#` stops it rather than leaving it
+running on a clock of its own.
+
+It rides on top of the position rather than sweeping the whole range. Scenes
+store the set position, not wherever the modulation happened to be.
+
+**While a knob is modulating it shapes that movement instead of setting a
+value**: turn it for the rate, or hold its own black key and turn it for the
+depth. So the key that owns a knob's modulation is also what adjusts it — no
+other modifier is involved, and shift on knob 1 is still the audio gain. The
+OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
+
+Holding it while turning its knob adjusts the depth and leaves the modulation
+running.
+
+The knob sequencer and the modulation both write the same five knobs, so they
+do not run together. Starting modulation while the sequence is playing — `Q` in
+the top bar — is refused, and the key says why. Starting the sequence drops any
+modulation that was running, which is also what happens when a scene carrying
+both is recalled. Switching a running modulation off is always allowed.
+
+Rate is how quickly the offset reaches each new target, on an exponential
+curve so the slow end is not all crammed into the first millimetre of travel.
+Turned up, the modulation lands on the beat and waits there; turned down it is
+still travelling when the next one arrives. To move the centre position,
+switch modulation off, set it, and switch back on.
+
+**Both are picked up rather than grabbed.** The knob is one physical thing and
+several settings share it — the mode parameter, the rate, the depth, and with
+shift the input gain on knob 1 and the audio thru level on knob 5 — so whichever
+one it is aimed at finds the knob wherever the last one left it. Nothing moves
+until the knob is brought to where that value already is; from there it follows.
+
+Which is what makes them independent. Set a rate at the far right, hold the key
+for the depth, and the depth stays where it was until the knob is turned back
+down to it: a fast modulation that only moves a little is reachable. Without
+this the depth was dragged to the far right the moment the knob twitched, and
+neither could be nudged once set.
+
+The OLED shows the value being hunted for while it is being hunted for, so
+there is something to aim at, and starts following the knob once it has been
+picked up. Switching modulation off leaves the value where it was rather than
+snapping it to wherever the knob ended up.
+
+Scenes carry all of it: which knobs were modulating and the rate and depth each
+one had. A scene saved before this existed simply has nothing modulating.
+
+`config.json` holds the starting point for all five:
+
+| | default | |
+|---|---|---|
+| `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
+| `knob_mod_rate` | 0.15 | how quickly it reaches each target |
+| `knob_mod_sync` | true | step on the trigger; false brings back modulation that keeps its own time. Also on **Settings → Audio MIDI Settings** |
 
 ## Settings > Controls
 
@@ -289,72 +356,6 @@ bar of the OLED says the picker is running and which of the two it is picking.
 It holds still while a menu is open, so it cannot change the mode out from
 under someone reading a settings page. Picking scenes with none saved does
 nothing and says so.
-
-## Knob modulation
-
-Each black key of the upper octave modulates the knob above it — C# is knob 1
-through to A# for knob 5. Tap it to start, tap again to stop.
-
-**The movement is timed by whatever is driving the visuals.** Each trigger
-picks somewhere new for the offset to head for and it glides there, and since
-audio, MIDI notes, MIDI clock and Ableton Link all arrive as the same trigger,
-the modulation follows whichever one is selected under Trigger Source. With
-nothing triggering it settles on its last target and stays there, so muting
-the audio with `F#` or the clock with `G#` stops it rather than leaving it
-running on a clock of its own.
-
-It rides on top of the position rather than sweeping the whole range. Scenes
-store the set position, not wherever the modulation happened to be.
-
-**While a knob is modulating it shapes that movement instead of setting a
-value**: turn it for the rate, or hold its own black key and turn it for the
-depth. So the key that owns a knob's modulation is also what adjusts it — no
-other modifier is involved, and shift on knob 1 is still the audio gain. The
-OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
-
-Because the key doubles as a modifier it acts on release, and only when it was
-tapped: holding it while turning its knob adjusts the depth and leaves the
-modulation running.
-
-The knob sequencer and the modulation both write the same five knobs, so they
-do not run together. Starting modulation while the sequence is playing — `Q` in
-the top bar — is refused, and the key says why. Starting the sequence drops any
-modulation that was running, which is also what happens when a scene carrying
-both is recalled. Switching a running modulation off is always allowed.
-
-Rate is how quickly the offset reaches each new target, on an exponential
-curve so the slow end is not all crammed into the first millimetre of travel.
-Turned up, the modulation lands on the beat and waits there; turned down it is
-still travelling when the next one arrives. To move the centre position,
-switch modulation off, set it, and switch back on.
-
-**Both are picked up rather than grabbed.** The knob is one physical thing and
-several settings share it — the mode parameter, the rate, the depth, and with
-shift the input gain on knob 1 and the audio thru level on knob 5 — so whichever
-one it is aimed at finds the knob wherever the last one left it. Nothing moves
-until the knob is brought to where that value already is; from there it follows.
-
-Which is what makes them independent. Set a rate at the far right, hold the key
-for the depth, and the depth stays where it was until the knob is turned back
-down to it: a fast modulation that only moves a little is reachable. Without
-this the depth was dragged to the far right the moment the knob twitched, and
-neither could be nudged once set.
-
-The OLED shows the value being hunted for while it is being hunted for, so
-there is something to aim at, and starts following the knob once it has been
-picked up. Switching modulation off leaves the value where it was rather than
-snapping it to wherever the knob ended up.
-
-Scenes carry all of it: which knobs were modulating and the rate and depth each
-one had. A scene saved before this existed simply has nothing modulating.
-
-`config.json` holds the starting point for all five:
-
-| | default | |
-|---|---|---|
-| `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
-| `knob_mod_rate` | 0.15 | how quickly it reaches each target |
-| `knob_mod_sync` | true | step on the trigger; false brings back modulation that keeps its own time. Also on **Settings → Audio MIDI Settings** |
 
 ## Audio thru
 
