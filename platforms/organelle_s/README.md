@@ -112,8 +112,11 @@ Hold **C#** for the shifted layer.
 Shift + knob 1 still sets the input gain, as on EYESY. Shift + knob 5 — the
 one the panel prints **Volume** on — sets the audio thru level, see below.
 
-**Foot Switch** on Settings > Controls says which of the two it does. It saves
-by default, which is what it did before there was a choice.
+## Foot switch
+
+**Foot Switch** on Settings > Controls says whether the pedal saves a scene or
+fires the trigger. It saves by default, which is what it did before there was a
+choice.
 
 Saving goes straight to `save_scene()` rather than through the save key, which
 deletes the current scene when it is held for a second — which is what a foot
