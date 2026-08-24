@@ -292,6 +292,106 @@ class LivePageToggleTest(unittest.TestCase):
             self.assertEqual(self.oled.network_address(), expect)
 
 
+class EncoderProcessTest(unittest.TestCase):
+    """How the encoder is started and stopped.
+
+    Found on the instrument: `ps` showed a child of the engine whose command
+    line was still main.py, sleeping and single threaded, three minutes old.
+    It was a fork that never reached exec, because the preexec_fn asked for a
+    dlopen while holding the copy of a lock the engine's network thread had at
+    the moment of the fork. What it left behind was not an encoder but a stuck
+    copy of the engine, pinning its memory for as long as the engine ran.
+    """
+
+    def setUp(self):
+        self.e = FakeEyesy(stream_enabled=True)
+        self.calls = []
+        self.real_popen = streamer.subprocess.Popen
+        self.real_bus = streamer.framebus.FrameBus
+        streamer.subprocess.Popen = self.record
+        # there is no /dev/shm on a laptop, and this test is about the fork
+        streamer.framebus.FrameBus = lambda *a, **k: object()
+
+    def tearDown(self):
+        streamer.subprocess.Popen = self.real_popen
+        streamer.framebus.FrameBus = self.real_bus
+        streamer._encoder = None
+        streamer._bus = None
+        streamer.enabled = False
+
+    def record(self, args, **kwargs):
+        self.calls.append((args, kwargs))
+        return FakeProcess()
+
+    def test_the_encoder_is_not_started_through_a_preexec_fn(self):
+        streamer._surface = None            # no surface, so no passthrough
+        streamer.init(self.e)
+        self.assertEqual(len(self.calls), 1)
+        self.assertNotIn("preexec_fn", self.calls[0][1],
+                         "forking a threaded process into a preexec_fn is what"
+                         " left a stuck copy of the engine behind")
+
+    def test_a_killed_encoder_is_reaped(self):
+        # a kill that is never waited for leaves a zombie, and the stream can
+        # be toggled from a front panel key as often as you like
+        proc = FakeProcess(ignores_terminate=True)
+        streamer._encoder = proc
+        streamer.close()
+        self.assertTrue(proc.killed)
+        self.assertGreaterEqual(proc.waits, 2,
+                                "wait again after the kill, or it stays a zombie")
+
+    def test_a_cooperative_encoder_is_only_waited_for_once(self):
+        proc = FakeProcess()
+        streamer._encoder = proc
+        streamer.close()
+        self.assertFalse(proc.killed)
+        self.assertEqual(proc.waits, 1)
+
+    def test_the_encoder_asks_for_the_parent_death_signal_itself(self):
+        # it has to be the child that asks, once it is a program of its own
+        path = os.path.join(os.path.dirname(HERE), "stream_encoder.py")
+        with open(path) as f:
+            src = f.read()
+        self.assertIn("PR_SET_PDEATHSIG", src)
+        self.assertIn("die_with_parent()", src)
+
+    def test_linkd_asks_for_it_too(self):
+        # same defect, same fix: link.py starts a second child the same way
+        with open(os.path.join(os.path.dirname(HERE), "link.py")) as f:
+            link_py = f.read()
+        self.assertNotIn("preexec_fn=", link_py)
+        here = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+        linkd = os.path.join(here, "platforms", "organelle_s", "linkd",
+                             "linkd.cpp")
+        if os.path.exists(linkd):
+            with open(linkd) as f:
+                self.assertIn("PR_SET_PDEATHSIG", f.read())
+
+
+class FakeProcess:
+
+    def __init__(self, ignores_terminate=False):
+        self.ignores_terminate = ignores_terminate
+        self.killed = False
+        self.waits = 0
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        self.killed = True
+
+    def wait(self, timeout=None):
+        self.waits += 1
+        if self.ignores_terminate and not self.killed:
+            raise streamer.subprocess.TimeoutExpired("encoder", timeout)
+        return 0
+
+    def poll(self):
+        return None
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

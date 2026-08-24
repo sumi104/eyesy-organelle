@@ -19,8 +19,10 @@ with the frame size and rate instead.
 """
 
 import argparse
+import ctypes
 import io
 import os
+import signal
 import sys
 import time
 
@@ -38,7 +40,32 @@ JPEG_CAPACITY = 512 * 1024
 _frombytes = getattr(pygame.image, "frombytes", None) or pygame.image.fromstring
 
 
+def die_with_parent():
+    """Ask the kernel to kill us when the engine goes.
+
+    This has to be set here, in the child, once it is a program of its own.
+    Setting it from the parent's preexec_fn means running between fork and
+    exec, where the engine's other threads are gone but the locks they were
+    holding came across with the copy -- and dlopen wants one of them. The
+    child then deadlocks before it ever execs, and what is left behind is not
+    an encoder at all but a stuck copy of the engine, pinning its memory. That
+    was seen on the instrument.
+    """
+    try:
+        PR_SET_PDEATHSIG = 1
+        ctypes.CDLL("libc.so.6").prctl(PR_SET_PDEATHSIG, signal.SIGTERM)
+    except Exception:
+        pass
+
+    # the signal only fires from here on, so a parent that went while we were
+    # starting would never send it
+    if os.getppid() == 1:
+        os._exit(0)
+
+
 def main():
+    die_with_parent()
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--width", type=int, required=True)
     ap.add_argument("--height", type=int, required=True)

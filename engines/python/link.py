@@ -9,9 +9,7 @@ trigger sources is selected, so there is no second piece of state to get out of
 step with the first.
 """
 
-import ctypes
 import os
-import signal
 import subprocess
 
 # trigger source index -> beats between triggers
@@ -40,15 +38,6 @@ def division(eyesy):
     return DIVISIONS.get(eyesy.config.get("trigger_source"), 1.0)
 
 
-def _die_with_parent():
-    """So a hand started engine does not leave linkd behind."""
-    try:
-        PR_SET_PDEATHSIG = 1
-        ctypes.CDLL("libc.so.6").prctl(PR_SET_PDEATHSIG, signal.SIGTERM)
-    except Exception:
-        pass
-
-
 def apply(eyesy):
     """Start or stop linkd to match the trigger source. Safe to call often."""
     global _proc, _missing_logged, running, peers, tempo
@@ -64,7 +53,12 @@ def apply(eyesy):
                     print(f"link: {path} is not built, see its README")
                 return
             try:
-                _proc = subprocess.Popen([path], preexec_fn=_die_with_parent)
+                # linkd sets the parent death signal on itself. Doing
+                # it from a preexec_fn here runs between fork and exec,
+                # with this process's network thread gone but its locks
+                # carried over, and the child can deadlock there and
+                # never exec -- leaving a stuck copy of the engine.
+                _proc = subprocess.Popen([path])
                 print("link: started linkd")
             except Exception as e:
                 print(f"link: could not start linkd: {e}")
@@ -101,4 +95,9 @@ def close():
             _proc.wait(timeout=1)
         except subprocess.TimeoutExpired:
             _proc.kill()
+            # reap it, or a kill that is never waited for leaves a zombie
+            try:
+                _proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                print("link: linkd did not die")
     _proc = None

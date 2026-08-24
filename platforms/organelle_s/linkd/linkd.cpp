@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -140,6 +141,14 @@ int main()
 {
   signal(SIGINT, onSignal);
   signal(SIGTERM, onSignal);
+
+  // Go when the engine goes, so a hand started engine does not leave this
+  // running. Asked for here rather than by the engine between fork and exec:
+  // the engine has other threads, and their locks come across that gap held,
+  // so a child that reaches for one there never execs at all.
+  prctl(PR_SET_PDEATHSIG, SIGTERM);
+  if (getppid() == 1)
+    return 0;
 
   sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock < 0)

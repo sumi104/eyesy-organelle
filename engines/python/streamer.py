@@ -13,9 +13,7 @@ passed through untouched.
 Off unless stream_enabled is set in the config.
 """
 
-import ctypes
 import os
-import signal
 import subprocess
 import sys
 import time
@@ -49,15 +47,6 @@ _passthrough = False
 
 # pygame renamed this in 2.1.3, the device may be running either
 _tobytes = getattr(pygame.image, "tobytes", None) or pygame.image.tostring
-
-
-def _die_with_parent():
-    """So a hand started engine does not leave an encoder behind."""
-    try:
-        PR_SET_PDEATHSIG = 1
-        ctypes.CDLL("libc.so.6").prctl(PR_SET_PDEATHSIG, signal.SIGTERM)
-    except Exception:
-        pass
 
 
 def _probe_passthrough(surface):
@@ -149,8 +138,13 @@ def init(eyesy, surface=None):
         if _smooth:
             args.append("--smooth")
 
+    # No preexec_fn here. The engine runs a network thread, and a preexec_fn
+    # runs in the gap between fork and exec, where that thread is gone but the
+    # locks it held are not -- the child deadlocks there and never becomes an
+    # encoder at all, just a stuck copy of the engine holding its memory down.
+    # stream_encoder.py asks for the parent death signal itself instead.
     try:
-        _encoder = subprocess.Popen(args, cwd=here, preexec_fn=_die_with_parent)
+        _encoder = subprocess.Popen(args, cwd=here)
     except Exception as e:
         print(f"could not start the stream encoder: {e}")
         enabled = False
@@ -231,6 +225,12 @@ def close():
             _encoder.wait(timeout=1)
         except subprocess.TimeoutExpired:
             _encoder.kill()
+            # and reap it: a killed child that is never waited for stays as a
+            # zombie, and toggling the stream would collect one each time
+            try:
+                _encoder.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                print("stream encoder did not die")
         _encoder = None
 
     if _bus is not None:
