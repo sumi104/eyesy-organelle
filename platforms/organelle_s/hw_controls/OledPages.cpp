@@ -128,7 +128,7 @@ void OledPages::renderBigMessage(OledScreen &s, const char *line1,
     s.println(line2, 8, 36, 8, 1);
 }
 
-// A bar under the label, the same shape the knob wobble uses for depth and
+// A bar under the label, the same shape the knob modulation uses for depth and
 // rate, so a filling bar means the same thing everywhere on this display.
 void OledPages::notifyHold(const char *label, float fraction) {
     char bar[24];
@@ -319,14 +319,15 @@ void OledPages::renderTopBar(OledScreen &s) {
     // the only one of these you are holding down while you read it
     if (st.flags & OLED_FLAG_SHIFT)      st_letters[n++] = '^';
     // Right aligned against the wifi icon, but never far enough left to run
-    // into the page name. CONTROLS is the longest at eight characters and
-    // ends at x 50, which leaves room for eight letters - and eight is as
-    // many as can be set at once, since M and S are the two things the auto
-    // picker can be doing and only one of them is ever true. Losing MODE KEYS
-    // is what bought the eighth: it ran to x 55 and cost a letter.
-    // The palette wobble deliberately has no letter here. It follows the knob
-    // wobble instead, which says so with a lamp on the MOD page and a message
-    // when it is switched, and that keeps this row from growing without end.
+    // into the page name. CONTROLS is the longest at eight characters and ends
+    // at x 50, which leaves room for eight letters - and eight is as many as
+    // can be set at once, since M and S are the two things the auto picker can
+    // be doing and only one of them is ever true. Losing MODE KEYS is what
+    // bought the eighth: it ran to x 55 and cost a letter. The palette
+    // modulation deliberately has no letter here. It follows the knob
+    // modulation instead, which says so with a lamp on the MOD page and a
+    // message when it is switched, and that keeps this row from growing
+    // without end.
     const int lettersLeft = 52;
     const int maxLetters = (100 - lettersLeft) / 6;
     if (n > maxLetters) n = maxLetters;
@@ -369,7 +370,7 @@ void OledPages::renderPerform(OledScreen &s) {
     s.setLine(2, buf);
 
     // Knob faders, left to right same as the panel: knob 1-4 then volume. A
-    // dot over one says that knob is being wobbled, the same filled circle
+    // dot over one says that knob is being modulated, the same filled circle
     // the MOD page uses, so the two pages read the same way. Nothing is
     // drawn for a knob that is not, which keeps the usual case quiet.
     for (int i = 0; i < 5; i++) {

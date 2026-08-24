@@ -253,8 +253,8 @@ class AutoRandomTest(unittest.TestCase):
     #
     # The cycle has had three homes: a Mode Keys screen that no longer exists,
     # then System Stuff, and now Controls, beside Knob Modulation - the two of
-    # them time the palette wobble and the knob wobble, and reading as a pair
-    # is the point of the screen.
+    # them time the palette modulation and the knob modulation, and reading as
+    # a pair is the point of the screen.
 
     def test_the_interval_row_offers_every_choice(self):
         screen = ScreenControls(self.e)

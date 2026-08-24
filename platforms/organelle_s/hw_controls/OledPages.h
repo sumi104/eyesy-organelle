@@ -22,7 +22,7 @@ engine is busy drawing or restarting.
 // source says what it is doing.
 //
 // STATUS sits second because it is the one to glance at mid set - what the
-// palettes are and what is wobbling. SETTINGS and MIDI are things you go and
+// palettes are and what is modulating. SETTINGS and MIDI are things you go and
 // look at, so they are a turn further on. Nothing outside this block knows a
 // page number: renumbering here moves a page.
 #define OLED_PAGE_PERFORM  0
@@ -54,7 +54,7 @@ engine is busy drawing or restarting.
 #define OLED_FLAG_AUTO_MODES  (1 << 20)
 #define OLED_FLAG_AUTO_SCENES (1 << 21)
 #define OLED_FLAG_SEQ_ARM     (1 << 22)
-// the palette wobble, one per palette, on the upper octave C and D keys
+// the palette modulation, one per palette, on the upper octave C and D keys
 #define OLED_FLAG_PAL_MOD_FG  (1 << 23)
 #define OLED_FLAG_PAL_MOD_BG  (1 << 24)
 // midi notes pick the mode, the notes_change_mode setting

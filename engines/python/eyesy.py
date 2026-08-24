@@ -72,14 +72,14 @@ class Eyesy:
         # a fast double tap; this is four hundred.
         self.AUTO_RANDOM_SETTLE = 12
 
-        # which palette a wobble is aimed at, the index into palette_mod
+        # which palette modulation is aimed at, the index into palette_mod
         self.PALETTE_FG, self.PALETTE_BG = 0, 1
         self.PALETTE_NAMES = ["FG Palette", "BG Palette"]
 
         # Held, a palette key steps over and over. Frames, at the video
         # engine's rate. The delay is also the window the chord has to arrive
         # in: once a key starts repeating, its partner is somebody scrolling
-        # rather than somebody reaching for the wobble.
+        # rather than somebody reaching for the modulation.
         #
         # Every frame, which is what the mode and scene keys do, would run all
         # 43 palettes past in under a second and a half - too fast to see what
@@ -107,17 +107,17 @@ class Eyesy:
             "pc_map": {},
             # depth is how far the offset can swing either side of the knob,
             # rate is how quickly it gets to each new target. 0.15 comes out
-            # at about one turn a second, which reads as a wobble rather than
+            # at about one turn a second, which reads as modulation rather than
             # a drift
             "knob_mod_depth": .25,
             "knob_mod_rate": .15,
-            # step the wobble on the trigger rather than on a clock of its own,
-            # so it follows the audio, the MIDI clock or the Link session
+            # step the modulation on the trigger rather than on a clock of its
+            # own, so it follows the audio, the MIDI clock or the Link session
             "knob_mod_sync": True,
             # Seconds between automatic picks, -1 for a random interval. Every
             # part of the instrument that changes on its own runs on this: the
-            # A# mode and scene picker, and the palette wobble on upper C and
-            # D. One dial for how restless the thing is.
+            # A# mode and scene picker, and the palette modulation on upper C
+            # and D. One dial for how restless the thing is.
             "auto_random_interval": 30,
             # what the pedal jack does, see FOOTSWITCH_ACTIONS below
             "footswitch": 0,
@@ -195,7 +195,7 @@ class Eyesy:
         self.knob_last = [-1] * 5      # used to filter repetitive knob osc messages, but we always want to first one so set to -1
 
         # what the knobs would read with no modulation on top, which is what
-        # a scene stores. same as knob1-5 until a knob is being wobbled
+        # a scene stores. same as knob1-5 until a knob is being modulated
         self.knob_base = [.2] * 5
 
         # random modulation, one per knob, toggled from the organelle's upper
@@ -205,9 +205,9 @@ class Eyesy:
         self.knob_mod_value = [0.0] * 5
         self.knob_mod_target = [0.0] * 5
 
-        # while a knob is modulating it stops setting a value and shapes the
-        # wobble instead: turning it sets the rate, turning it with shift held
-        # sets the depth. per knob, seeded from the config
+        # while a knob is modulating it shapes that movement instead of setting
+        # a value: turning it sets the rate, turning it with shift held sets
+        # the depth. per knob, seeded from the config
         self.knob_mod_rate = [.15] * 5
         self.knob_mod_depth = [.25] * 5
         self.knob_mod_editing = [None] * 5   # "rate", "depth" or None
@@ -477,7 +477,7 @@ class Eyesy:
         self.knob_mod_depth = [self.config["knob_mod_depth"]] * 5
         self._validate_config_int("stream_width", 320, 960)
         self._validate_config_int("stream_fps", 1, 30)
-        # Mode Keys is gone - the upper octave white keys wobble the palettes
+        # Mode Keys is gone - the upper octave white keys modulate the palettes
         # and step the midi channel now. Drop what it left in the config file
         # rather than carrying a dead setting around forever.
         self.config.pop("key_modes", None)
@@ -620,7 +620,7 @@ class Eyesy:
     # then do this for the modes 
     def update_knobs_and_notes(self) :
         for i in range(0, 5) :
-            # a modulating knob is shaping the wobble, not setting a value
+            # a modulating knob is shaping the modulation, not setting a value
             if self.knob_mod[i] :
                 self.update_knob_mod_control(i)
                 continue
@@ -650,7 +650,7 @@ class Eyesy:
     # comes.
     #
     # With nothing triggering, it glides onto its last target and stays there.
-    # That is why muting the audio or the clock stops the wobble instead of
+    # That is why muting the audio or the clock stops the modulation instead of
     # leaving it running on a clock of its own.
     def update_knob_mod(self, i, stepped) :
         if stepped :
@@ -720,9 +720,9 @@ class Eyesy:
     def knob_mod_label(self, i, editing) :
         return f"{'Depth' if editing == 'depth' else 'Rate'} {i + 1}"
 
-    # a modulating knob shapes the wobble instead of setting a value. a plain
-    # turn sets the rate, turning it while its own black key is held sets the
-    # depth.
+    # a modulating knob shapes that movement instead of setting a value. a
+    # plain turn sets the rate, turning it while its own black key is held sets
+    # the depth.
     def update_knob_mod_control(self, i) :
         editing = "depth" if self.knob_mod_key_held[i] else "rate"
         target = (self.knob_mod_depth[i] if editing == "depth"
@@ -918,9 +918,9 @@ class Eyesy:
     def random_interval(self):
         """Seconds until the next automatic change, from Auto Random Cycle.
 
-        Shared by the mode and scene picker and by the palette wobble, so the
-        one setting says how restless the instrument is rather than each thing
-        having a dial of its own to keep in step.
+        Shared by the mode and scene picker and by the palette modulation, so
+        the one setting says how restless the instrument is rather than each
+        thing having a dial of its own to keep in step.
         """
         interval = self.config["auto_random_interval"]
         if interval < 0:
@@ -970,13 +970,13 @@ class Eyesy:
         self.arm_auto_random()
         self.pick_random()
 
-    # ---- palette wobble, upper octave C and D -----------------------------
+    # ---- palette modulation, upper octave C and D ------------------------
     #
-    # Unlike the knob wobble this does not ride on the trigger. A palette that
-    # changed on every kick drum would be a strobe, not a colour scheme, so it
-    # runs on the Auto Random Cycle clock instead - the same seconds the mode
-    # and scene picker uses. It does not need that picker switched on, though:
-    # it only borrows the interval.
+    # Unlike the knob modulation this does not ride on the trigger. A palette
+    # that changed on every kick drum would be a strobe, not a colour scheme,
+    # so it runs on the Auto Random Cycle clock instead - the same seconds the
+    # mode and scene picker uses. It does not need that picker switched on,
+    # though: it only borrows the interval.
 
     def toggle_palette_mod(self, which):
         if not (0 <= which < 2) : return False
@@ -1156,8 +1156,8 @@ class Eyesy:
                             "bg": self.palette_mod[self.PALETTE_BG]},
         }
 
-    # Put the palette wobble back the way a scene had it. Anything missing is
-    # off, so scenes written before this existed still load.
+    # Put the palette modulation back the way a scene had it. Anything missing
+    # is off, so scenes written before this existed still load.
     def apply_scene_palette_mod(self, raw):
         if not isinstance(raw, dict):
             raw = {}
@@ -1765,8 +1765,8 @@ class Eyesy:
             self.knob_seq_stop()
 
    
-    # The sequencer and the wobble both write the same five knobs, so they
-    # cannot both be running. The key refuses to start a wobble during
+    # The sequencer and the modulation both write the same five knobs, so they
+    # cannot both be running. The key refuses to start modulation during
     # playback; this is the other direction, and it sits here because every
     # route into playing goes through this one call — including recalling a
     # scene, which applies its modulation before it loads its sequence.

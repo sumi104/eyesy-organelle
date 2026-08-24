@@ -101,12 +101,12 @@ Hold **C#** for the shifted layer.
 | G# | MIDI clock mute | MIDI note mute |
 | A# | Auto random: off, then modes, then scenes, then off | — |
 | Upper octave `C` / `D` | Foreground palette − / + | — |
-| Upper octave `C`+`D` | Wobble the foreground palette, again to stop | — |
+| Upper octave `C`+`D` | Modulate the foreground palette, again to stop | — |
 | Upper octave `E` / `F` | Background palette − / + | — |
-| Upper octave `E`+`F` | Wobble the background palette, again to stop | — |
+| Upper octave `E`+`F` | Modulate the background palette, again to stop | — |
 | Upper octave `G` | MIDI channel +1, wrapping at 16 | — |
 | Upper octave `A` `B` | — | — |
-| Upper octave black keys | Wobble knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
+| Upper octave black keys | Modulate knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
 | Foot switch | Save scene, or the same as `B` — Settings > Controls picks which | Knob sequence arm / disarm, when set to Trigger |
 
 Shift + knob 1 still sets the input gain, as on EYESY. Shift + knob 5 — the
@@ -144,7 +144,7 @@ an instance of a rule that was already here.
 
 A key that gets used as half of a chord is marked, and does nothing on its way
 up. Pressing `C`, letting go, then pressing `D` is two separate steps; holding
-`C` and then pressing `D` is the wobble.
+`C` and then pressing `D` is the modulation.
 
 `C` and `D` step the foreground palette down and up, `E` and `F` the
 background. Held, a key keeps stepping — there are 43 palettes and tapping to
@@ -154,14 +154,14 @@ visible in the picture, and 43 palettes gone past would be 43 messages over it.
 The repeat starts after about **0.4 seconds**, and that same wait is the window
 the chord has to arrive in. A key that has begun repeating is somebody
 scrolling, so pressing its partner then steps back the other way rather than
-switching the wobble — which means the two keys of a chord have to go down
+switching the modulation — which means the two keys of a chord have to go down
 together rather than one being held and the other added later.
 
 Shift and the lower octave `C` `D` `E` `F` still move the palettes too. That
 path is shared with EYESY hardware, which has no upper octave and would
 otherwise have no way to change a palette at all.
 
-## Palette wobble
+## Palette modulation
 
 Upper octave `C`+`D` together start the foreground palette picking a new one
 every so often, `E`+`F` do the same for the background, and the same chord
@@ -170,19 +170,19 @@ with a change rather than waiting out a cycle first, so the key has something
 to show for itself, and neither ever picks the palette already showing.
 
 **It runs on the Auto Random Cycle clock, not on the trigger.** This is the one
-way it is unlike the knob wobble, and the difference is the point: a palette
-that changed on every kick drum would be a strobe rather than a colour scheme.
-It does not need the `A#` picker switched on — it borrows that setting's
-interval, not the feature.
+way it is unlike the knob modulation, and the difference is the point: a
+palette that changed on every kick drum would be a strobe rather than a colour
+scheme. It does not need the `A#` picker switched on — it borrows that
+setting's interval, not the feature.
 
 The two run on separate clocks. Started at different moments they change at
 different moments, which is what you want; one clock would make the whole
 picture blink at once.
 
-Scenes carry it, the same way they carry the knob wobble. A scene also stores
-the palette numbers that were showing, and recalling one with the wobble on
-will move off them within a cycle — which is exactly what the knobs do too. A
-scene saved before this existed loads with both off.
+Scenes carry it, the same way they carry the knob modulation. A scene also
+stores the palette numbers that were showing, and recalling one with the
+modulation on will move off them within a cycle — which is exactly what the
+knobs do too. A scene saved before this existed loads with both off.
 
 The `STATUS` page of the OLED has a lamp for each, and switching one says on
 screen how often it will move. There is deliberately no letter for it in the
@@ -211,15 +211,15 @@ belongs to a key or the pedal jack rather than to a subsystem.
 | | |
 |---|---|
 | **Foot Switch** | what the pedal does, save a scene or fire the trigger |
-| **Knob Modulation** | what times the knob wobble: the trigger, or its own pace |
-| **Auto Random Cycle** | what times the palette wobble and the `A#` picker |
+| **Knob Modulation** | what times it: the trigger, or its own pace |
+| **Auto Random Cycle** | what times the palette modulation and the `A#` picker |
 | **Battery** | off for an Organelle S, on for an M |
 
-The middle two are a pair — one times the knob wobble, the other the palette
-wobble — and that was invisible while Knob Modulation sat under Audio MIDI
-Settings, where it has nothing to do with MIDI, and the cycle sat under System
-Stuff next to backing up an SD card. Which of them drove what got misremembered
-more than once before they were put side by side.
+The middle two are a pair — one times the knob modulation, the other the
+palette modulation — and that was invisible while Knob Modulation sat under
+Audio MIDI Settings, where it has nothing to do with MIDI, and the cycle sat
+under System Stuff next to backing up an SD card. Which of them drove what got
+misremembered more than once before they were put side by side.
 
 The whole screen is organelle only, and so is its row in Settings: EYESY
 hardware has no pedal, no upper octave and no key that switches the auto picker
@@ -277,11 +277,11 @@ a lot to lose on the way to switching something off. Two taps now land on off
 having picked nothing. A single tap still reads as immediate: what the screen
 says changes on the press, and only the picture waits.
 
-How long it waits is set on **Settings → Controls** as **Auto Random Cycle**: 15,
-30, 50 or 60 seconds, or `Random`, which draws a fresh interval between 15 and
-60 seconds each time. The same setting times the palette wobble above, so it is
-the one dial for how restless the instrument is. `M` or `S` in the top bar of
-the OLED says the picker is running and which of the two it is picking.
+How long it waits is set on **Settings → Controls** as **Auto Random Cycle**:
+15, 30, 50 or 60 seconds, or `Random`, which draws a fresh interval between 15
+and 60 seconds each time. The same setting times the palette modulation above,
+so it is the one dial for how restless the instrument is. `M` or `S` in the top
+bar of the OLED says the picker is running and which of the two it is picking.
 
 It holds still while a menu is open, so it cannot change the mode out from
 under someone reading a settings page. Picking scenes with none saved does
@@ -289,22 +289,22 @@ nothing and says so.
 
 ## Knob modulation
 
-Each black key of the upper octave wobbles the knob above it — C# is knob 1
+Each black key of the upper octave modulates the knob above it — C# is knob 1
 through to A# for knob 5. Tap it to start, tap again to stop.
 
 **The movement is timed by whatever is driving the visuals.** Each trigger
 picks somewhere new for the offset to head for and it glides there, and since
 audio, MIDI notes, MIDI clock and Ableton Link all arrive as the same trigger,
-the wobble follows whichever one is selected under Trigger Source. With
+the modulation follows whichever one is selected under Trigger Source. With
 nothing triggering it settles on its last target and stays there, so muting
 the audio with `F#` or the clock with `G#` stops it rather than leaving it
 running on a clock of its own.
 
 It rides on top of the position rather than sweeping the whole range. Scenes
-store the set position, not wherever the wobble happened to be.
+store the set position, not wherever the modulation happened to be.
 
-**While a knob is modulating it stops setting a value and shapes the wobble
-instead**: turn it for the rate, or hold its own black key and turn it for the
+**While a knob is modulating it shapes that movement instead of setting a
+value**: turn it for the rate, or hold its own black key and turn it for the
 depth. So the key that owns a knob's modulation is also what adjusts it — no
 other modifier is involved, and shift on knob 1 is still the audio gain. The
 OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
@@ -313,15 +313,15 @@ Because the key doubles as a modifier it acts on release, and only when it was
 tapped: holding it while turning its knob adjusts the depth and leaves the
 modulation running.
 
-The knob sequencer and the wobble both write the same five knobs, so they do
-not run together. Starting a wobble while the sequence is playing — `Q` in the
-top bar — is refused, and the key says why. Starting the sequence drops any
-wobble that was running, which is also what happens when a scene carrying both
-is recalled. Switching a running wobble off is always allowed.
+The knob sequencer and the modulation both write the same five knobs, so they
+do not run together. Starting modulation while the sequence is playing — `Q` in
+the top bar — is refused, and the key says why. Starting the sequence drops any
+modulation that was running, which is also what happens when a scene carrying
+both is recalled. Switching a running modulation off is always allowed.
 
 Rate is how quickly the offset reaches each new target, on an exponential
 curve so the slow end is not all crammed into the first millimetre of travel.
-Turned up, the wobble lands on the beat and waits there; turned down it is
+Turned up, the modulation lands on the beat and waits there; turned down it is
 still travelling when the next one arrives. To move the centre position,
 switch modulation off, set it, and switch back on.
 
@@ -333,8 +333,8 @@ until the knob is brought to where that value already is; from there it follows.
 
 Which is what makes them independent. Set a rate at the far right, hold the key
 for the depth, and the depth stays where it was until the knob is turned back
-down to it: a fast wobble that only moves a little is reachable. Without this
-the depth was dragged to the far right the moment the knob twitched, and
+down to it: a fast modulation that only moves a little is reachable. Without
+this the depth was dragged to the far right the moment the knob twitched, and
 neither could be nudged once set.
 
 The OLED shows the value being hunted for while it is being hunted for, so
@@ -342,8 +342,8 @@ there is something to aim at, and starts following the knob once it has been
 picked up. Switching modulation off leaves the value where it was rather than
 snapping it to wherever the knob ended up.
 
-Scenes carry all of it: which knobs were wobbling and the rate and depth each
-one had. A scene saved before this existed simply has nothing wobbling.
+Scenes carry all of it: which knobs were modulating and the rate and depth each
+one had. A scene saved before this existed simply has nothing modulating.
 
 `config.json` holds the starting point for all five:
 
@@ -351,7 +351,7 @@ one had. A scene saved before this existed simply has nothing wobbling.
 |---|---|---|
 | `knob_mod_depth` | 0.25 | how far either side of the knob it can swing |
 | `knob_mod_rate` | 0.15 | how quickly it reaches each target |
-| `knob_mod_sync` | true | step on the trigger; false brings back a wobble that keeps its own time. Also on **Settings → Audio MIDI Settings** |
+| `knob_mod_sync` | true | step on the trigger; false brings back modulation that keeps its own time. Also on **Settings → Audio MIDI Settings** |
 
 ## Audio thru
 
@@ -459,7 +459,7 @@ same button toggles one page along.
 | | Page | Press |
 |---|---|---|
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
-| 2 | **STATUS** — knob and palette wobble lamps, both palette names, the auto random cycle, trigger source | — |
+| 2 | **STATUS** — knob and palette modulation lamps, both palette names, the auto random cycle, trigger source | — |
 | 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | Restart Video, held |
 | 4 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off, if there is a network |
@@ -540,18 +540,18 @@ them is ever true. They are still written in the order they would be given up,
 eighth slot came from retiring `MODE KEYS`: at nine characters it was the
 longest page name and it cost a letter.
 
-**The palette wobble has no letter here on purpose.** It follows the knob
-wobble instead — a lamp on the `STATUS` page and a message when it is switched —
-which is what keeps this row from growing every time something new can be
-switched on.
+**Palette modulation has no letter here on purpose.** It follows the knob
+modulation instead — a lamp on the `STATUS` page and a message when it is
+switched — which is what keeps this row from growing every time something new
+can be switched on.
 
 Audio mute is `X` and shift is `^` because the auto picker wanted `M` and `S`
 to say which of the two things it is picking, and one letter meaning two
 things is worse than a letter that has to be learned.
 
-On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then
-volume, and `L` `R` `G` are the input meters and the gain. A dot over a bar
-means that knob is being wobbled — the same filled circle the STATUS page uses, and
+On PERFORM the five bars are the knobs in panel order, knob 1 to 4 then volume,
+and `L` `R` `G` are the input meters and the gain. A dot over a bar means that
+knob is being modulated — the same filled circle the STATUS page uses, and
 drawn only for the knobs it applies to, so the usual case stays quiet.
 
 The thin bar blinking under the meters is the trigger, the same thing the

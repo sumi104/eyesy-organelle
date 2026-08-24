@@ -258,9 +258,9 @@ while 1:
         # mode_root and any mode that opens a file in draw() dies on it.
         eyesy.update_auto_random()
 
-        # the palette wobble runs on the same clock. it only sets fg_palette
-        # and bg_palette, which nothing above reads, but it belongs with the
-        # other thing that cycle drives.
+        # the palette modulation runs on the same clock. it only sets
+        # fg_palette and bg_palette, which nothing above reads, but it belongs
+        # with the other thing that cycle drives.
         eyesy.update_palette_mod()
 
         # get knobs, checking for override, and check for new note on

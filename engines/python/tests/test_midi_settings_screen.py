@@ -63,9 +63,9 @@ class MidiSettingsScreenTest(unittest.TestCase):
         self.assertGreaterEqual(i, 0, f"no row for {name}")
         return self.screen.menu.items[i]
 
-    def test_the_knob_wobble_setting_is_not_here_any_more(self):
+    def test_the_knob_modulation_setting_is_not_here_any_more(self):
         # it has nothing to do with MIDI, and it belongs beside Auto Random
-        # Cycle, which times the other thing that wobbles
+        # Cycle, which times the other thing that modulates
         self.assertEqual(self.screen.get_item_index("knob_mod_sync"), -1)
 
     def test_booleans_come_back_as_booleans(self):

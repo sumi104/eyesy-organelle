@@ -452,10 +452,10 @@ class ControlsScreenTest(unittest.TestCase):
 
     # --- knob modulation, which moved here from MIDI Settings -------------
 
-    def test_the_knob_wobble_row_is_here_with_the_cycle(self):
+    def test_the_knob_modulation_row_is_here_with_the_cycle(self):
         rows = [i.text for i in self.screen.menu.items]
         self.assertTrue(any("Knob Modulation" in t for t in rows), rows)
-        # and directly above the cycle, which times the palette wobble
+        # and directly above the cycle, which times the palette modulation
         names = [getattr(i, "name", "") for i in self.screen.menu.items]
         self.assertEqual(names.index("auto_random_interval"),
                          names.index("knob_mod_sync") + 1)

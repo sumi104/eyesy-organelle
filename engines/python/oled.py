@@ -45,7 +45,7 @@ FLAG_KNOB_MOD = 1 << 15
 FLAG_AUTO_MODES  = 1 << 20
 FLAG_AUTO_SCENES = 1 << 21
 FLAG_SEQ_ARM     = 1 << 22
-# the palette wobble, one per palette, on the upper octave C and D keys
+# the palette modulation, one per palette, on the upper octave C and D keys
 FLAG_PAL_MOD_FG  = 1 << 23
 FLAG_PAL_MOD_BG  = 1 << 24
 # midi notes pick the mode, the notes_change_mode setting

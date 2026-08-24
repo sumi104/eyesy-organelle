@@ -21,11 +21,10 @@ FOOTSWITCH = 25
 KEY_C, KEY_CS, KEY_D, KEY_DS, KEY_E, KEY_F = 1, 2, 3, 4, 5, 6
 KEY_FS, KEY_G, KEY_GS, KEY_A, KEY_AS, KEY_B = 7, 8, 9, 10, 11, 12
 
-# Upper octave. The black keys switch random modulation on and off for the
-# knob above them, left to right. The white keys are the colours: C and D step
-# the foreground palette, E and F the background, and either pair pressed
-# together switches that palette's wobble. G is the MIDI channel. A and B are
-# spare.
+# Upper octave. The black keys switch random modulation on and off for the knob
+# above them, left to right. The white keys are the colours: C and D step the
+# foreground palette, E and F the background, and either pair pressed together
+# switches that palette's modulation. G is the MIDI channel. A and B are spare.
 #
 # Everything up here acts on the way up rather than the way down. It has to:
 # on the way down there is no telling a single key from the first half of a
@@ -92,14 +91,15 @@ def _palette_key(eyesy, palette, side, pressed):
     """One of the four palette keys, going down or coming up.
 
     A tap steps its palette when it is let go, a hold steps it over and over,
-    and the two of a pair pressed together switch that palette's wobble instead
-    and mark each other so neither steps on the way up - the same "used as a
-    modifier, so its release does nothing" bookkeeping the black keys up here
-    use.
+    and the two of a pair pressed together switch that palette's modulation
+    instead and mark each other so neither steps on the way up - the same
+    "used as a modifier, so its release does nothing" bookkeeping the black
+    keys up here use.
 
     The chord is only read while neither key has begun repeating. Once one has,
     pressing the other is somebody scrolling who wants to go back the other
-    way, and reading it as a chord would put them on the wobble switch instead.
+    way, and reading it as a chord would put them on the modulation switch
+    instead.
     """
     i = (palette * 2) + side
     partner = (palette * 2) + (1 - side)
@@ -134,9 +134,9 @@ def dispatch_key(eyesy, k, v):
     shift = eyesy.key2_status
 
     # The upper octave white keys are the colours. A pair together switches
-    # that palette's wobble, which unlike the knob wobble runs on the Auto
-    # Random Cycle clock rather than the trigger - a palette that changed on
-    # every kick drum would be a strobe.
+    # that palette's modulation, which unlike the knob modulation runs on the
+    # Auto Random Cycle clock rather than the trigger - a palette that changed
+    # on every kick drum would be a strobe.
     found = palette_for_key(k)
     if found is not None:
         _palette_key(eyesy, found[0], found[1], pressed)
@@ -149,7 +149,7 @@ def dispatch_key(eyesy, k, v):
         eyesy.midi_channel_key(pressed)
         return
 
-    # The black keys up there wobble the knob above them. The key doubles as
+    # The black keys up there modulate the knob above them. The key doubles as
     # that knob's depth modifier, so it acts on release and only when it was
     # tapped rather than held while the knob was turned.
     knob = knob_for_key(k)
@@ -163,7 +163,7 @@ def dispatch_key(eyesy, k, v):
             # outside a menu and let go inside one does not get stuck
             if not eyesy.knob_mod_key_used[knob] and not eyesy.menu_mode:
                 # A playing sequence is writing these knobs itself, so adding
-                # a wobble would be two things driving one control. Switching
+                # modulation would be two things driving one control. Switching
                 # an existing one off stays allowed.
                 if not eyesy.knob_mod[knob] and eyesy.knob_seq_state == "playing":
                     oled.warn("Modulation", "knob seq is playing")

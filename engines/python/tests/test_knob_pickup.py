@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Taking over a knob that another setting has already moved.
 
-One knob, several settings sharing it. Found on the instrument: set a wobble
+One knob, several settings sharing it. Found on the instrument: set modulation
 rate at the far right, then hold the black key to change that knob's depth, and
 the depth was dragged to the far right the moment the knob twitched. The two
 could not be set independently, and neither could be nudged once set.
@@ -99,7 +99,7 @@ class PickupRuleTest(Base):
         self.assertTrue(self.e.knob_reaches(0.0, 1.0, 0.0))
 
 
-class KnobWobbleTest(Base):
+class KnobModulationTest(Base):
 
     def setUp(self):
         super().setUp()
@@ -145,7 +145,7 @@ class KnobWobbleTest(Base):
         self.assertAlmostEqual(self.e.knob_mod_depth[self.k], 0.05)
 
     def test_the_two_end_up_independent(self):
-        # the whole point: a fast wobble that only moves a little
+        # the whole point: a fast modulation that only moves a little
         for v in (0.5, 1.0):
             self.turn(v)
         self.hold_key(True)

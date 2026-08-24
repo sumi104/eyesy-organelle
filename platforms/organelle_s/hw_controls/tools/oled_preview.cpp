@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
              | OLED_FLAG_STREAM
              | OLED_FLAG_KNOB_MOD(0) | OLED_FLAG_KNOB_MOD(2)
              | OLED_FLAG_KNOB_MOD(3)
-             // one palette wobbling and one not, so the MOD page shows both
+             // one palette modulating and one not, so the MOD page shows both
              // states of the lamp rather than a column of the same circle
              | OLED_FLAG_PAL_MOD_FG;
     st.modeIndex = 11;

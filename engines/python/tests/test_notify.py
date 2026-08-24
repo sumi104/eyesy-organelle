@@ -52,7 +52,7 @@ import eyesy as eyesy_module        # noqa: E402
 import oled                         # noqa: E402
 import organelle                    # noqa: E402
 
-# the upper octave keys these tests press. the foreground wobble is the two
+# the upper octave keys these tests press. the foreground modulation is the two
 # of a pair held together, not a key of its own
 PALETTE_PAIR_FG = organelle.PALETTE_PAIRS[0]
 MOD_KEY_KNOB2 = next(k for k, i in organelle.KNOB_MOD_KEYS.items() if i == 1)
@@ -140,7 +140,7 @@ class NotifyTest(unittest.TestCase):
         organelle.dispatch_key(self.e, pair[1], 0)
         organelle.dispatch_key(self.e, pair[0], 0)
 
-    def test_switching_a_palette_wobble_on_does_not_warn(self):
+    def test_switching_a_palette_modulation_on_does_not_warn(self):
         self.chord(PALETTE_PAIR_FG)
         heading, detail, warn = self.last()
         self.assertEqual(heading, "FG Palette")
@@ -148,7 +148,7 @@ class NotifyTest(unittest.TestCase):
         self.assertIn("every", detail)
         self.assertEqual(warn, 0)
 
-    def test_switching_a_palette_wobble_off_does_not_warn(self):
+    def test_switching_a_palette_modulation_off_does_not_warn(self):
         self.chord(PALETTE_PAIR_FG)
         self.chord(PALETTE_PAIR_FG)
         self.assertEqual(self.last(), ("FG Palette", "steady", 0))

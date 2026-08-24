@@ -2,12 +2,12 @@
 """The upper octave white keys.
 
 C and D step the foreground palette, E and F the background, and a pair
-pressed together switches that palette's wobble. G steps the MIDI channel.
+pressed together switches that palette's modulation. G steps the MIDI channel.
 
 Two things here are easy to get wrong and are what most of this file is
 about. The keys act on the way up, because on the way down a single key and
-the first half of a chord look identical; and the wobble runs on the Auto
-Random Cycle clock rather than on the trigger, unlike the knob wobble it
+the first half of a chord look identical; and the modulation runs on the Auto
+Random Cycle clock rather than on the trigger, unlike the knob modulation it
 otherwise resembles.
 
     python3 tests/test_palette_mod.py
@@ -232,7 +232,7 @@ class PaletteModTest(Base):
 
     # --- scenes -----------------------------------------------------------
 
-    def test_a_scene_carries_the_wobble(self):
+    def test_a_scene_carries_the_modulation(self):
         self.chord(self.BG_DOWN, self.BG_UP)
         fields = self.e._scene_fields()
         self.assertEqual(fields["palette_mod"], {"fg": False, "bg": True})
@@ -356,8 +356,8 @@ class PaletteChordTest(Base):
     """Two of a pair held together, instead of either of them alone."""
 
     def test_the_chord_does_not_also_step_the_palette(self):
-        # the wobble picks a palette when it starts, so compare against what
-        # the same chord does with the wobble already on and settling
+        # the modulation picks a palette when it starts, so compare against
+        # what the same chord does with the modulation already on and settling
         self.e.fg_palette = 3
         self.press(self.FG_DOWN)
         self.press(self.FG_UP)
@@ -422,14 +422,14 @@ class PaletteChordTest(Base):
 
     def test_the_partner_of_a_repeating_key_is_not_a_chord(self):
         # somebody scrolling who presses the other key wants to go back the
-        # other way, not to land on the wobble switch
+        # other way, not to land on the modulation switch
         self.e.fg_palette = 0
         self.press(self.FG_UP)
         self.tick(self.e.PALETTE_REPEAT_DELAY)
         self.assertEqual(self.e.fg_palette, 1, "it is running")
         self.press(self.FG_DOWN)
         self.assertFalse(self.e.palette_mod[self.e.PALETTE_FG],
-                         "must not have switched the wobble on")
+                         "must not have switched the modulation on")
         self.release(self.FG_DOWN)
         self.assertEqual(self.e.fg_palette, 0, "it stepped back instead")
 

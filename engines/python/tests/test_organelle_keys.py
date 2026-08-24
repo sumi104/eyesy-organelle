@@ -259,7 +259,7 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e.set_knobs()
         self.assertEqual(self.e.knob2, 0.5)
 
-    def test_the_wobble_is_stepped_by_the_trigger(self):
+    def test_the_modulation_is_stepped_by_the_trigger(self):
         # whatever drives the visuals drives this: audio, notes, MIDI clock and
         # Link all arrive as trig, so one hook covers all of them
         self.e.knob[1] = 0.5
@@ -307,7 +307,7 @@ class OrganelleKeyTest(unittest.TestCase):
             self.e.trig = False
             self.tap(self.upper("C#"))
 
-    def test_a_scene_stores_the_set_position_not_the_wobble(self):
+    def test_a_scene_stores_the_set_position_not_the_modulation(self):
         self.e.knob[0] = 0.5
         self.e.set_knobs()
         self.tap(self.upper("C#"))
@@ -331,7 +331,7 @@ class OrganelleKeyTest(unittest.TestCase):
         self.e.trig = False
         self.assertGreater(len(moved), 5)
 
-    # --- a modulating knob shapes the wobble ---------------------------
+    # --- a modulating knob shapes that movement ----------------------------
 
     def turn(self, knob, position):
         self.e.knob_hardware[knob] = position
@@ -385,9 +385,9 @@ class OrganelleKeyTest(unittest.TestCase):
         self.release(self.upper("D#"))
         self.assertTrue(self.e.knob_mod[1])
 
-    def test_a_playing_knob_sequence_blocks_the_wobble(self):
-        # the sequence is writing those knobs, so a wobble on top would be two
-        # things driving one control
+    def test_a_playing_knob_sequence_blocks_the_modulation(self):
+        # the sequence is writing those knobs, so modulation on top would be
+        # two things driving one control
         self.e.knob_seq_state = "playing"
         self.tap(self.upper("F#"))
         self.assertFalse(self.e.knob_mod[2], "must not switch on")
@@ -396,7 +396,7 @@ class OrganelleKeyTest(unittest.TestCase):
         self.tap(self.upper("F#"))
         self.assertTrue(self.e.knob_mod[2], "and works again once it stops")
 
-    def test_an_already_running_wobble_can_still_be_switched_off(self):
+    def test_an_already_running_modulation_can_still_be_switched_off(self):
         self.tap(self.upper("F#"))
         self.assertTrue(self.e.knob_mod[2])
         self.e.knob_seq_state = "playing"
@@ -410,7 +410,7 @@ class OrganelleKeyTest(unittest.TestCase):
             self.tap(self.upper("F#"))
             self.assertTrue(self.e.knob_mod[2], state)
 
-    def test_starting_the_sequencer_drops_any_running_wobble(self):
+    def test_starting_the_sequencer_drops_any_running_modulation(self):
         # the key refuses to start one during playback; this is the other
         # direction, and it is what a scene recall goes through
         self.tap(self.upper("F#"))
@@ -419,8 +419,8 @@ class OrganelleKeyTest(unittest.TestCase):
 
         self.e.knob_seq_play()
         self.assertFalse(any(self.e.knob_mod),
-                         "playback and a wobble cannot both drive a knob")
-        # only the two that were wobbling are held, the rest are left alone
+                         "playback and modulation cannot both drive a knob")
+        # only the two that were modulating are held, the rest are left alone
         self.assertEqual([i for i, o in enumerate(self.e.knob_override) if o],
                          [0, 2])
 

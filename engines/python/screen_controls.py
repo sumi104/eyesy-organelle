@@ -19,8 +19,8 @@ class ScreenControls(Screen):
     They were scattered: the pedal and the cycle under System Stuff, next to
     backing up an SD card, and knob modulation under MIDI Settings, where it
     has nothing to do with MIDI. Two of them are a pair - Knob Modulation
-    times the knob wobble and Auto Random Cycle times the palette wobble - and
-    that was invisible with one on each screen.
+    times the knob modulation and Auto Random Cycle times the palette
+    modulation - and that was invisible with one on each screen.
 
     Every row here is organelle only, which is why the whole screen is: on
     EYESY hardware there is no pedal, no upper octave, no key that switches the
