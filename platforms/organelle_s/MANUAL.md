@@ -9,7 +9,7 @@ machine, see [README.md](README.md).
 
 ![The Organelle M/S front panel, with the two octaves marked](panel.svg)
 
-Two octaves of twenty four keys, C to B twice, plus AUX. The lower octave is
+Two octaves of twenty-four keys, C to B twice, plus AUX. The lower octave is
 the EYESY's own panel; the upper one is what an Organelle has spare.
 
 Hold **C#** for the shifted layer.
@@ -36,20 +36,20 @@ Hold **C#** for the shifted layer.
 | Upper octave `G` | MIDI channel +1, wrapping at 16 | — |
 | Upper octave `A` `B` | — | — |
 | Upper octave black keys | Modulate knob 1 to 5, tap again to stop. Hold and turn that knob for its depth | — |
-| Foot switch | Save scene, or the same as `B` — Settings > Controls picks which | Knob sequence arm / disarm, when set to Trigger |
+| Foot switch | Save scene, or the same as `B` — Settings → Controls picks which | Knob sequence arm / disarm, when set to Trigger |
 
 Shift + knob 1 still sets the input gain, as on EYESY. Shift + knob 5 — the
 one the panel prints **Volume** on — sets the audio thru level, see below.
 
 ## Foot switch
 
-**Foot Switch** on Settings > Controls says whether the pedal saves a scene or
+**Foot Switch** on Settings → Controls says whether the pedal saves a scene or
 fires the trigger. It saves by default, which is what it did before there was a
 choice.
 
-Saving goes straight to `save_scene()` rather than through the save key, which
-deletes the current scene when it is held for a second — which is what a foot
-resting on a pedal looks like. Deleting stays on `G`.
+Saving is direct rather than going through the save key, which deletes the
+current scene when it is held for a second — which is what a foot resting on a
+pedal looks like. Deleting stays on `G`.
 
 Set to Trigger a plain press **is** the `B` key: it goes through that key's own
 handler rather than a copy of part of it, so it fires the trigger, plays the
@@ -57,7 +57,7 @@ test tone while held, and repeats after about a third of a second, exactly as
 the key does.
 
 Shift and the pedal arm the knob sequencer, and disarm it next time. That one
-does not go through `B`: holding key 10 down is what starts the test tone and
+does not go through `B`: holding that key down is what starts the test tone and
 the repeat, and neither belongs on a pedal being used to arm a recorder.
 
 Which of the two jobs the pedal has gets latched when it goes down, and the
@@ -159,8 +159,8 @@ depth. So the key that owns a knob's modulation is also what adjusts it — no
 other modifier is involved, and shift on knob 1 is still the audio gain. The
 OLED shows a bar for whichever one is moving, and each knob keeps its own pair.
 
-Holding it while turning its knob adjusts the depth and leaves the modulation
-running.
+Holding the key while turning its knob adjusts the depth and leaves the
+modulation running.
 
 The knob sequencer and the modulation both write the same five knobs, so they
 do not run together. Starting modulation while the sequence is playing — `Q` in
@@ -202,10 +202,11 @@ one had. A scene saved before this existed simply has nothing modulating.
 | `knob_mod_rate` | 0.15 | how quickly it reaches each target |
 | `knob_mod_sync` | true | step on the trigger; false brings back modulation that keeps its own time. Also on **Settings → Audio MIDI Settings** |
 
-## Settings > Controls
+## Settings → Controls
 
-Three settings share a screen because they share a reason to exist: each
-belongs to a key or the pedal jack rather than to a subsystem.
+Four settings share a screen because they share a reason to exist: each belongs
+to a key, the pedal jack or the machine it is running on rather than to a
+subsystem.
 
 | | |
 |---|---|
@@ -220,16 +221,16 @@ Audio MIDI Settings, where it has nothing to do with MIDI, and the cycle sat
 under System Stuff next to backing up an SD card. Which of them drove what got
 misremembered more than once before they were put side by side.
 
-The whole screen is organelle only, and so is its row in Settings: EYESY
-hardware has no pedal, no upper octave and no key that switches the auto picker
-on, so all three would be settings with nothing to set. System Stuff went back
-to being the maintenance screen it was.
+The whole screen is Organelle only, and so is its row in Settings: EYESY
+hardware has no pedal, no upper octave, no key that switches the auto picker on
+and no battery, so all four would be settings with nothing to set. System Stuff
+went back to being the maintenance screen it was.
 
 ## Battery, on the Organelle M
 
 The M is an S with a speaker and a battery, so one build covers both — which
 means the battery cannot be a compile time choice the way it is in
-`Organelle_OS`. **Settings > Controls > Battery** is that choice at run time,
+`Organelle_OS`. **Settings → Controls → Battery** is that choice at run time,
 and it is **off by default**.
 
 Leaving it off matters on an S. The shutdown check reads GPIO 16 for "running
@@ -258,10 +259,6 @@ still protected when the engine is not running. **None of it is tested**: this
 was built against `Organelle_OS` on an Organelle S, which has no battery to
 read. The thresholds are theirs, unchanged.
 
-The pedal row stops responding while the pedal or `B` is held and says why —
-letting the setting move under a press already in flight is how the test tone
-ends up playing with no way back.
-
 ## Auto random
 
 `A#` steps a picker through off, picking modes at random, picking scenes at
@@ -270,7 +267,7 @@ look the same as nothing happening.
 
 **The state moves under the press, the picking waits until the key has been up
 about half a second.** Getting from modes back to off means passing through
-scenes, and picking on the press meant passing through recalled one — which
+scenes, and picking on the press meant that passing through recalled one — which
 takes the mode, all five knobs, both palettes and the knob modulation with it,
 a lot to lose on the way to switching something off. Two taps now land on off
 having picked nothing. A single tap still reads as immediate: what the screen
@@ -300,7 +297,7 @@ It starts at silent, so this does nothing at all until the knob is turned.
 analogue path from its line input to its output mixer, inside the chip, and
 all the engine does is close that switch once at startup. No samples are
 copied, no thread runs, and the frame rate never sees it. There is no
-conversion either, so the passthrough is not resampled to the 32kHz the
+conversion either, so the passthrough is not resampled to the 32 kHz the
 analysis runs at and adds no latency.
 
 Reading the capture stream back out through a playback stream would have put
@@ -368,7 +365,7 @@ enough to call it sample accurate.
 
 The hardware process owns the frame buffer and the page state so the display
 keeps working while the video engine is loading modes or restarting. The engine
-pushes it state over OSC; see `engines/python/oled.py` and `OledPages.cpp`.
+pushes its state over OSC; see `engines/python/oled.py` and `OledPages.cpp`.
 
 Turn the encoder to page. Pressing it switches whatever on/off setting the
 page in front of you owns, and does nothing on the pages that have none — a
@@ -429,13 +426,13 @@ peer count appeared. A Link session is still visible as the selected trigger
 source on `STATUS`, and `K` in the top bar still says the clock is muted, but
 the tempo is no longer displayed anywhere. `link.py` still tracks it.
 
-Palette names run to twenty nine characters, so on `STATUS` they slide the way
+Palette names run to twenty-nine characters, so on `STATUS` they slide the way
 the mode name does on `PERFORM`, on their own clocks. With the two letter tag,
 27 of the 43 names fit and sit still; only the other 16 move.
 
 `STATUS` shows the **Auto Random Cycle** rather than the MIDI channel, which is
 one turn away on `MIDI`. The cycle times the two palette lamps above it as well
-as the `A#` picker, and its only other home is Settings > Controls. It is
+as the `A#` picker, and its only other home is Settings → Controls. It is
 labelled `Auto Cycle`: the full name is seventeen characters before the value.
 
 On `CTRL 2/2` the knob range is written `C# - A# Knob Mod` across a whole row.
@@ -455,7 +452,7 @@ apart at the holds regardless; a name short enough to fit simply sits still.
 Wrapping was the alternative, and neither line has anywhere to move down to.
 Nothing else on the page can shift either, so the names move instead.
 
-It costs nothing to run. The engine pushes `/oled/state` every 50ms and that
+It costs nothing to run. The engine pushes `/oled/state` every 50 ms and that
 marks the page dirty, so the display is already being redrawn and shipped over
 SPI twenty times a second whatever the names are doing; each line adds a
 counter and an offset into a string.
@@ -488,9 +485,8 @@ drawn only for the knobs it applies to, so the usual case stays quiet.
 
 The thin bar blinking under the meters is the trigger, the same thing the
 yellow square shows in the video OSD — what makes it fire is the `Trig`
-setting on the MIDI page.
-A trigger only lasts one frame, so it is latched between display refreshes
-rather than being missed.
+setting on the MIDI page. A trigger only lasts one frame, so it is latched
+between display refreshes rather than being missed.
 
 The LIVE page is the quickest way to get the video onto a laptop mid set:
 page to it, press the encoder, and the address shown is what to open in a

@@ -76,7 +76,7 @@ before it will build.
 
 - **The Organelle M battery support has never been run on an M.** There is no M
   here to try it on. It is off by default and has to be switched on in
-  Settings > Controls; the reading, the thresholds and the shutdown all follow
+  Settings → Controls; the reading, the thresholds and the shutdown all follow
   Critter & Guitari's own `Organelle_OS`. On an S it is safe either way — the
   power pin reads mains there, so the shutdown cannot fire.
 - **32 bit only.** The kernel patches that drive the WM8731 over SPI are not

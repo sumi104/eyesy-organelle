@@ -1,8 +1,13 @@
-# EYESY on Organelle S
+# EYESY on Organelle M and S
 
-EYESY OS 3.1 adapted to the Organelle S front panel. The base system, audio
+EYESY OS 3.1 adapted to the Organelle front panel. The base system, audio
 driver and boot configuration are the same as `platforms/eyesy_cm3` — the CM3
 carrier boards are near identical — so only the control surface differs.
+
+The M is an S with a speaker and a battery behind the same panel, so one build
+covers both. The directory and `EYESY_PLATFORM=organelle_s` keep the `_s` name
+because that is the machine it was written on; nothing in the code branches on
+which of the two it is running on, apart from the battery setting.
 
 For what the keys, knobs and OLED pages do, see [MANUAL.md](MANUAL.md).
 
@@ -90,7 +95,7 @@ on a laptop:
 
 A contact sheet says whether a layout is right and nothing about whether a
 speed is. `tools/oled_anim.cpp` covers the other half: it ticks the same
-`OledPages` on the same 50ms clock `main.cpp` uses and dumps a frame per
+`OledPages` on the same 50 ms clock `main.cpp` uses and dumps a frame per
 refresh, and `--html` plays them back at that interval in a self-contained page
 with no dependencies. So the scroll can be watched at its real speed, and any
 constant that governs it argued about, before anything is flashed.
