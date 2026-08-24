@@ -133,49 +133,5 @@ class FrameBusTest(unittest.TestCase):
         self.assertEqual(bad, [], "reader saw a partially written frame")
 
 
-class ReadViewTest(FrameBusTest):
-    """read_view(), which the encoder uses to avoid a copy per frame.
-
-    The encoder was copying a 1280x720 frame out of the mapping fifteen times
-    a second and its memory climbed about eight megabytes a minute on the
-    instrument. This is the same read without the copy.
-    """
-
-    def test_it_says_the_same_thing_as_read(self):
-        self.writer.publish(b"\x01\x02\x03", 2, 1)
-        r = self.reader()
-        view, w, h, seq = r.read_view()
-        self.assertEqual(bytes(view), b"\x01\x02\x03")
-        self.assertEqual((w, h, seq), r.read()[1:])
-
-    def test_it_does_not_copy(self):
-        # the point of the exercise: a window onto the mapping, not bytes
-        self.writer.publish(b"abc", 2, 1)
-        view = self.reader().read_view()[0]
-        self.assertIsInstance(view, memoryview)
-
-    def test_nothing_published_yet_reads_as_none(self):
-        self.assertIsNone(self.reader().read_view())
-
-    def test_it_is_only_the_payload_not_the_whole_slot(self):
-        self.writer.publish(b"\x07" * 10, 5, 2)
-        view = self.reader().read_view()[0]
-        self.assertEqual(len(view), 10)
-
-    def test_a_short_frame_after_a_long_one_is_not_padded(self):
-        self.writer.publish(b"x" * 40, 4, 4)
-        self.writer.publish(b"y" * 40, 4, 4)
-        self.writer.publish(b"z" * 4, 2, 1)
-        view = self.reader().read_view()[0]
-        self.assertEqual(bytes(view), b"zzzz")
-
-    def test_it_follows_the_writer_to_the_other_slot(self):
-        r = self.reader()
-        self.writer.publish(b"one", 1, 1)
-        first = bytes(r.read_view()[0])
-        self.writer.publish(b"two", 1, 1)
-        self.assertEqual((first, bytes(r.read_view()[0])), (b"one", b"two"))
-
-
 if __name__ == "__main__":
     unittest.main(verbosity=2)
