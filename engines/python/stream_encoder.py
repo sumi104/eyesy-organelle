@@ -43,13 +43,11 @@ _frombytes = getattr(pygame.image, "frombytes", None) or pygame.image.fromstring
 def die_with_parent():
     """Ask the kernel to kill us when the engine goes.
 
-    This has to be set here, in the child, once it is a program of its own.
-    Setting it from the parent's preexec_fn means running between fork and
-    exec, where the engine's other threads are gone but the locks they were
-    holding came across with the copy -- and dlopen wants one of them. The
-    child then deadlocks before it ever execs, and what is left behind is not
-    an encoder at all but a stuck copy of the engine, pinning its memory. That
-    was seen on the instrument.
+    Set here, in the child, once it is a program of its own and single
+    threaded again. A preexec_fn in the parent runs between fork and exec,
+    which Python's documentation calls unsafe from a multi-threaded process:
+    locks held by threads that do not exist in the child come across held,
+    and the dlopen this needs wants one. The engine has threads.
     """
     try:
         PR_SET_PDEATHSIG = 1

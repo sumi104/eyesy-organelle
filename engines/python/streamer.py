@@ -138,11 +138,13 @@ def init(eyesy, surface=None):
         if _smooth:
             args.append("--smooth")
 
-    # No preexec_fn here. The engine runs a network thread, and a preexec_fn
-    # runs in the gap between fork and exec, where that thread is gone but the
-    # locks it held are not -- the child deadlocks there and never becomes an
-    # encoder at all, just a stuck copy of the engine holding its memory down.
-    # stream_encoder.py asks for the parent death signal itself instead.
+    # No preexec_fn here. It runs in the gap between fork and exec, and this
+    # engine is multi-threaded -- oled.py polls the network, and the audio
+    # capture Process is forked from here too. Python's own documentation
+    # calls preexec_fn unsafe in that case: locks held by threads that do not
+    # exist in the child come across held, and the dlopen the old one did
+    # wants one. stream_encoder.py asks for the parent death signal itself
+    # instead, once it is a program of its own and single threaded again.
     try:
         _encoder = subprocess.Popen(args, cwd=here)
     except Exception as e:

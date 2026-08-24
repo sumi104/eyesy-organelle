@@ -53,11 +53,10 @@ def apply(eyesy):
                     print(f"link: {path} is not built, see its README")
                 return
             try:
-                # linkd sets the parent death signal on itself. Doing
-                # it from a preexec_fn here runs between fork and exec,
-                # with this process's network thread gone but its locks
-                # carried over, and the child can deadlock there and
-                # never exec -- leaving a stuck copy of the engine.
+                # linkd sets the parent death signal on itself. A
+                # preexec_fn would run between fork and exec, which the
+                # Python docs call unsafe from a multi-threaded process
+                # -- and this one has threads.
                 _proc = subprocess.Popen([path])
                 print("link: started linkd")
             except Exception as e:

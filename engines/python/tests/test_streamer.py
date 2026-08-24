@@ -295,12 +295,12 @@ class LivePageToggleTest(unittest.TestCase):
 class EncoderProcessTest(unittest.TestCase):
     """How the encoder is started and stopped.
 
-    Found on the instrument: `ps` showed a child of the engine whose command
-    line was still main.py, sleeping and single threaded, three minutes old.
-    It was a fork that never reached exec, because the preexec_fn asked for a
-    dlopen while holding the copy of a lock the engine's network thread had at
-    the moment of the fork. What it left behind was not an encoder but a stuck
-    copy of the engine, pinning its memory for as long as the engine ran.
+    The engine is multi-threaded -- oled.py polls the network, and the audio
+    capture Process is forked from here -- so it must not hand subprocess a
+    preexec_fn. That runs between fork and exec, where locks held by threads
+    the child does not have come across held, and the dlopen the old code did
+    there wants one. Python's documentation says as much. No failure was ever
+    traced to it here; this is the documented hazard, closed off.
     """
 
     def setUp(self):
@@ -328,8 +328,7 @@ class EncoderProcessTest(unittest.TestCase):
         streamer.init(self.e)
         self.assertEqual(len(self.calls), 1)
         self.assertNotIn("preexec_fn", self.calls[0][1],
-                         "forking a threaded process into a preexec_fn is what"
-                         " left a stuck copy of the engine behind")
+                         "unsafe to fork a threaded process into one")
 
     def test_a_killed_encoder_is_reaped(self):
         # a kill that is never waited for leaves a zombie, and the stream can
