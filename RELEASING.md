@@ -145,7 +145,7 @@ from the image starts an instrument.
 Then, on the instrument, with a monitor attached:
 
 - [ ] It boots, and a mode is drawing
-- [ ] The keys do what [the control map](platforms/organelle_s/README.md#control-map) says
+- [ ] The keys do what [the control map](platforms/organelle_s/MANUAL.md#control-map) says
 - [ ] All seven OLED pages are there and the encoder pages through them
 - [ ] Holding the encoder on SETTINGS restarts the video engine
 - [ ] `SETTINGS` shows no WiFi network — **if it shows yours, start again at step 2**

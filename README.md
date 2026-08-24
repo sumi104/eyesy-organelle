@@ -34,15 +34,17 @@ does not have to.
   video engine** — which works with no monitor plugged in, and when the engine
   is the thing that has stopped.
 - **Audio in goes straight to audio out**, through the codec's own analogue
-  path. It costs no CPU at all — see [the platform
-  notes](platforms/organelle_s/README.md#audio-thru).
+  path. It costs no CPU at all — see [the
+  manual](platforms/organelle_s/MANUAL.md#audio-thru).
 - **The foot switch** saves a scene or fires the trigger, whichever you pick.
 - **A web page** to watch the video on another machine on the network.
 - Ableton Link, an auto-random picker, a knob sequencer, and scenes that
   remember all of it.
 
-The full control map and the reasoning behind it are in
-**[platforms/organelle_s/README.md](platforms/organelle_s/README.md)**.
+The full control map, and the reasoning behind it, is in
+**[platforms/organelle_s/MANUAL.md](platforms/organelle_s/MANUAL.md)**. How the
+port is put together and how to build it is in
+[platforms/organelle_s/README.md](platforms/organelle_s/README.md).
 
 ## Installing
 
