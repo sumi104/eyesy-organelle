@@ -105,6 +105,30 @@ class FrameBus:
         return (bytes(self.map[start:start + length]),
                 self._get_u32(12), self._get_u32(16), seq)
 
+    def read_view(self):
+        """read() without the copy, for a reader that consumes it right away.
+
+        Returns (memoryview, width, height, sequence) or None. The view points
+        into the mapping, so it is only good until the writer flips to this
+        slot again -- one frame, which is what the two slots are for. Use
+        read() for anything that keeps the bytes around.
+
+        The encoder reads a full 1280x720 frame this way fifteen times a
+        second. Copying it first cost two allocations of three and a half
+        megabytes per frame, and its memory climbed about eight megabytes a
+        minute on the instrument until there was none left.
+        """
+        seq = self._get_u32(8)
+        if seq == 0:
+            return None
+        slot = self._get_u32(4)
+        length = self._get_u32(20 + (slot * 4))
+        if length == 0 or length > self.capacity:
+            return None
+        start = HEADER + (slot * self.capacity)
+        view = memoryview(self.map)[start:start + length]
+        return view, self._get_u32(12), self._get_u32(16), seq
+
     def close(self):
         try:
             self.map.close()

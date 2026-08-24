@@ -87,9 +87,19 @@ def main():
     scaler = pygame.transform.smoothscale if args.smooth \
         else pygame.transform.scale
 
-    # sized once the first frame says how big the source is
+    # Sized once the first frame says how big the source is, then reused.
+    # Nothing in the loop below may allocate per frame: at fifteen frames a
+    # second a megabyte surface and a three megabyte copy each time was enough
+    # to grow this process by eight megabytes a minute on the instrument, and
+    # with swap disabled that ends as a machine that has to be unplugged.
     src_surface = None
     src_size = None
+    out_surface = None
+    buf = io.BytesIO()
+
+    # pygame grew the destination argument to scale() in 2.0. If this build
+    # has not, the first frame says so and the loop goes back to allocating
+    scale_into = True
 
     # the engine creates the raw bus, wait for it to show up. its capacity has
     # to match what the engine allocated, so read it from the file itself
@@ -114,7 +124,9 @@ def main():
 
     last_seq = 0
     while True:
-        frame = raw.read()
+        # a view into the mapping rather than a copy of it, consumed before
+        # the next frame can overwrite the slot it points at
+        frame = raw.read_view()
         if frame is None or frame[3] == last_seq:
             time.sleep(idle)
             continue
@@ -127,17 +139,41 @@ def main():
                     src_size = (width, height)
                     src_surface = pygame.Surface(src_size, 0, args.src_bits,
                                                  masks)
+                    # the same format as the source, which is what scaling
+                    # into a surface you already have requires
+                    out_surface = pygame.Surface(out_size, 0, args.src_bits,
+                                                 masks)
                     print(f"source is {width}x{height}", flush=True)
                 # identical masks and depth, so this is a straight copy in
                 src_surface.get_view('0').write(payload)
-                surface = scaler(src_surface, out_size)
+                if scale_into:
+                    try:
+                        scaler(src_surface, out_size, out_surface)
+                        surface = out_surface
+                    except (TypeError, ValueError):
+                        # older pygame with no destination argument, or one
+                        # that will not take this surface as the destination.
+                        # One surface a frame then, as it always did -- and
+                        # decided once, not retried into the outer handler
+                        # every frame at a second a go
+                        scale_into = False
+                        print("pygame will not scale into a surface,"
+                              " allocating one a frame", flush=True)
+                        surface = scaler(src_surface, out_size)
+                else:
+                    surface = scaler(src_surface, out_size)
             else:
                 if len(payload) != width * height * 3:
                     continue
-                surface = _frombytes(payload, (width, height), "RGB")
+                # frombytes wants bytes, and this path is already allocating
+                surface = _frombytes(bytes(payload), (width, height), "RGB")
 
-            buf = io.BytesIO()
+            buf.seek(0)
+            buf.truncate(0)
             pygame.image.save(surface, buf, "frame.jpg")
+            # getvalue, not getbuffer: a buffer export would keep the BytesIO
+            # from being truncated on the next frame. It is a jpeg, tens of
+            # kilobytes, not one of the big allocations this loop avoids
             out.publish(buf.getvalue(), out_size[0], out_size[1])
         except Exception as e:
             print(f"encode failed: {e}", flush=True)
