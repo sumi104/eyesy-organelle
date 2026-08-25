@@ -6,6 +6,70 @@ input_port = None
 input_port_usb = None
 midi_clock_count = 0
 
+# --- incoming clock tempo ------------------------------------------------
+#
+# MIDI clock is 24 ticks to the quarter note, so the time across 24 of them
+# is one beat and 60 over it is the tempo. Measuring a whole beat rather than
+# one tick is what makes this readable: per tick jitter averages out over the
+# 24, and a clock arriving down a DIN cable has plenty of it.
+
+CLOCK_TICKS_PER_BEAT = 24
+
+# how long the last beat's worth of ticks may be before the tempo is stale.
+# A stopped sequencer sends nothing at all -- there is no stop message being
+# read here -- so silence is the only sign, and two seconds is slower than
+# any tempo anyone will use.
+CLOCK_SILENCE = 2.0
+
+# smoothing, or the last digit flickers at twenty updates a second
+CLOCK_SMOOTHING = 0.25
+
+_tick_times = []
+_clock_bpm = 0.0
+_clock_last = 0.0
+
+# The program change most recently accepted, as the number the settings screen
+# would call it: that screen lists pgm 1 to 128 while the wire carries 0 to
+# 127, and a sender that disagrees about which end to count from is the whole
+# reason for showing this.
+last_program = 0
+last_program_at = 0.0
+
+
+def _note_clock_tick(now):
+    global _clock_bpm, _clock_last
+
+    _clock_last = now
+    _tick_times.append(now)
+    if len(_tick_times) <= CLOCK_TICKS_PER_BEAT:
+        return
+    del _tick_times[:-(CLOCK_TICKS_PER_BEAT + 1)]
+
+    beat = now - _tick_times[0]
+    if beat <= 0:
+        return
+    bpm = 60.0 / beat
+    if not (20.0 <= bpm <= 400.0):
+        # a gap in the stream rather than a tempo anyone is playing
+        return
+    _clock_bpm = bpm if _clock_bpm == 0.0 else \
+        _clock_bpm + (bpm - _clock_bpm) * CLOCK_SMOOTHING
+
+
+def clock_bpm():
+    """Tempo of the incoming MIDI clock, or 0.0 when none is arriving."""
+    if _clock_bpm == 0.0 or time.monotonic() - _clock_last > CLOCK_SILENCE:
+        return 0.0
+    return _clock_bpm
+
+
+def clock_reset():
+    """Forget the tempo, for tests and for a source change."""
+    global _clock_bpm, _clock_last
+    del _tick_times[:]
+    _clock_bpm = 0.0
+    _clock_last = 0.0
+
 def _handle_note(eyesy, message):
     #print(f"Note message: {message}")
     if eyesy.midi_notes_muted:
@@ -50,7 +114,14 @@ def _handle_control_change(eyesy, message):
        
 def _handle_program_change(eyesy, message):
     #print(f"Program Change message: {message}")
+    global last_program, last_program_at
     if (message.channel + 1) == eyesy.config["midi_channel"]:
+        # Remembered before the mapping is looked up, and remembered even when
+        # there is no mapping: "the number arrived, nothing is assigned to it"
+        # is the answer you are after when a program change did nothing, and
+        # it is the case where the row would otherwise be empty.
+        last_program = message.program + 1
+        last_program_at = time.monotonic()
         if f"pgm_{message.program + 1}" in eyesy.config["pc_map"]:
             scene = eyesy.config["pc_map"][f"pgm_{message.program + 1}"]
             print(f"attempting to load scene {scene}")
@@ -58,6 +129,12 @@ def _handle_program_change(eyesy, message):
 
 def _handle_clock(eyesy, message):
     global midi_clock_count
+
+    # Measured whether or not the clock is muted. Muting stops the visuals
+    # following it, it does not stop it arriving, and the MIDI page should say
+    # what is out there either way -- which is what the Link readout does.
+    _note_clock_tick(time.monotonic())
+
     if eyesy.midi_clock_muted:
         return
     ts = eyesy.config["trigger_source"]

@@ -19,6 +19,12 @@ os.environ["EYESY_PLATFORM"] = "organelle_s"
 
 
 def _install_stubs():
+    # the oled clock row reads the incoming tempo, so this now reaches midi.py
+    mido = types.ModuleType("mido")
+    mido.open_input = lambda *a, **k: None
+    mido.get_input_names = lambda: []
+    sys.modules["mido"] = mido
+
     liblo = types.ModuleType("liblo")
     liblo.Address = lambda *a, **k: object()
     liblo.Server = lambda *a, **k: object()

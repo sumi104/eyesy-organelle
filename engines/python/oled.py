@@ -51,6 +51,9 @@ FLAG_PAL_MOD_BG  = 1 << 24
 # midi notes pick the mode, the notes_change_mode setting
 FLAG_NOTES_MODE  = 1 << 25
 
+# characters across one row in the small font, the width setLine() caps at
+OLED_LINE = 21
+
 # The trigger sources spelled short enough for the status page, which has ten
 # characters for one after its label. Indexed like eyesy.TRIGGER_SOURCES, so
 # adding a source there means adding one here.
@@ -66,6 +69,69 @@ def trig_text(eyesy):
     if 0 <= i < len(TRIG_SHORT):
         return TRIG_SHORT[i]
     return eyesy.TRIGGER_SOURCES[i]
+
+
+def clock_text(eyesy):
+    """The MIDI page's clock row: what is driving, how fast, and whether
+    `G#` has it muted.
+
+    One row rather than three because the MIDI page has five and the tempo,
+    the peer count and the mute are all about the same thing. The trigger
+    source itself is on the status page; this says what that source is doing.
+
+    The tempo stays on screen while muted. `G#` stops the visuals following
+    the clock, it does not stop the clock, and a row that went blank would
+    read as "it has gone away" rather than "you muted it".
+    """
+    import link
+    import midi
+
+    source = eyesy.config["trigger_source"]
+    muted = eyesy.midi_clock_muted
+
+    if source in link.DIVISIONS:
+        if not link.running:
+            # linkd is not built or has not reported in. The trigger sources
+            # are still selectable, which is why this says so rather than
+            # showing a tempo of nothing.
+            return "Link   off"
+        bpm = f"{link.tempo:.1f}"
+        if muted:
+            return f"Link   {bpm}   muted"
+        # Two spaces before the peers, not three: a session of ten reaches
+        # the far edge of the row, and they do get that big. Capped at 99 for
+        # the same reason -- past that the count stops being the point.
+        return f"Link   {bpm} BPM  {min(link.peers, 99)}p"
+
+    if 3 <= source <= 6:                      # the four MIDI clock divisions
+        bpm = midi.clock_bpm()
+        if bpm <= 0:
+            return "Clock  --"
+        if muted:
+            return f"Clock  {bpm:.1f}   muted"
+        return f"Clock  {bpm:.1f} BPM"
+
+    return ""
+
+
+def program_text(eyesy):
+    """The MIDI page's program change row, or "" until one arrives.
+
+    Numbered the way Settings > MIDI PC Mapping numbers it, 1 to 128, while
+    the wire carries 0 to 127. Senders disagree about which end to count
+    from, so seeing the number this instrument decided it received is the
+    quickest way to find that the two of you are one apart.
+
+    An unmapped number is shown too. "It arrived and nothing is assigned"
+    is the answer you want when a program change did nothing at all.
+    """
+    import midi
+
+    if not midi.last_program:
+        return ""
+    scene = eyesy.config.get("pc_map", {}).get(f"pgm_{midi.last_program}")
+    head = f"PGM {midi.last_program}  "
+    return head + (scene or "not mapped")[:OLED_LINE - len(head)]
 
 
 def cycle_short(eyesy):
@@ -232,6 +298,8 @@ def update(eyesy):
     send_text("ip", _net["ip"])
     send_text("midi", eyesy.usb_midi_name if eyesy.usb_midi_name else "none")
     send_text("trig", trig_text(eyesy))
+    send_text("clock", clock_text(eyesy))
+    send_text("pgm", program_text(eyesy))
     send_text("res", f"{eyesy.xres}x{eyesy.yres}")
     send_battery(eyesy)
     send_text("cycle", cycle_short(eyesy))
@@ -279,12 +347,6 @@ def update(eyesy):
         int(eyesy.fps),
         _net["level"],
         eyesy.config["midi_channel"],
-        eyesy.config["knob1_cc"], eyesy.config["knob2_cc"],
-        eyesy.config["knob3_cc"], eyesy.config["knob4_cc"],
-        eyesy.config["knob5_cc"],
-        # the four the midi page lists under the knobs
-        eyesy.config["auto_clear_cc"], eyesy.config["fg_palette_cc"],
-        eyesy.config["bg_palette_cc"], eyesy.config["mode_cc"],
     )
 
 

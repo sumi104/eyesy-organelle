@@ -36,8 +36,6 @@ OledPages::OledPages() {
     copyText(st.ver, "3.1");
     copyText(st.url, "no network");
     copyText(st.streamInfo, "-");
-    for (int i = 0; i < 5; i++) st.knobCC[i] = -1;
-    for (int i = 0; i < 4; i++) st.extraCC[i] = -1;
     st.midiChannel = 1;
     st.batteryOn = false;
     st.onBattery = false;
@@ -95,6 +93,8 @@ void OledPages::setText(const char *key, const char *val) {
     else if (!strcmp(key, "ver"))   copyText(st.ver, val);
     else if (!strcmp(key, "url"))   copyText(st.url, val);
     else if (!strcmp(key, "sinfo")) copyText(st.streamInfo, val);
+    else if (!strcmp(key, "clock")) copyText(st.clock, val);
+    else if (!strcmp(key, "pgm"))   copyText(st.pgm, val);
     else return;
     dirty = true;
 }
@@ -418,31 +418,20 @@ void OledPages::renderSettings(OledScreen &s) {
 
 // A CC of -1 means nothing is mapped. Written as a dash so an unmapped slot
 // reads as empty rather than as a number somebody chose.
-static const char *ccText(char *buf, int n, int cc) {
-    if (cc < 0) snprintf(buf, n, "-");
-    else snprintf(buf, n, "%d", cc);
-    return buf;
-}
-
 void OledPages::renderMidi(OledScreen &s) {
-    char buf[64], a[8], b[8], c[8], d[8], e[8];
+    char buf[64];
 
     snprintf(buf, sizeof(buf), "Channel %d", st.midiChannel);
     s.setLine(1, buf);
 
-    // Two lines of CC, in the order the settings screen lists them: the five
-    // knobs, then clear, foreground, background, mode. The second line carries
-    // no label and lines its columns up under the first, because four tags
-    // plus four three digit numbers do not fit across twenty one characters.
-    snprintf(buf, sizeof(buf), "CC %s %s %s %s %s",
-             ccText(a, sizeof(a), st.knobCC[0]), ccText(b, sizeof(b), st.knobCC[1]),
-             ccText(c, sizeof(c), st.knobCC[2]), ccText(d, sizeof(d), st.knobCC[3]),
-             ccText(e, sizeof(e), st.knobCC[4]));
-    s.setLine(2, buf);
-    snprintf(buf, sizeof(buf), "   %s %s %s %s",
-             ccText(a, sizeof(a), st.extraCC[0]), ccText(b, sizeof(b), st.extraCC[1]),
-             ccText(c, sizeof(c), st.extraCC[2]), ccText(d, sizeof(d), st.extraCC[3]));
-    s.setLine(3, buf);
+    // The nine CC numbers used to take two of these five rows and could not
+    // be labelled: five three digit numbers and their gaps come to nineteen
+    // characters, which leaves two for a label. A row of numbers with nothing
+    // saying which is which answers no question, and the CC map is on
+    // Settings > Audio MIDI Settings and in the web editor, where it has the
+    // room to say. These two rows say what is happening instead.
+    s.setLine(2, st.clock);
+    s.setLine(3, st.pgm);
 
     snprintf(buf, sizeof(buf), "Notes Select Mode %s",
              (st.flags & OLED_FLAG_NOTES_MODE) ? "Yes" : "No");

@@ -56,12 +56,6 @@ int main(int argc, char *argv[]) {
     st.fps = 30;
     st.wifiLevel = 3;
     st.midiChannel = 16;   // two digits, the wider case to lay out
-    int cc[5] = { 20, 21, 22, 23, 24 };
-    for (int i = 0; i < 5; i++) st.knobCC[i] = cc[i];
-    // clear mapped, the other three not, which is the mix the midi page has
-    // to lay out without the dashes collapsing the columns
-    int extra[4] = { 25, -1, -1, -1 };
-    for (int i = 0; i < 4; i++) st.extraCC[i] = extra[i];
 
     pages.setText("mode", "S - Bounce Bounce");
     pages.setText("scene", "scene-0002");
@@ -78,6 +72,10 @@ int main(int argc, char *argv[]) {
     pages.setText("fgpal", "Red : White");
     pages.setText("bgpal", "Deep Myrtle : Electric Purple");
     pages.setText("cycle", "30 sec");
+    // the widest the clock row goes: Link, a three digit tempo and the peers.
+    // The muted forms and the MIDI clock ones are all shorter than this
+    pages.setText("clock", "Link   128.5 BPM   3p");
+    pages.setText("pgm", "PGM 5  scene-0002");
 
     for (int p = 0; p < OLED_NUM_PAGES; p++) {
         pages.setPage(p);

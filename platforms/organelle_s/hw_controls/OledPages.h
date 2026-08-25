@@ -72,8 +72,6 @@ struct OledState {
     int fps;
     int wifiLevel;         // 0 - 4, 0 is not connected
     int midiChannel;
-    int knobCC[5];
-    int extraCC[4];        // clear, fg palette, bg palette, mode
 
     char mode[OLED_TEXT_LEN];
     char scene[OLED_TEXT_LEN];
@@ -84,6 +82,13 @@ struct OledState {
     char fgPal[OLED_TEXT_LEN];     // palette names, which run long
     char bgPal[OLED_TEXT_LEN];
     char cycle[OLED_TEXT_LEN];     // auto random cycle, "30 sec" or "Random"
+
+    // The MIDI page's clock and program change rows, built whole by oled.py:
+    // which of Link and the MIDI clock is driving, its tempo, the peer count
+    // and the mute all belong to one sentence, and the engine is the side
+    // that knows all four.
+    char clock[OLED_TEXT_LEN];
+    char pgm[OLED_TEXT_LEN];
 
     char res[OLED_TEXT_LEN];
     char ver[OLED_TEXT_LEN];

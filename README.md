@@ -81,9 +81,6 @@ before it will build.
   power pin reads mains there, so the shutdown cannot fire.
 - **32 bit only.** The kernel patches that drive the WM8731 over SPI are not
   upstream, so there is no arm64 build.
-- **Ableton Link's tempo and peer count are not displayed.** Link works and the
-  selected source is shown; the numbers lost their row when the MIDI page was
-  rearranged.
 - Two upper octave keys, `A` and `B`, do nothing yet.
 - The two keys of a palette pair have to go down together to count as a chord.
   Holding one and adding the other a second later steps the palette twice

@@ -27,7 +27,7 @@ Hold **C#** for the shifted layer.
 | A | Screen grab | Knob sequence play / stop |
 | B | Trigger (hold for test tone) | Knob sequence record |
 | F# | Audio input mute | Freeze the picture |
-| G# | MIDI clock mute | MIDI note mute |
+| G# | Clock mute — MIDI clock or Link | MIDI note mute |
 | A# | Auto random: off, then modes, then scenes, then off | — |
 | Upper octave `C` / `D` | Foreground palette − / + | — |
 | Upper octave `C`+`D` | Modulate the foreground palette, again to stop | — |
@@ -390,7 +390,7 @@ same button toggles one page along.
 | 1 | **PERFORM** — mode, scene, five knob positions, stereo VU, input gain | — |
 | 2 | **STATUS** — knob and palette modulation lamps, both palette names, the auto random cycle, trigger source | — |
 | 3 | **SETTINGS** — wifi network, IP address, resolution, frame rate, version | Restart Video, held |
-| 4 | **MIDI** — channel, the nine mapped CCs over two lines, whether notes pick the mode, input device | — |
+| 4 | **MIDI** — channel, what the clock is doing and how fast, the last program change, whether notes pick the mode, input device | — |
 | 5 | **LIVE** — video stream state and the address to watch it at | Stream on / off, if there is a network |
 | 6 | **CTRL 1/2** — the lower octave, in short form | — |
 | 7 | **CTRL 2/2** — the upper octave | — |
@@ -421,10 +421,32 @@ and straight through the status letters, which start at x 52.
 one, so the three pages that use it — PERFORM, SETTINGS, MIDI — used to rub the
 rule out again and only the pages avoiding `setLine` had one.
 
-The MIDI page lost its clock row, which was the only place the Link tempo and
-peer count appeared. A Link session is still visible as the selected trigger
-source on `STATUS`, and `K` in the top bar still says the clock is muted, but
-the tempo is no longer displayed anywhere. `link.py` still tracks it.
+**The MIDI page's second row is whichever clock is driving, and its tempo.**
+`Link 128.5 BPM 3p` while a Link source is selected, `Clock 128.5 BPM` for a
+MIDI clock one, and `muted` in place of the rate when `G#` has it stopped. The
+tempo stays up while muted: `G#` stops the visuals following the clock, it
+does not stop the clock, and a row that emptied would read as the session
+having gone away.
+
+Link's tempo arrives with the beat. A MIDI clock's is measured here, across
+the twenty four ticks of one quarter note rather than the gap between two of
+them, because a clock down a DIN cable has enough jitter that a single tick
+says very little. Nothing reads a stop message, so a clock that goes quiet for
+two seconds simply stops being a tempo.
+
+**The third row is the last program change to arrive**, as the number Settings
+> MIDI PC Mapping would call it: that screen counts 1 to 128 while the wire
+carries 0 to 127, and a sender that counts from the other end is the usual
+reason a mapping does nothing. It shows unmapped numbers too, since "it
+arrived and nothing is assigned to it" is the answer you are after when
+nothing happened at all.
+
+Those two rows took the place of the nine CC numbers. Five three digit numbers
+and the gaps between them come to nineteen of the twenty one characters, which
+leaves two for a label — so the row could say what the numbers were for or it
+could show them, never both, and a column of unlabelled numbers answers no
+question. The CC map is on **Settings → Audio MIDI Settings** and in the web
+editor, which both have the room to name them.
 
 Palette names run to twenty-nine characters, so on `STATUS` they slide the way
 the mode name does on `PERFORM`, on their own clocks. With the two letter tag,
