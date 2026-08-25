@@ -107,9 +107,12 @@ def clock_text(eyesy):
         bpm = midi.clock_bpm()
         if bpm <= 0:
             return "Clock  --"
+        # A whole number, unlike Link's. Link is told its tempo; this one is
+        # measured off timestamps a video frame apart, and a decimal place
+        # would be claiming a precision it does not have.
         if muted:
-            return f"Clock  {bpm:.1f}   muted"
-        return f"Clock  {bpm:.1f} BPM"
+            return f"Clock  {bpm:.0f}   muted"
+        return f"Clock  {bpm:.0f} BPM"
 
     return ""
 

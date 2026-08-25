@@ -428,11 +428,17 @@ tempo stays up while muted: `G#` stops the visuals following the clock, it
 does not stop the clock, and a row that emptied would read as the session
 having gone away.
 
-Link's tempo arrives with the beat. A MIDI clock's is measured here, across
-the twenty four ticks of one quarter note rather than the gap between two of
-them, because a clock down a DIN cable has enough jitter that a single tick
-says very little. Nothing reads a stop message, so a clock that goes quiet for
-two seconds simply stops being a tempo.
+Link's tempo arrives with the beat and is shown to a decimal place. **A MIDI
+clock's is measured here, and shown as a whole number**, because the ticks are
+not timestamped when they arrive: the port is drained once a video frame, so
+every tick in a batch carries the moment the engine got to it and a
+measurement is quantised to about 33 ms. At 161 BPM one frame either way moves
+the answer by ten. So it is measured across four beats rather than one,
+averaged hard, and held still until it has drifted far enough to be worth
+moving -- it settles in about two seconds and a real tempo change takes about
+the same to show. A decimal place would be claiming a precision it has not
+got. Nothing reads a stop message, so a clock that goes quiet for two seconds
+simply stops being a tempo.
 
 **The third row is the last program change to arrive**, as the number Settings
 > MIDI PC Mapping would call it: that screen counts 1 to 128 while the wire

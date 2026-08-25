@@ -10,6 +10,7 @@ for a label. These two rows replaced them.
 """
 
 import os
+import random
 import sys
 import types
 import unittest
@@ -104,25 +105,23 @@ class ClockTempoTest(unittest.TestCase):
     def test_nothing_yet_is_no_tempo(self):
         self.assertEqual(midi.clock_bpm(), 0.0)
 
-    def test_it_takes_a_whole_beat_before_it_says_anything(self):
-        # 24 ticks to the quarter note, and the span of one is what is
-        # measured -- a single tick is mostly jitter
-        self.now = feed(120.0, midi.CLOCK_TICKS_PER_BEAT)
+    def test_it_says_nothing_until_it_has_a_whole_window(self):
+        self.now = feed(120.0, midi.CLOCK_WINDOW_TICKS)
         self.assertEqual(midi.clock_bpm(), 0.0)
 
     def test_a_steady_clock_reads_its_tempo(self):
         for bpm in (60.0, 120.0, 174.0):
             midi.clock_reset()
-            self.now = feed(bpm, midi.CLOCK_TICKS_PER_BEAT + 1)
+            self.now = feed(bpm, midi.CLOCK_WINDOW_TICKS + 1)
             self.assertAlmostEqual(midi.clock_bpm(), bpm, places=6)
 
     def test_it_keeps_reading_it_over_many_beats(self):
-        self.now = feed(128.0, midi.CLOCK_TICKS_PER_BEAT * 8)
+        self.now = feed(128.0, midi.CLOCK_WINDOW_TICKS * 8)
         self.assertAlmostEqual(midi.clock_bpm(), 128.0, places=6)
 
     def test_jitter_is_smoothed_rather_than_shown(self):
         # one late tick must not throw the reading around
-        self.now = feed(120.0, midi.CLOCK_TICKS_PER_BEAT * 4)
+        self.now = feed(120.0, midi.CLOCK_WINDOW_TICKS * 4)
         steady = midi.clock_bpm()
         midi._note_clock_tick(self.now + 0.03)      # a tick well out of place
         self.assertLess(abs(midi.clock_bpm() - steady), 8.0,
@@ -130,14 +129,14 @@ class ClockTempoTest(unittest.TestCase):
 
     def test_a_stopped_clock_goes_quiet(self):
         # nothing here reads a stop message, so silence is the only sign
-        self.now = feed(120.0, midi.CLOCK_TICKS_PER_BEAT + 1)
+        self.now = feed(120.0, midi.CLOCK_WINDOW_TICKS + 1)
         self.assertGreater(midi.clock_bpm(), 0)
         self.now += midi.CLOCK_SILENCE + 0.1
         self.assertEqual(midi.clock_bpm(), 0.0)
 
     def test_a_gap_is_not_read_as_a_tempo(self):
         # a pause mid stream would otherwise measure as something very slow
-        self.now = feed(120.0, midi.CLOCK_TICKS_PER_BEAT * 2)
+        self.now = feed(120.0, midi.CLOCK_WINDOW_TICKS * 2)
         steady = midi.clock_bpm()
         midi._note_clock_tick(self.now + 30.0)
         self.assertAlmostEqual(midi.clock_bpm(), steady, places=6)
@@ -147,7 +146,7 @@ class ClockTempoTest(unittest.TestCase):
         # and the page says what is out there either way
         e = FakeEyesy(source=CLOCK_QUARTER, muted=True)
         interval = 60.0 / (120.0 * midi.CLOCK_TICKS_PER_BEAT)
-        for i in range(midi.CLOCK_TICKS_PER_BEAT + 1):
+        for i in range(midi.CLOCK_WINDOW_TICKS + 1):
             self.now = i * interval
             midi._handle_clock(e, Msg(type="clock"))
         self.assertAlmostEqual(midi.clock_bpm(), 120.0, places=6)
@@ -155,9 +154,99 @@ class ClockTempoTest(unittest.TestCase):
     def test_a_muted_clock_still_fires_nothing(self):
         e = FakeEyesy(source=CLOCK_QUARTER, muted=True)
         e.trig = False
-        for _ in range(midi.CLOCK_TICKS_PER_BEAT * 2):
+        for _ in range(midi.CLOCK_WINDOW_TICKS * 2):
             midi._handle_clock(e, Msg(type="clock"))
         self.assertFalse(e.trig)
+
+
+class BatchedArrivalTest(unittest.TestCase):
+    """The tempo as the engine actually sees the ticks.
+
+    recv() drains the port once per video frame, so a tick is stamped with
+    the moment the engine got to it rather than the moment it arrived, and
+    every tick in a batch shares one timestamp. Reported from the instrument:
+    Live sending a flat 161 and the page wandering between 141 and 161,
+    because a measurement one frame wide either way moves the answer by ten
+    BPM at that tempo.
+    """
+
+    def setUp(self):
+        midi.clock_reset()
+        self.now = 0.0
+        self.due = 0.0
+        self.real = midi.time.monotonic
+        midi.time.monotonic = lambda: self.now
+
+    def tearDown(self):
+        midi.time.monotonic = self.real
+        midi.clock_reset()
+
+    def restart(self):
+        midi.clock_reset()
+        self.now = self.due = 0.0
+
+    def batched(self, bpm, seconds, frame=1 / 30.0):
+        # carries on from where the last call left off, so a test can run one
+        # tempo and then another without the clock jumping backwards
+        interval = 60.0 / (bpm * midi.CLOCK_TICKS_PER_BEAT)
+        end = self.now + seconds
+        while self.now < end:
+            self.now += frame
+            while self.due <= self.now:
+                midi._note_clock_tick(self.now)  # the frame's time, not the tick's
+                self.due += interval
+
+    def test_a_flat_tempo_reads_flat(self):
+        self.batched(161.0, 20.0)
+        self.assertAlmostEqual(midi.clock_bpm(), 161.0, delta=1.0)
+
+    def test_it_holds_still_rather_than_wandering(self):
+        self.batched(161.0, 20.0)
+        settled = midi.clock_bpm()
+        seen = set()
+        for _ in range(40):
+            self.batched(161.0, 0.5)
+            seen.add(midi.clock_bpm())
+        self.assertLessEqual(len(seen), 2,
+                             f"settled at {settled}, then showed {sorted(seen)}")
+
+    def test_it_works_at_other_tempos_too(self):
+        for bpm in (60.0, 90.0, 128.0, 174.0):
+            self.restart()
+            self.batched(bpm, 20.0)
+            self.assertAlmostEqual(midi.clock_bpm(), bpm, delta=1.0, msg=f"{bpm}")
+
+    def jittered(self, bpm, seconds, jitter=0.2, seed=1, frame=1 / 30.0):
+        """Batched arrival, plus the send and the render loop both wobbling.
+
+        A DAW down a USB cable does not place its ticks on a grid, and the
+        render loop is not a metronome either -- a heavy mode takes longer.
+        """
+        rnd = random.Random(seed)
+        interval = 60.0 / (bpm * midi.CLOCK_TICKS_PER_BEAT)
+        end = self.now + seconds
+        while self.now < end:
+            self.now += frame * rnd.uniform(0.8, 1.4)
+            while self.due <= self.now:
+                midi._note_clock_tick(self.now)
+                self.due += interval * rnd.uniform(1 - jitter, 1 + jitter)
+
+    def test_the_noise_is_averaged_away_not_locked_in(self):
+        # The smoothing is heavy enough that the first measurement would
+        # otherwise stand for a minute, and one measurement is a span between
+        # two timestamps a frame apart -- the very thing being averaged away.
+        # So it opens as a running mean and eases into the exponential one.
+        for seed in (1, 2, 3, 4, 5):
+            self.restart()
+            self.jittered(161.0, 30.0, seed=seed)
+            self.assertAlmostEqual(midi.clock_bpm(), 161.0, delta=1.0,
+                                   msg=f"seed {seed}")
+
+    def test_a_real_change_is_followed(self):
+        self.batched(120.0, 15.0)
+        self.assertAlmostEqual(midi.clock_bpm(), 120.0, delta=1.0)
+        self.batched(140.0, 15.0)
+        self.assertAlmostEqual(midi.clock_bpm(), 140.0, delta=1.0)
 
 
 class ProgramChangeTest(unittest.TestCase):
@@ -231,14 +320,14 @@ class ClockRowTest(unittest.TestCase):
         self.assertIn("muted", row)
 
     def test_the_midi_clock_shows_its_measured_tempo(self):
-        feed(140.0, midi.CLOCK_TICKS_PER_BEAT + 1)
+        feed(140.0, midi.CLOCK_WINDOW_TICKS + 1)
         row = oled.clock_text(FakeEyesy(source=CLOCK_QUARTER))
-        self.assertIn("140.0", row)
+        self.assertIn("140", row)
 
     def test_a_muted_midi_clock_keeps_its_tempo_too(self):
-        feed(140.0, midi.CLOCK_TICKS_PER_BEAT + 1)
+        feed(140.0, midi.CLOCK_WINDOW_TICKS + 1)
         row = oled.clock_text(FakeEyesy(source=CLOCK_QUARTER, muted=True))
-        self.assertIn("140.0", row)
+        self.assertIn("140", row)
         self.assertIn("muted", row)
 
     def test_a_midi_clock_with_nothing_arriving_says_so(self):
@@ -247,7 +336,7 @@ class ClockRowTest(unittest.TestCase):
 
     def test_link_and_the_clock_are_told_apart_by_name(self):
         link.running, link.tempo = True, 120.0
-        feed(120.0, midi.CLOCK_TICKS_PER_BEAT + 1)
+        feed(120.0, midi.CLOCK_WINDOW_TICKS + 1)
         self.assertTrue(oled.clock_text(
             FakeEyesy(source=LINK_QUARTER)).startswith("Link"))
         self.assertTrue(oled.clock_text(
@@ -259,7 +348,7 @@ class ClockRowTest(unittest.TestCase):
             link.running, link.peers, link.tempo = running, peers, tempo
             for muted in (False, True):
                 for source in (LINK_QUARTER, CLOCK_QUARTER, AUDIO):
-                    feed(199.9, midi.CLOCK_TICKS_PER_BEAT + 1)
+                    feed(199.9, midi.CLOCK_WINDOW_TICKS + 1)
                     row = oled.clock_text(FakeEyesy(source=source, muted=muted))
                     self.assertLessEqual(len(row), OLED_LINE, row)
 

@@ -15,17 +15,42 @@ midi_clock_count = 0
 
 CLOCK_TICKS_PER_BEAT = 24
 
-# how long the last beat's worth of ticks may be before the tempo is stale.
-# A stopped sequencer sends nothing at all -- there is no stop message being
-# read here -- so silence is the only sign, and two seconds is slower than
-# any tempo anyone will use.
+# Measured across two beats rather than one. The ticks are not timestamped
+# when they arrive: recv() drains the port once per video frame, so every
+# tick in a batch is stamped with the moment the engine got to it, and the
+# span of a measurement is quantised to about 33 ms. At 161 BPM a beat is
+# 373 ms, so one frame either way moves the answer by ten BPM. Widening the
+# window is the only thing that shrinks that, since the granularity is fixed.
+CLOCK_WINDOW_TICKS = 96
+
+# how long the last window's worth of ticks may take before the tempo is
+# stale. A stopped sequencer sends nothing at all -- there is no stop message
+# being read here -- so silence is the only sign, and two seconds is slower
+# than any tempo anyone will use.
 CLOCK_SILENCE = 2.0
 
-# smoothing, or the last digit flickers at twenty updates a second
-CLOCK_SMOOTHING = 0.25
+# Heavy, because what it is averaging out is that quantisation rather than
+# anything musical. A measurement arrives per tick, so at 120 BPM this is a
+# time constant of about two seconds: the reading settles over a couple of
+# seconds and a real tempo change takes that long to show.
+CLOCK_SMOOTHING = 0.001
+
+# The reported figure only moves once the smoothed one has drifted this far,
+# so a tempo sitting between two whole numbers does not flicker between them.
+CLOCK_HYSTERESIS = 0.75
+
+# Smoothing that heavy would take a minute to follow a real tempo change, so
+# it does not have to: a reading this far from the smoothed one is a different
+# tempo rather than noise, and once a window's worth of them have arrived in a
+# row it is taken as it stands. Noise does not hold one side for that long.
+CLOCK_JUMP = 5.0
+CLOCK_JUMP_RUN = 96
 
 _tick_times = []
-_clock_bpm = 0.0
+_clock_bpm = 0.0        # the smoothed measurement
+_clock_shown = 0.0      # what clock_bpm() reports, held still by the above
+_clock_off = 0          # measurements in a row that disagree with it
+_clock_n = 0            # measurements averaged, for the warm up above
 _clock_last = 0.0
 
 # The program change most recently accepted, as the number the settings screen
@@ -37,38 +62,65 @@ last_program_at = 0.0
 
 
 def _note_clock_tick(now):
-    global _clock_bpm, _clock_last
+    global _clock_bpm, _clock_shown, _clock_last
 
     _clock_last = now
     _tick_times.append(now)
-    if len(_tick_times) <= CLOCK_TICKS_PER_BEAT:
+    if len(_tick_times) <= CLOCK_WINDOW_TICKS:
         return
-    del _tick_times[:-(CLOCK_TICKS_PER_BEAT + 1)]
+    del _tick_times[:-(CLOCK_WINDOW_TICKS + 1)]
 
-    beat = now - _tick_times[0]
-    if beat <= 0:
+    span = now - _tick_times[0]
+    if span <= 0:
         return
-    bpm = 60.0 / beat
+    beats = CLOCK_WINDOW_TICKS / CLOCK_TICKS_PER_BEAT
+    bpm = 60.0 * beats / span
     if not (20.0 <= bpm <= 400.0):
         # a gap in the stream rather than a tempo anyone is playing
         return
-    _clock_bpm = bpm if _clock_bpm == 0.0 else \
-        _clock_bpm + (bpm - _clock_bpm) * CLOCK_SMOOTHING
+    global _clock_off, _clock_n
+    if _clock_bpm == 0.0:
+        _clock_bpm = bpm
+        _clock_n = 1
+    elif abs(bpm - _clock_bpm) > CLOCK_JUMP:
+        _clock_off += 1
+        if _clock_off >= CLOCK_JUMP_RUN:
+            _clock_bpm = bpm
+            _clock_n = 1
+            _clock_off = 0
+    else:
+        _clock_off = 0
+        # A running mean to begin with, easing into the exponential one. Held
+        # at CLOCK_SMOOTHING from the start, the first measurement would be
+        # most of the answer for a minute afterwards -- and one measurement is
+        # a span between two timestamps a video frame wide, which is exactly
+        # the thing being averaged away.
+        _clock_n += 1
+        _clock_bpm += (bpm - _clock_bpm) * max(CLOCK_SMOOTHING, 1.0 / _clock_n)
+    if _clock_shown == 0.0 or abs(_clock_bpm - _clock_shown) >= CLOCK_HYSTERESIS:
+        _clock_shown = float(round(_clock_bpm))
 
 
 def clock_bpm():
-    """Tempo of the incoming MIDI clock, or 0.0 when none is arriving."""
-    if _clock_bpm == 0.0 or time.monotonic() - _clock_last > CLOCK_SILENCE:
+    """Tempo of the incoming MIDI clock, or 0.0 when none is arriving.
+
+    A whole number: it is measured off timestamps a video frame apart, and a
+    decimal place would be saying more than this knows.
+    """
+    if _clock_shown == 0.0 or time.monotonic() - _clock_last > CLOCK_SILENCE:
         return 0.0
-    return _clock_bpm
+    return _clock_shown
 
 
 def clock_reset():
     """Forget the tempo, for tests and for a source change."""
-    global _clock_bpm, _clock_last
+    global _clock_bpm, _clock_shown, _clock_last, _clock_off, _clock_n
     del _tick_times[:]
     _clock_bpm = 0.0
+    _clock_shown = 0.0
     _clock_last = 0.0
+    _clock_off = 0
+    _clock_n = 0
 
 def _handle_note(eyesy, message):
     #print(f"Note message: {message}")
