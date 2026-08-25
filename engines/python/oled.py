@@ -118,7 +118,7 @@ def clock_text(eyesy):
 
 
 def program_text(eyesy):
-    """The MIDI page's program change row, or "" until one arrives.
+    """The MIDI page's program change row.
 
     Numbered the way Settings > MIDI PC Mapping numbers it, 1 to 128, while
     the wire carries 0 to 127. Senders disagree about which end to count
@@ -127,11 +127,15 @@ def program_text(eyesy):
 
     An unmapped number is shown too. "It arrived and nothing is assigned"
     is the answer you want when a program change did nothing at all.
+
+    Before any has arrived it says so rather than sitting empty. A blank row
+    on a page you have just set a mapping up for reads as the feature being
+    broken, when what it means is that nothing has been sent yet.
     """
     import midi
 
     if not midi.last_program:
-        return ""
+        return "PGM   --"
     scene = eyesy.config.get("pc_map", {}).get(f"pgm_{midi.last_program}")
     head = f"PGM {midi.last_program}  "
     return head + (scene or "not mapped")[:OLED_LINE - len(head)]
@@ -283,6 +287,8 @@ def update(eyesy):
     if not enabled:
         return
 
+    import midi
+
     if eyesy.trig:
         _trig_seen = True
 
@@ -322,7 +328,10 @@ def update(eyesy):
     if eyesy.show_osd:            flags |= FLAG_OSD
     if eyesy.running_from_usb:    flags |= FLAG_USB
     if _net["level"] > 0:         flags |= FLAG_WIFI
-    if any(eyesy.midi_notes):     flags |= FLAG_MIDI_ACT
+    # anything arriving, not just a note being held: this page is where you
+    # come to find out whether the MIDI is getting here at all, and a clock
+    # or a program change is as much of an answer as a note
+    if midi.receiving():          flags |= FLAG_MIDI_ACT
     if eyesy.knob_seq_state == "playing":   flags |= FLAG_SEQ_PLAY
     if eyesy.knob_seq_state == "recording": flags |= FLAG_SEQ_REC
     # armed and waiting for a knob to move, which is the state shift and a

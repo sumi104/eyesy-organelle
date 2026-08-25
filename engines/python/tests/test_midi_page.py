@@ -289,6 +289,77 @@ class ProgramChangeTest(unittest.TestCase):
         self.assertEqual(midi.last_program, 100)
 
 
+class ActivityLampTest(unittest.TestCase):
+    """The dot on the MIDI page's channel row.
+
+    Reported from the instrument: it never lit while Live was sending clock
+    and program changes. It was reading eyesy.midi_notes -- a note being held
+    down, on the configured channel, and not while notes were muted. This
+    page is where you go to find out whether MIDI is arriving at all, so the
+    lamp is anything arriving, before the channel is looked at.
+    """
+
+    def setUp(self):
+        midi.last_message_at = 0.0
+        midi.clock_reset()
+        self.now = 100.0
+        self.real = midi.time.monotonic
+        midi.time.monotonic = lambda: self.now
+
+    def tearDown(self):
+        midi.time.monotonic = self.real
+        midi.last_message_at = 0.0
+
+    def test_nothing_arriving_is_dark(self):
+        self.assertFalse(midi.receiving())
+
+    def test_it_lights_on_anything(self):
+        midi.last_message_at = self.now
+        self.assertTrue(midi.receiving())
+
+    def test_it_goes_out_when_the_cable_does(self):
+        midi.last_message_at = self.now
+        self.now += midi.MESSAGE_HOLD + 0.01
+        self.assertFalse(midi.receiving())
+
+    def test_one_message_is_held_long_enough_to_see(self):
+        # the display refreshes twenty times a second, so a single program
+        # change has to outlast at least one of those
+        self.assertGreater(midi.MESSAGE_HOLD, 1 / 20.0)
+
+    def test_a_clock_keeps_it_lit(self):
+        for _ in range(5):
+            midi.last_message_at = self.now
+            self.now += 0.02          # 24 ticks a beat at any usable tempo
+            self.assertTrue(midi.receiving())
+
+    # --- through recv(), which is where it is actually marked -------------
+
+    def port(self, *messages):
+        return types.SimpleNamespace(iter_pending=lambda: iter(messages))
+
+    def test_every_kind_of_message_marks_it(self):
+        for msg in (Msg(type="clock"),
+                    Msg(type="program_change", channel=0, program=4),
+                    Msg(type="control_change", channel=0, control=74, value=1),
+                    Msg(type="note_on", channel=0, note=60, velocity=100)):
+            midi.last_message_at = 0.0
+            midi.recv(FakeEyesy(), self.port(msg))
+            self.assertTrue(midi.receiving(), msg.type)
+
+    def test_a_message_for_another_channel_marks_it_too(self):
+        # the lamp answers "is it reaching this", and a wrong channel is one
+        # of the two things it has to tell apart from a wrong cable. The
+        # channel it is set to is on the same row
+        midi.recv(FakeEyesy(), self.port(
+            Msg(type="control_change", channel=9, control=74, value=1)))
+        self.assertTrue(midi.receiving())
+
+    def test_a_quiet_port_leaves_it_alone(self):
+        midi.recv(FakeEyesy(), self.port())
+        self.assertFalse(midi.receiving())
+
+
 class ClockRowTest(unittest.TestCase):
 
     def setUp(self):
@@ -361,8 +432,12 @@ class ProgramRowTest(unittest.TestCase):
     def tearDown(self):
         midi.last_program = 0
 
-    def test_it_is_empty_until_one_arrives(self):
-        self.assertEqual(oled.program_text(FakeEyesy()), "")
+    def test_it_says_it_is_waiting_rather_than_sitting_empty(self):
+        # a blank row on the page you just set a mapping up for reads as the
+        # feature being broken, not as nothing having been sent yet
+        row = oled.program_text(FakeEyesy())
+        self.assertIn("PGM", row)
+        self.assertIn("--", row)
 
     def test_a_mapped_one_names_the_scene(self):
         midi.last_program = 5

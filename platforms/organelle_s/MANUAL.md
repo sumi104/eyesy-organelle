@@ -445,7 +445,17 @@ simply stops being a tempo.
 carries 0 to 127, and a sender that counts from the other end is the usual
 reason a mapping does nothing. It shows unmapped numbers too, since "it
 arrived and nothing is assigned to it" is the answer you are after when
-nothing happened at all.
+nothing happened at all. Until one has been sent it reads `PGM --`: setting a
+mapping up does not fill this row, receiving something does, and an empty row
+would look like the difference was a fault.
+
+**The dot at the right of the channel row is anything arriving at all** — a
+note, a controller, a clock tick, a program change, on any channel and whether
+or not it is muted. It is deliberately that broad. The question this page
+answers is whether the MIDI is getting here, and the two ways it usually is
+not are a cable in the wrong socket and a message on a channel this is not
+listening to. The dot separates them, and the channel this *is* listening to
+is on the same row to compare against.
 
 Those two rows took the place of the nine CC numbers. Five three digit numbers
 and the gaps between them come to nineteen of the twenty one characters, which

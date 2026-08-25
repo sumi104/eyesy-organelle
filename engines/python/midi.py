@@ -60,6 +60,24 @@ _clock_last = 0.0
 last_program = 0
 last_program_at = 0.0
 
+# When anything last arrived on either port, for the activity lamp on the MIDI
+# page. Anything: before the channel is looked at and before any mute, because
+# what that lamp is for is answering "is my MIDI reaching this at all", and a
+# cable in the wrong socket and a message on the wrong channel are the two
+# things it has to tell apart. The channel it is set to is on the same row.
+last_message_at = 0.0
+
+# long enough that one program change on its own is a visible blink at the
+# twenty updates a second the display runs at
+MESSAGE_HOLD = 0.15
+
+
+def receiving(now=None):
+    """True while MIDI is arriving, whatever it is and whoever it is for."""
+    if last_message_at == 0.0:
+        return False
+    return (now or time.monotonic()) - last_message_at < MESSAGE_HOLD
+
 
 def _note_clock_tick(now):
     global _clock_bpm, _clock_shown, _clock_last
@@ -246,6 +264,10 @@ def recv(eyesy, input_port):
         messages = []
         for message in input_port.iter_pending():  # Non-blocking iteration
             messages.append(message)
+
+        if messages:
+            global last_message_at
+            last_message_at = time.monotonic()
 
         for message in messages:
             try:
