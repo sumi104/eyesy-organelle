@@ -1204,10 +1204,25 @@ class Eyesy:
             self.knob_mod_value[i] = 0.0
             self.knob_mod_target[i] = \
                 random.uniform(-1.0, 1.0) if self.knob_mod[i] else 0.0
-            self.knob_mod_editing[i] = None
-            self.knob_mod_unlocked[i] = False
             self.knob_mod_key_held[i] = False
             self.knob_mod_key_used[i] = False
+
+            # The scene has just set this knob's rate and depth, so whatever
+            # the knob is sitting at means nothing any more and it has to be
+            # picked up again. Set up as "aimed at the rate", which is what no
+            # key held comes to, rather than left as None: None reads to
+            # update_knob_mod_control() as the knob having just changed job,
+            # and it says so on screen. A scene recalled from E, F or G would
+            # then put a Rate indicator up that nobody asked for -- and every
+            # save goes through a recall too, which is why G did it as well.
+            self.knob_mod_editing[i] = "rate"
+            self.knob_mod_capture[i] = self.knob_hardware[i]
+            self.knob_mod_unlocked[i] = False
+            # and the knob has not moved just because a scene arrived. This
+            # starts at -1 and is only kept up to date while a knob is
+            # modulating, so without this a scene that switches one on reads
+            # its first frame as a turn and says so.
+            self.knob_hardware_last[i] = self.knob_hardware[i]
 
     def update_scene(self):
         print("Updating current scene")

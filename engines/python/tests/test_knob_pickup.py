@@ -265,5 +265,71 @@ class GainAndThruTest(Base):
         self.assertEqual(self.shown, [], "sixty frames, nothing moved")
 
 
+class SceneRecallTest(Base):
+    """Recalling a scene must not put a Rate indicator on screen.
+
+    Found on the instrument: with knob 5 modulating, the lower octave E, F
+    and G each raised "Rate 5". They are scene minus, scene plus and save,
+    and save ends in a recall of its own, so all three land on the same
+    place -- a scene sets every knob's rate and depth, and clearing the edit
+    state to None afterwards read to the next frame as the knob having just
+    changed job, which is a thing worth saying on screen. It was not one
+    anybody had asked for.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.e.scenes = []
+        self.e.knob_mod = [False] * 5
+        for k in range(5):
+            self.e.knob_hardware[k] = 0.5
+
+    def scene(self, on):
+        return [{"on": bool(on[i]), "rate": 0.2, "depth": 0.3}
+                for i in range(5)]
+
+    def frames(self, n=3):
+        for _ in range(n):
+            self.e.update_knobs_and_notes()
+
+    def test_a_recalled_scene_says_nothing_about_the_rate(self):
+        self.e.apply_scene_knob_mod(self.scene([0, 0, 0, 0, 1]))
+        self.shown.clear()
+        self.frames()
+        self.assertEqual(self.shown, [])
+
+    def test_it_says_nothing_for_any_of_the_five(self):
+        self.e.apply_scene_knob_mod(self.scene([1] * 5))
+        self.shown.clear()
+        self.frames()
+        self.assertEqual(self.shown, [])
+
+    def test_the_knob_still_has_to_be_picked_up_after_one(self):
+        # quiet, but not trusting: the scene set the rate, so where the knob
+        # happens to be sitting means nothing until it is brought to it
+        self.e.apply_scene_knob_mod(self.scene([1, 0, 0, 0, 0]))
+        rate = self.e.knob_mod_rate[0]
+        target = self.e.knob_mod_rate_position(0)
+        self.frames()
+        # towards the rate's position but not as far as it, so it must not
+        # take over. Going past it would be a pickup, and correctly so
+        self.assertLess(0.60, target)
+        self.e.knob_hardware[0] = 0.60
+        self.frames()
+        self.assertAlmostEqual(self.e.knob_mod_rate[0], rate,
+                               msg="a scene's rate must not follow the knob"
+                                   " until the knob reaches it")
+
+    def test_the_key_still_says_so_when_it_is_the_key_asking(self):
+        # the notification itself is wanted, just not from a scene change
+        self.e.apply_scene_knob_mod(self.scene([0, 0, 0, 0, 1]))
+        self.frames()
+        self.shown.clear()
+        self.e.knob_mod_key_held[4] = True
+        self.frames(1)
+        self.assertEqual(len(self.shown), 1)
+        self.assertEqual(self.shown[0][0], "Depth 5")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
